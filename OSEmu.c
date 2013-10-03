@@ -1,6 +1,6 @@
 #include "globals.h"
 #include "helpfunctions.h"
-#define MD5_DIGEST_LENGTH 16
+#include "emulator.h"
 
 static const unsigned char cl_user[64];
 static const unsigned char cl_passwd[64];
@@ -118,14 +118,9 @@ static void camd35_process_ecm(uchar *buf, int buflen){
 	er.prid = b2i(4, buf+12);
 	memcpy(er.ecm, buf + 20, er.ecmlen);
 	
-	// ========================================================================
-	// HANDLE ECM HERE! Following 5 lines are just here for testing!
-	// ========================================================================
-	cs_log("SRVID: %04X", er.srvid);
-	cs_log("CAID: %04X", er.caid);
-	cs_log("PRID: %04X", er.prid);
-	er.rc = E_FOUND;
-	memset(&er.cw, 0x02, sizeof(er.cw));
+	if (!ProcessECM(er.caid,er.ecm,er.cw)) {
+		er.rc = E_FOUND;
+	} else er.rc = E_NOTFOUND;
 	
 	if (er.rc == E_NOTFOUND){
 		buf[0] = 0x08;
@@ -142,6 +137,11 @@ static void camd35_process_ecm(uchar *buf, int buflen){
 	camd35_send(buf, 0);
 }
 
+void show_usage(char *cmdline){
+	fprintf(stderr, "Usage: %s -a <user>:<password> -p <port> [-v]\n", cmdline);
+	fprintf(stderr, "-v enables a more verbose output (debug output)\n");
+}
+
 int main(int argc, char**argv)
 {
 	int n, opt, port = 0, accountok = 0;
@@ -150,7 +150,7 @@ int main(int argc, char**argv)
 	char mbuf[1000];
 	unsigned char md5tmp[MD5_DIGEST_LENGTH];
 	
-	while ((opt = getopt(argc, argv, "a:p:")) != -1) {
+	while ((opt = getopt(argc, argv, "va:p:")) != -1) {
 		switch (opt) {
 			case 'a': {
 				char *ptr = strtok(optarg, ":");
@@ -165,15 +165,20 @@ int main(int argc, char**argv)
 			case 'p':
 				port = atoi(optarg);
 				break;
+			case 'v':
+				debuglog = 1;
+				break;
 			default:
-				fprintf(stderr, "Usage: %s -a <user>:<password> -p <port>\n", argv[0]);
+				show_usage(argv[0]);
 				exit(0);
 		}
 	}
 	if(port == 0 || accountok == 0){
-		fprintf(stderr, "Usage: %s -a <user>:<password> -p <port>\n", argv[0]);
+		show_usage(argv[0]);
 		exit(0);
 	}
+	
+	get_random_bytes_init();
 	
 	cl_sockfd = socket(AF_INET,SOCK_DGRAM,0);
 	

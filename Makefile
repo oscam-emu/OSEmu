@@ -1,6 +1,6 @@
 CC=gcc
 CFLAGS=-I.
-SRCS = aes.c md5.c helpfunctions.c OSEmu.c
+SRCS = aes.c des.c md5.c helpfunctions.c emulator.c OSEmu.c
 OBJS = $(SRCS:.c=.o)
 DEPS = $(SRCS:.c=.d)
 BIN = OSEmu

@@ -21,14 +21,6 @@
 
 #include "globals.h"
 
-#include "md5.h"
-
-typedef struct MD5Context {
-	uint32_t buf[4];
-	uint32_t bits[2];
-	unsigned char in[64];
-} MD5_CTX;
-
 #ifdef __i386__
 #define byteReverse(a, b)
 #else
@@ -46,7 +38,6 @@ static void byteReverse(unsigned char *buf, unsigned int longs)
 		buf += 4;
 	} while (--longs);
 }
-#endif
 
 /* The four core functions - F1 is optimized somewhat */
 
@@ -150,7 +141,7 @@ static void MD5_Transform(uint32_t buf[4],  uint32_t in[16])
  * Start MD5 accumulation.  Set bit count to 0 and buffer to mysterious
  * initialization constants.
  */
-static void MD5_Init(MD5_CTX *ctx)
+void MD5_Init(MD5_CTX *ctx)
 {
 	ctx->buf[0] = 0x67452301;
 	ctx->buf[1] = 0xefcdab89;
@@ -165,7 +156,7 @@ static void MD5_Init(MD5_CTX *ctx)
  * Update context to reflect the concatenation of another buffer full
  * of bytes.
  */
-static void MD5_Update(MD5_CTX *ctx, const unsigned char *buf, unsigned int len)
+void MD5_Update(MD5_CTX *ctx, const unsigned char *buf, unsigned int len)
 {
 	uint32_t t;
 
@@ -211,7 +202,7 @@ static void MD5_Update(MD5_CTX *ctx, const unsigned char *buf, unsigned int len)
  * Final wrapup - pad to 64-byte boundary with the bit pattern 
  * 1 0* (64-bit count of bits processed, MSB-first)
  */
-static void MD5_Final(unsigned char digest[MD5_DIGEST_LENGTH], MD5_CTX *ctx)
+void MD5_Final(unsigned char digest[MD5_DIGEST_LENGTH], MD5_CTX *ctx)
 {
 	unsigned count;
 	unsigned char *p;
@@ -263,6 +254,7 @@ unsigned char *MD5(const unsigned char *input, unsigned long len, unsigned char 
 	memset(&ctx, 0, sizeof(ctx)); /* security consideration */
 	return output;
 }
+#endif
 
 /* This string is magic for this algorithm.  Having
    it this way, we can get better later on */

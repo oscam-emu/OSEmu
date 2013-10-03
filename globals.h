@@ -5,10 +5,12 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include <unistd.h>
+#include <fcntl.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
 
 #include "aes.h"
+#include "des.h"
 #include "md5.h"
 
 #ifndef uchar
@@ -19,6 +21,8 @@ typedef unsigned char uchar;
 
 #define E_FOUND			0
 #define E_NOTFOUND			1
+
+static int8_t debuglog = 0;
 
 struct aes_keys {
 	AES_KEY			aeskey_encrypt;		// encryption key needed by monitor and used by camd33, camd35

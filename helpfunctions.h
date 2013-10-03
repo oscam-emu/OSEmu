@@ -4,6 +4,8 @@ int32_t boundary(int32_t exp, int32_t n);
 uint32_t b2i(int32_t n, const uchar *b);
 uchar *i2b_buf(int32_t n, uint32_t i, uchar *b);
 void cs_strncpy(char *destination, const char *source, size_t num);
+void get_random_bytes_init(void);
+void get_random_bytes(uint8_t *dst, uint32_t dst_len);
 unsigned long crc32(unsigned long crc, const unsigned char *buf, unsigned int len);
 void aes_set_key(struct aes_keys *aes, char *key);
 void aes_decrypt(struct aes_keys *aes, uchar *buf, int32_t n);
