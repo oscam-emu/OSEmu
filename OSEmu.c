@@ -147,7 +147,7 @@ int main(int argc, char**argv)
 	int n, opt, port = 0, accountok = 0;
 	struct sockaddr_in servaddr;
 	socklen_t len;
-	char mbuf[1000];
+	unsigned char mbuf[1000];
 	unsigned char md5tmp[MD5_DIGEST_LENGTH];
 	
 	while ((opt = getopt(argc, argv, "va:p:")) != -1) {
