@@ -12,6 +12,34 @@ static struct sockaddr_in cl_socket;
 
 #define REQ_SIZE	584		// 512 + 20 + 0x34
 
+static int32_t do_daemon(int32_t nochdir, int32_t noclose)
+{
+	int32_t fd;
+
+	switch (fork())
+	{
+		case -1: return (-1);
+		case 0:  break;
+		default: _exit(0);
+	}
+
+	if (setsid() == (-1))
+	return (-1);
+
+	if (!nochdir)
+	(void)chdir("/");
+
+	if (!noclose && (fd = open("/dev/null", O_RDWR, 0)) != -1)
+	{
+		(void)dup2(fd, STDIN_FILENO);
+		(void)dup2(fd, STDOUT_FILENO);
+		(void)dup2(fd, STDERR_FILENO);
+	if (fd > 2)
+		(void)close(fd);
+	}
+	return (0);
+}
+
 static int32_t camd35_send(uchar *buf, int32_t buflen)
 {
 	int32_t l;
@@ -138,20 +166,24 @@ static void camd35_process_ecm(uchar *buf, int buflen){
 }
 
 void show_usage(char *cmdline){
-	fprintf(stderr, "Usage: %s -a <user>:<password> -p <port> [-v]\n", cmdline);
+	fprintf(stderr, "Usage: %s -a <user>:<password> -p <port> [-b -v]\n", cmdline);
+	fprintf(stderr, "-b enables to start as a daemon (background)\n");;
 	fprintf(stderr, "-v enables a more verbose output (debug output)\n");
 }
 
 int main(int argc, char**argv)
 {
-	int n, opt, port = 0, accountok = 0;
+	int bg = 0, n, opt, port = 0, accountok = 0;
 	struct sockaddr_in servaddr;
 	socklen_t len;
-	char mbuf[1000];
+	unsigned char mbuf[1000];
 	unsigned char md5tmp[MD5_DIGEST_LENGTH];
 	
-	while ((opt = getopt(argc, argv, "va:p:")) != -1) {
+	while ((opt = getopt(argc, argv, "bva:p:")) != -1) {
 		switch (opt) {
+			case 'b':
+				bg = 1;
+				break;
 			case 'a': {
 				char *ptr = strtok(optarg, ":");
 				cs_strncpy((char *)&cl_user, ptr, sizeof(cl_user));
@@ -175,6 +207,13 @@ int main(int argc, char**argv)
 	}
 	if(port == 0 || accountok == 0){
 		show_usage(argv[0]);
+		exit(0);
+	}
+
+ 
+	if (bg && do_daemon(1, 0))
+	{
+		fprintf(stderr, "Couldn't start as a daemon\n");	
 		exit(0);
 	}
 	
