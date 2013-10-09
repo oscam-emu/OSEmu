@@ -38,7 +38,7 @@ static void byteReverse(unsigned char *buf, unsigned int longs)
 		buf += 4;
 	} while (--longs);
 }
-
+#endif
 /* The four core functions - F1 is optimized somewhat */
 
 /* #define F1(x, y, z) (x & y | ~x & z) */
@@ -254,7 +254,6 @@ unsigned char *MD5(const unsigned char *input, unsigned long len, unsigned char 
 	memset(&ctx, 0, sizeof(ctx)); /* security consideration */
 	return output;
 }
-#endif
 
 /* This string is magic for this algorithm.  Having
    it this way, we can get better later on */
