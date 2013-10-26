@@ -144,13 +144,23 @@ static void camd35_process_ecm(uchar *buf, int buflen){
 	er.srvid = b2i(2, buf+ 8);
 	er.caid = b2i(2, buf+10);
 	er.prid = b2i(4, buf+12);
+	er.rc = buf[3];
 	memcpy(er.ecm, buf + 20, er.ecmlen);
 	
-	if (!ProcessECM(er.caid,er.ecm,er.cw)) {
-		er.rc = E_FOUND;
-	} else er.rc = E_NOTFOUND;
-	
-	if (er.rc == E_NOTFOUND){
+	ProcessECM(er.caid,er.ecm,er.cw);
+
+	if (er.rc == E_STOPPED) {
+		buf[0] = 0x08;
+		buf[1] = 2;
+		buf[20] = 0;
+		/*
+		* the second Databyte should be forseen for a sleeptime in minutes
+		* whoever knows the camd3 protocol related to CMD08 - please help!
+		* on tests this don't work with native camd3
+		*/
+		buf[21] = 0;
+	}
+	if ((er.rc == E_NOTFOUND) || (er.rc == E_INVALID)) {
 		buf[0] = 0x08;
 		buf[1] = 2;
 		memset(buf + 20, 0, buf[1]);

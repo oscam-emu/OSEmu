@@ -21,7 +21,9 @@ typedef unsigned char uchar;
 #define MAX_ECM_SIZE 512
 
 #define E_FOUND			0
-#define E_NOTFOUND			1
+#define E_NOTFOUND			4
+#define E_INVALID       		8
+#define E_STOPPED       		13
 
 static int8_t debuglog = 0;
 
