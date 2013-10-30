@@ -13,9 +13,6 @@ all: OSEmu
 	$(CC) -c -o $@ $< $(CFLAGS)
 	$(CC) -MM $(CFLAGS) $*.c > $*.d
 
-debug: $(OBJS)
-	$(CC) -g -O0 -o $(BIN).debug $(OBJS) $(CFLAGS)	
-	
 OSEmu: $(OBJS)
 	$(CC) -O2 -o $(BIN) $(OBJS) $(CFLAGS)	
 	strip $(BIN)
