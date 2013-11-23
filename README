@@ -10,3 +10,21 @@ Use in OSCam: Create a camd35 reader with caid/ident defined accordingly to what
 Credits go to "Admin" for this…
 
 svn checkout https://github.com/oscam-emu/OSEmu/trunk OSEmu
+
+You use the program with the following options:
+ - -a user:password 
+ - -p portnumber
+ - -b (start in background/daemon mode)
+An example would be:
+ - /usr/bin/OSEmu -a server:passwd -p 12345 -b
+
+And the corresponding oscam reader entry:
+
+[reader]
+label                         = OSEmu
+protocol                      = camd35
+device                        = 127.0.0.1,12345
+user                          = server
+password                      = passwd
+caid                          = 0D00,0D02,0D03,0D05
+group                         = 1
