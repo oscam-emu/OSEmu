@@ -186,7 +186,8 @@ void CW_RS_DES_KEY(unsigned char *k, unsigned char Rotate_Counter)
         k[6] /= 2; if (k[5] & 1) k[6] |= 0x80;
         k[5] /= 2; if (k[4] & 1) k[5] |= 0x80;
         k[4] /= 2; k[4] |= c;
-        c=0;
+        // according to clang de following does nothing...
+		// c=0;
     }
 }
 void CW_RS_DES_SUBKEY(unsigned char *k, unsigned char Rotate_Counter)
