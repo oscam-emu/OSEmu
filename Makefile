@@ -1,4 +1,5 @@
-CC=gcc
+-CC=gcc
++CC = $(CROSS_DIR)$(CROSS)gcc
 CFLAGS=-I.
 SRCS = aes.c des.c md5.c helpfunctions.c emulator.c OSEmu.c
 OBJS = $(SRCS:.c=.o)
