@@ -244,10 +244,12 @@ int main(int argc, char**argv)
 		
 		camd35_recv(mbuf, n);     
 		
-		if(mbuf[0] == 0 || mbuf[0] == 3 && camd35_recv = 0 ) {
+		if (camd35_recv(mbuf, n) == 0 ){
+		if(mbuf[0] == 0 || mbuf[0] == 3) {
 			camd35_process_ecm(mbuf, n);
 		} else {
 			cs_log("unknown/not implemented camd35 command! (%d) n=%d", mbuf[0], n);
+			}
 		}
 	}
 }
