@@ -242,8 +242,6 @@ int main(int argc, char**argv)
 		len = sizeof(cl_socket);
 		n = recvfrom(cl_sockfd,mbuf,sizeof(mbuf),0,(struct sockaddr *)&cl_socket,&len);
 		
-		camd35_recv(mbuf, n);     
-		
 		if (camd35_recv(mbuf, n) == 0 ){
 		if(mbuf[0] == 0 || mbuf[0] == 3) {
 			camd35_process_ecm(mbuf, n);

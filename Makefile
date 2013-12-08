@@ -15,7 +15,7 @@ all: OSEmu
 
 OSEmu: $(OBJS)
 	$(CC) -O2 -o $(BIN) $(OBJS) $(CFLAGS)	
-	strip $(BIN)
+	$(STRIP) $(BIN)
 	
 clean:
 	rm -rf $(BIN) $(OBJS) $(DEPS)
