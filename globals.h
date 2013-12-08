@@ -33,7 +33,6 @@ struct aes_keys {
 };
 
 typedef struct ecm_request_t {
-	uchar			ecm[MAX_ECM_SIZE];
 	uchar			cw[16];
 	int16_t			ecmlen;
 	uint16_t		caid;

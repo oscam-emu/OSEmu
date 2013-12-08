@@ -145,9 +145,8 @@ static void camd35_process_ecm(uchar *buf, int buflen){
 	er.caid = b2i(2, buf+10);
 	er.prid = b2i(4, buf+12);
 	er.rc = buf[3];
-	memcpy(er.ecm, buf + 20, er.ecmlen);
 	
-	ProcessECM(er.caid,er.ecm,er.cw);
+	ProcessECM(er.caid,buf + 20,er.cw);
 
 	if (er.rc == E_STOPPED) {
 		buf[0] = 0x08;
@@ -245,7 +244,7 @@ int main(int argc, char**argv)
 		
 		camd35_recv(mbuf, n);     
 		
-		if(mbuf[0] == 0 || mbuf[0] == 3) {
+		if(mbuf[0] == 0 || mbuf[0] == 3 && camd35_recv = 0 ) {
 			camd35_process_ecm(mbuf, n);
 		} else {
 			cs_log("unknown/not implemented camd35 command! (%d) n=%d", mbuf[0], n);
