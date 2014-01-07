@@ -2,10 +2,10 @@
 #include "helpfunctions.h"
 #include "emulator.h"
 
-static const unsigned char cl_user[64];
-static const unsigned char cl_passwd[64];
+static unsigned char cl_user[64];
+static unsigned char cl_passwd[64];
 static struct aes_keys cl_aes_keys;
-static const uchar cl_ucrc[4];
+static uchar cl_ucrc[4];
 
 static int cl_sockfd;
 static struct sockaddr_in cl_socket;
@@ -69,8 +69,8 @@ static int32_t camd35_auth_client(uchar *ucrc)
   uint32_t crc;
   unsigned char md5tmp[MD5_DIGEST_LENGTH];
   crc=(((ucrc[0]<<24) | (ucrc[1]<<16) | (ucrc[2]<<8) | ucrc[3]) & 0xffffffffL);
-  if (crc==crc32(0L, MD5(cl_user, strlen(cl_user), md5tmp), MD5_DIGEST_LENGTH)){
-		memcpy(&cl_ucrc, ucrc, 4);
+  if (crc==crc32(0L, MD5(cl_user, strlen((char *)cl_user), md5tmp), MD5_DIGEST_LENGTH)){
+                memcpy((void *)&cl_ucrc, ucrc, 4);
   	return 0;
   }
   return(1);
