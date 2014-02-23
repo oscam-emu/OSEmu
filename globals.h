@@ -25,7 +25,7 @@ typedef unsigned char uchar;
 #define E_INVALID       		8
 #define E_STOPPED       		13
 
-int8_t debuglog;
+static int8_t debuglog = 0;
 
 struct aes_keys {
 	AES_KEY			aeskey_encrypt;		// encryption key needed by monitor and used by camd33, camd35
