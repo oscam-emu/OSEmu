@@ -1053,7 +1053,7 @@ char ViaccessECM(unsigned char *ecm, unsigned char *dw)
 						if (ecm[keySelectPos]==0x05 && ecm[keySelectPos+1]==0x67 && (ecm[keySelectPos+2]==0x00 || ecm[keySelectPos+2]==0x01)) {
 							if(ecm[keySelectPos+2]==0x01) doFinalMix = true;
 						}
-						else return 4;
+						else break;
 					}
 					return Via3Decrypt(ecm + i, dw, currentIdent, desKeyIndex, aesKeyIndex, aesMode, doFinalMix);
 				}
