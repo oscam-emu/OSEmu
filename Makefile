@@ -1,7 +1,7 @@
 CC = gcc
 STRIP = strip
 CFLAGS=-I.
-SRCS = aes.c des.c md5.c helpfunctions.c emulator.c OSEmu.c
+SRCS = aes.c des.c md5.c helpfunctions.c via3surenc.c emulator.c OSEmu.c 
 OBJS = $(SRCS:.c=.o)
 DEPS = $(SRCS:.c=.d)
 BIN = OSEmu
