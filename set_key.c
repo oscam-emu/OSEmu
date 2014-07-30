@@ -1,4 +1,5 @@
-
+#include <stdio.h>
+#include <string.h>
 #include "des.h"
 
 
@@ -322,20 +323,6 @@ void private_DES_set_key_unchecked(const_DES_cblock *key, DES_key_schedule *sche
 		}
 	}
 
-
-int DES_set_key(const_DES_cblock *key, DES_key_schedule *schedule)
-	{
-	if (DES_check_key)
-		{
-		return DES_set_key_checked(key, schedule);
-		}
-	else
-		{
-		DES_set_key_unchecked(key, schedule);
-		return 0;
-		}
-	}
-
 /* return 0 if key parity is odd (correct),
  * return -1 if key parity error,
  * return -2 if illegal weak key.
@@ -350,6 +337,19 @@ int DES_set_key_checked(const_DES_cblock *key, DES_key_schedule *schedule)
 	return 0;
 	}
 
+
+int DES_set_key(const_DES_cblock *key, DES_key_schedule *schedule)
+	{
+	if (DES_check_key)
+		{
+		return DES_set_key_checked(key, schedule);
+		}
+	else
+		{
+		DES_set_key_unchecked(key, schedule);
+		return 0;
+		}
+	}
 
 int DES_key_sched(const_DES_cblock *key, DES_key_schedule *schedule)
 	{

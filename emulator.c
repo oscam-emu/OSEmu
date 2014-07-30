@@ -1210,7 +1210,7 @@ bool DecryptNagra2ECM(unsigned char *in, unsigned char *out, const unsigned char
   BIGNUM *exp, *mod;
   unsigned char iv[8];
 	int i = 0, sign = in[0] & 0x80;
-	char binExp = 3;
+	unsigned char binExp = 3;
 	bool result = true;
  
 	exp = BN_new(); 
