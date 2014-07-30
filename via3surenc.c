@@ -1,3 +1,5 @@
+#include <stdio.h>
+#include <string.h>
 #include "via3surenc.h"
 
 // taken from Oscam (GPL v3)
