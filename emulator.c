@@ -1302,7 +1302,7 @@ static char irdeto_60400_05[]={0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0
 static char irdeto_60400_06[]={0xDB, 0x88, 0xB6, 0x68, 0xA9, 0x80, 0xCD, 0xBB, 0xCD, 0x8B, 0x06, 0xCE, 0x49, 0xA0, 0xBA, 0x6B}; // Bulsat 39°E
 
 char GetIrdetoKey(unsigned char *buf, unsigned int ident, char keyName, unsigned char keyIndex)
-{  
+{
   // irdeto key names collide, so we must add a workaround like trying all 
   // keys for each provder when we want to support more than 1 provider
   switch(ident) {
@@ -1408,9 +1408,10 @@ bool Irdeto2CalculateHash(const unsigned char *okey, const unsigned char *iv, co
 
 char Irdeto2ECM(uint16_t CAID, unsigned char *ecm, unsigned char *dw)
 {
-  unsigned char keyNr=0, length, key[16], keyM1[16], keyIV[16], tmp[16];
+  unsigned char keyNr=0, length, end, key[16], keyM1[16], keyIV[16], tmp[16];
   unsigned int i, l, ident;
-  uint16_t index, ecmLen = (((ecm[1] & 0x0f)<< 8) | ecm[2])+3;
+
+  uint16_t ecmLen = (((ecm[1] & 0x0f)<< 8) | ecm[2])+3;
   
   length = ecm[11]; 
   keyNr = ecm[9];
@@ -1426,8 +1427,9 @@ char Irdeto2ECM(uint16_t CAID, unsigned char *ecm, unsigned char *dw)
   ecm+=12;
   Irdeto2Decrypt(ecm, keyIV, keyM1, length); 
   i=(ecm[0]&7)+1;
-  
-  while(i<length-8) {
+  end = length-8 < 0 ? 0 : length-8;
+  	
+  while(i<end) {
     l = ecm[i+1] ? (ecm[i+1]&0x3F)+2 : 1;
     switch(ecm[i]) {
       case 0x10: case 0x50: 
@@ -1442,7 +1444,7 @@ char Irdeto2ECM(uint16_t CAID, unsigned char *ecm, unsigned char *dw)
   
   i=(ecm[0]&7)+1;
   if(Irdeto2CalculateHash(keyM1, keyIV, ecm-6, length+6)) {
-    while(i<length-8) {
+    while(i<end) {
       l = ecm[i+1] ? (ecm[i+1]&0x3F)+2 : 1;
       switch(ecm[i]) {
         case 0x78:
