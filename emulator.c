@@ -691,9 +691,9 @@ char Via1Decrypt(unsigned char* source, unsigned char* dw, unsigned int ident, u
             	{ hashbuffer[pH] ^= data[i]; pH++; if(pH == 8) { des_encrypt(hashbuffer, 8, hashkey); pH = 0; } };
         }
     }
-    des_decrypt(des_data1, 8, prepared_key);
+		des_decrypt(des_data1, 8, prepared_key);
 		des_decrypt(des_data2, 8, prepared_key);
-    des_encrypt(hashbuffer, 8, hashkey);
+		des_encrypt(hashbuffer, 8, hashkey);
     if (memcmp(signature, hashbuffer, 8)) return 6;
     return 0;
 }
@@ -721,7 +721,7 @@ char Via26ProcessDw(unsigned char *indata, unsigned int ident, unsigned char des
 	memcpy(tmpKey, KeyDes1,8);
 	doPC1(tmpKey) ;	
 	des(tmpKey, DES_ECS2_CRYPT,indata);
-  for (i=0;i<8;i++) indata[i] ^= XorKey[i];
+	for (i=0;i<8;i++) indata[i] ^= XorKey[i];
 	memcpy(tmpKey,KeyDes2,16);
 	doPC1(tmpKey);
 	doPC1(tmpKey+8);
@@ -772,50 +772,49 @@ void Via3Core(unsigned char *data, unsigned char Off, unsigned int ident, unsign
 	unsigned long R2, R3, R4, R6, R7;
 
 	switch (ident) {
-		case 0x032820: {
-			for (i=0; i<4; i++) data[i]^= XorKey[(Off+i) & 0x07];
-			R2 = (data[0]^0xBD)+data[0];
-	 		R3 = (data[3]^0xEB)+data[3];
-	    R2 = (R2-R3)^data[2];
-	    R3 = ((0x39*data[1])<<2);
-	    data[4] = (R2|R3)+data[2];
-	    R3 = ((((data[0]+6)^data[0]) | (data[2]<<1))^0x65)+data[0];
-	    R2 = (data[1]^0xED)+data[1];
-	    R7 = ((data[3]+0x29)^data[3])*R2;
-	    data[5] = R7+R3;	
-	    R2 = ((data[2]^0x33)+data[2]) & 0x0A;
-	    R3 = (data[0]+0xAD)^data[0];
-	    R3 = R3+R2;
-	    R2 = data[3]*data[3];
-	    R7 = (R2 | 1) + data[1];
-	    data[6] = (R3|R7)+data[1];
-	    R3 = data[1] & 0x07;
-	    R2 = (R3-data[2]) & (data[0] | R2 |0x01);
-	    data[7] = R2+data[3];
-			for (i=0;i<4;i++) data[i+4] = T1Key[data[i+4]];
+	case 0x032820: {
+		for (i=0; i<4; i++) data[i]^= XorKey[(Off+i) & 0x07];
+		R2 = (data[0]^0xBD)+data[0];
+		R3 = (data[3]^0xEB)+data[3];
+		R2 = (R2-R3)^data[2];
+		R3 = ((0x39*data[1])<<2);
+		data[4] = (R2|R3)+data[2];
+		R3 = ((((data[0]+6)^data[0]) | (data[2]<<1))^0x65)+data[0];
+		R2 = (data[1]^0xED)+data[1];
+		R7 = ((data[3]+0x29)^data[3])*R2;
+		data[5] = R7+R3;	
+		R2 = ((data[2]^0x33)+data[2]) & 0x0A;
+		R3 = (data[0]+0xAD)^data[0];
+		R3 = R3+R2;
+		R2 = data[3]*data[3];
+		R7 = (R2 | 1) + data[1];
+		data[6] = (R3|R7)+data[1];
+		R3 = data[1] & 0x07;
+		R2 = (R3-data[2]) & (data[0] | R2 |0x01);
+		data[7] = R2+data[3];
+		for (i=0;i<4;i++) data[i+4] = T1Key[data[i+4]];
 	}
 	break;
-	case 0x030B00:
-	{
-	    for (i=0; i<4; i++) data[i]^= XorKey[(Off+i) & 0x07];
-	    R6 = (data[3] + 0x6E) ^ data[3];
-	    R6 = (R6*(data[2] << 1)) + 0x17;
-	    R3 = (data[1] + 0x77) ^ data[1];
-	    R4 = (data[0] + 0xD7) ^ data[0];
-	    data[4] = ((R4 & R3) | R6) + data[0];
-	    R4 = ((data[3] + 0x71) ^ data[3]) ^ 0x90;
-	    R6 = (data[1] + 0x1B) ^ data[1];
-	    R4 = (R4*R6) ^ data[0];
-	    data[5] = (R4 ^ (data[2] << 1)) + data[1];	
-	    R3 = (data[3] * data[3])| 0x01;
-	    R4 = (((data[2] ^ 0x35) + data[2]) | R3) + data[2];
-	    R6 = data[1] ^ (data[0] + 0x4A);
-	    data[6] = R6 + R4;	
-	    R3 = (data[0] * (data[2] << 1)) | data[1];
-	    R4 = 0xFE - data[3];
-	    R3 = R4 ^ R3;
-	    data[7] = R3 + data[3];	
-	    for (i=0; i<4; i++) data[4+i] = T1Key[data[4+i]];
+	case 0x030B00: {
+		for (i=0; i<4; i++) data[i]^= XorKey[(Off+i) & 0x07];
+		R6 = (data[3] + 0x6E) ^ data[3];
+		R6 = (R6*(data[2] << 1)) + 0x17;
+		R3 = (data[1] + 0x77) ^ data[1];
+		R4 = (data[0] + 0xD7) ^ data[0];
+		data[4] = ((R4 & R3) | R6) + data[0];
+		R4 = ((data[3] + 0x71) ^ data[3]) ^ 0x90;
+		R6 = (data[1] + 0x1B) ^ data[1];
+		R4 = (R4*R6) ^ data[0];
+		data[5] = (R4 ^ (data[2] << 1)) + data[1];	
+		R3 = (data[3] * data[3])| 0x01;
+		R4 = (((data[2] ^ 0x35) + data[2]) | R3) + data[2];
+		R6 = data[1] ^ (data[0] + 0x4A);
+		data[6] = R6 + R4;	
+		R3 = (data[0] * (data[2] << 1)) | data[1];
+		R4 = 0xFE - data[3];
+		R3 = R4 ^ R3;
+		data[7] = R3 + data[3];	
+		for (i=0; i<4; i++) data[4+i] = T1Key[data[4+i]];
 	}
 	break;
 	default:
@@ -889,7 +888,7 @@ char Via3ProcessDw(unsigned char *data, unsigned int ident, unsigned char desKey
 	for (i=0; i<4; i++) {
 		data[i] = data[i+4]^tmp[i+4];
 		data[i+4] = tmp[i];
-  }
+	}
 	memcpy(tmpKey,KeyDes,16);
 	doPC1(tmpKey);
 	doPC1(tmpKey+8);
@@ -942,7 +941,7 @@ char Via3Decrypt(unsigned char* source, unsigned char* dw, unsigned int ident, u
 	if(ident == 0) return 4;
 	if(!GetViaKey(C1, ident, 'C', 1)) return 2;		
 	if(needsAES && !GetViaKey((unsigned char*)aesKey, ident, 'E', aesKeyIndex)) return 2;
-  if(aesMode==0x0D || aesMode==0x11 || aesMode==0x15) aesAfterCore = true;
+	if(aesMode==0x0D || aesMode==0x11 || aesMode==0x15) aesAfterCore = true;
 
 	if(needsAES && !aesAfterCore) {
 		if(aesMode == 0x0F) {
@@ -952,7 +951,7 @@ char Via3Decrypt(unsigned char* source, unsigned char* dw, unsigned int ident, u
 		else if(aesMode == 0x13) {
 			hdSurEncPhase1_D2_13_15(source);
 		}
-    struct aes_keys aes;
+		struct aes_keys aes;
 		aes_set_key(&aes, aesKey);
 		aes_decrypt(&aes, source, 16);
 		if(aesMode == 0x0F) {
@@ -979,7 +978,7 @@ char Via3Decrypt(unsigned char* source, unsigned char* dw, unsigned int ident, u
 		else if(aesMode == 0x15) {
 			hdSurEncPhase1_D2_13_15(dw);
 		}
-    struct aes_keys aes;
+		struct aes_keys aes;
 		aes_set_key(&aes, aesKey);
 		aes_decrypt(&aes, dw, 16);
 		if(aesMode == 0x11) {
@@ -1013,7 +1012,7 @@ char ViaccessECM(unsigned char *ecm, unsigned char *dw)
 			case 0x40:
 				if (nanoLen < 0x03) break;
 				version = ecm[i];
-        if (nanoLen == 3){
+				if (nanoLen == 3){
  					currentIdent=((ecm[i]<<16)|(ecm[i+1]<<8))|(ecm[i+2]&0xF0);
 					desKeyIndex = ecm[i+2]&0x0F;
 					keySelectPos = i+3;
@@ -1022,7 +1021,7 @@ char ViaccessECM(unsigned char *ecm, unsigned char *dw)
 					currentIdent =(ecm[i]<<16)|(ecm[i+1]<<8)|((ecm[i+2]>>4)&0x0F);
 					desKeyIndex = ecm[i+3];
 					keySelectPos = i+4;
-        }
+				}
 				providerKeyLen = nanoLen;
 				break;
 			case 0x90:
@@ -1212,16 +1211,15 @@ bool DecryptNagra2ECM(unsigned char *in, unsigned char *out, const unsigned char
 	int i = 0, sign = in[0] & 0x80;
 	unsigned char binExp = 3;
 	bool result = true;
- 
+	
 	exp = BN_new(); 
 	mod = BN_new();
 	BN_bin2bn(&binExp, 1, exp); 
 	BN_bin2bn(keyM, 64, mod);
-   	
-  if(Nagra2RSA(out,in+1,64,exp,mod,true)<=0) { BN_free(exp); BN_free(mod); return false; }
-  out[63]|=sign;
-  if(len>64) memcpy(out+64,in+65,len-64);
-
+	 	
+	if(Nagra2RSA(out,in+1,64,exp,mod,true)<=0) { BN_free(exp); BN_free(mod); return false; }
+	out[63]|=sign;
+	if(len>64) memcpy(out+64,in+65,len-64);
 
   if(in[0]&0x04) {
     unsigned char tmp[8];
@@ -1233,12 +1231,11 @@ bool DecryptNagra2ECM(unsigned char *in, unsigned char *out, const unsigned char
     memset(tmp,0,sizeof(tmp));
     for(i=7; i>=0; i--) ReverseMem(out+8*i,8);
     DES_ede2_cbc_encrypt(out,out,len,&ks1,&ks2,(DES_cblock *)tmp,DES_DECRYPT);
-
     for(i=7; i>=0; i--) ReverseMem(out+8*i,8);
   }
   else  {
 		memset(iv,0,sizeof(iv));		  	
- 		IDEA_KEY_SCHEDULE ek;
+		IDEA_KEY_SCHEDULE ek;
 		idea_set_encrypt_key(key, &ek);
 		idea_cbc_encrypt(out, out, len&~7, &ek, iv, IDEA_DECRYPT);
 	}
@@ -1282,7 +1279,7 @@ char Nagra2ECM(unsigned char *ecm, unsigned char *dw)
 					memcpy(dw+(s<<3),&dec[i+3],8);
 					i+=11; l|=(s+1);
 				} else i++;
-        break;
+				break;
 			case 0x00: 
 				i+=2; break;
 			case 0x30: case 0x31: case 0x32: case 0x33: case 0x34: case 0x35: case 0x36: case 0xB0:
@@ -1304,7 +1301,7 @@ char Nagra2ECM(unsigned char *ecm, unsigned char *dw)
 		*(unsigned int*)(dw + 4) = tmp3;
 		*(unsigned int*)(dw + 8) = tmp1;
 		*(unsigned int*)(dw + 12) = tmp2;
-  }
+	}
 	return 0;
 }
 
@@ -1363,7 +1360,7 @@ void Irdeto2Encrypt(unsigned char *data, const unsigned char *seed, const unsign
   memcpy(key, okey, 16);
 	doPC1(key);
 	doPC1(&key[8]);
-  len&=~7;
+	len&=~7;
    
   for(i=0; i<len; i+=8) {
     xxor(&data[i],8,&data[i],tmp); 
@@ -1418,7 +1415,7 @@ bool Irdeto2CalculateHash(const unsigned char *okey, const unsigned char *iv, co
 		des(key,DES_ECS2_CRYPT,cbuff);
 		des(&key[8],DES_ECS2_DECRYPT,cbuff);
 		des(key,DES_ECS2_CRYPT,cbuff);
-  }
+	}
 
   return memcmp(cbuff,&data[len],8)==0;
 }
@@ -1437,7 +1434,7 @@ char Irdeto2ECM(uint16_t CAID, unsigned char *ecm, unsigned char *dw)
 	if(!GetIrdetoKey(key, ident, 0, keyNr)) return 2;
 	if(!GetIrdetoKey(keyM1, ident, 'M', 1)) return 2;
 	if(!GetIrdetoKey(keyIV, ident, 'M', 2)) return 2;
-
+	
   memset(tmp, 0, 16);
   Irdeto2Encrypt(keyM1, tmp, key, 16);
   ecm+=12;
@@ -1464,7 +1461,7 @@ char Irdeto2ECM(uint16_t CAID, unsigned char *ecm, unsigned char *dw)
 			switch(ecm[i]) {
 				case 0x78:
 					memcpy(dw, &ecm[i+4], 16);
-          return 0;
+					return 0;
 			}
 			i+=l;
 		}
