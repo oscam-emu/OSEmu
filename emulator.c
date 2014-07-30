@@ -417,21 +417,21 @@ char nano80(unsigned char *buf, unsigned char *key, unsigned char *ECM, unsigned
   return 1;
 }
 
-char CryptoworksDec(unsigned char *cw, unsigned char *ecm, uint32_t CAID)
+char CryptoworksProcessECM(uint32_t CAID, unsigned char *cw, unsigned char *ecm)
 {
     unsigned char key[22],prov=-1, can8060=0 ,i , len, keyid=-1;
-
+    
     ecm += 5; len = ecm[2] + 3;
 
     for (i = 3; i < len;) {
       if(ecm[i]==0x84){
         can8060 = ecm[i + 3];
-              break;
+        break;
       } else if(ecm[i]==0x83) {
-               prov = (ecm[i + 2]) & 0xFC;
-              keyid = (ecm[i + 2]) & 3;
+        prov = (ecm[i + 2]) & 0xFC;
+        keyid = (ecm[i + 2]) & 3;
       }
-        i += ecm[i + 1] + 2;
+      i += ecm[i + 1] + 2;
     }
     if(!(GetCwKey(key+16,(CAID<<8) | (prov),0x06)))
         return -2;
@@ -444,20 +444,6 @@ char CryptoworksDec(unsigned char *cw, unsigned char *ecm, uint32_t CAID)
     if(!(GetCwKey(key,(CAID<<8) | (prov),keyid))) return 2;
     CW_PDUDEC (ecm, len-10, key);
     return CW_DCW(ecm, len-10, cw);
-}
-
-char CryptoworksProcessECM(unsigned char *ecm, unsigned char *dw) {
-  uint32_t caid;
-  if (ecm[2]==0x99 && ecm[0x73]==0x0B && ecm[0x74]==0x05)
-    caid = 0x0D03; else
-  if (ecm[2]==0x99 && ecm[0x73]==0x08 && ecm[0x74]==0x00)
-    caid = 0x0D05; else
-  if (ecm[2]>=0x6C && (ecm[ecm[9]+12]&0xF0)==0xA0)
-          caid = 0x0D02; else
-  if (ecm[2]>=0x6C && (ecm[ecm[9]+12]&0xF0)==0xC0)
-    caid = 0x0D00; else
-  return 1;
-  return CryptoworksDec(dw,ecm,caid);
 }
 
 // SoftNDS EMU
@@ -1483,7 +1469,7 @@ char ProcessECM(uint16_t CAID, unsigned char *ecm, unsigned char *dw) {
   if(CAID==0x090F)
     return SoftNDSECM(ecm,dw);
   else if((CAID>>8)==0x0D)
-    return CryptoworksProcessECM(ecm,dw);
+    return CryptoworksProcessECM(CAID,ecm,dw);
   else if(CAID==0x500)
     return ViaccessECM(ecm,dw);
   else if(CAID==0x1801)
