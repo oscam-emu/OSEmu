@@ -3,6 +3,8 @@
 #include <string.h>
 #include <stdio.h>
 #include "des.h"
+#include "bn.h"
+#include "idea.h"
 #include "via3surenc.h"
 #include "emulator.h"
 #include "globals.h"
@@ -1066,6 +1068,245 @@ char ViaccessECM(unsigned char *ecm, unsigned char *dw)
 	return 2;
 }
 
+// Nagra EMU
+static char nagra_2111_M1[]={0x75, 0x08, 0x66, 0x58, 0x01, 0xDC, 0x68, 0x15, 0xF8, 0xDF, 0x96, 0x56, 0x41, 0xA8, 0xC2, 0x7C, 0xAE,
+	0x05, 0x6E, 0xD0, 0x24, 0x9C, 0xF6, 0x0F, 0x60, 0xDE, 0xDD, 0x75, 0xA3, 0xA8, 0x4D, 0x48, 0x6E, 0x85, 0x28, 0x52, 0x20, 0xF1,
+	0x33, 0x43, 0x9F, 0x03, 0x8B, 0xFE, 0x54, 0x97, 0x55, 0x43, 0xC8, 0xDF, 0xC4, 0x20, 0x50, 0x67, 0x98, 0x5E, 0x5C, 0xDA, 0xD7,
+	0xAB, 0xA4, 0xCF, 0x48, 0xA7}; // Digi TV Cablu (Romania Cable TV)
+static char nagra_2111_00[]={0x70, 0x13, 0x9b, 0xa3, 0x2f, 0xa2, 0x53, 0x37, 0x59, 0x94, 0x19, 0x9b, 0xb5, 0x06, 0x57, 0xff}; // Digi TV Cablu (Romania Cable TV)
+static char nagra_2111_01[]={0x10, 0xF5, 0xDB, 0x01, 0x64, 0x6F, 0xD8, 0x85, 0x2C, 0x0B, 0xCC, 0xA1, 0x60, 0xF0, 0xB3, 0x37}; // Digi TV Cablu (Romania Cable TV)
+static char nagra_7301_M1[]={0x75, 0x44, 0xE9, 0x82, 0x06, 0x5D, 0x53, 0xE7, 0xCF, 0x04, 0x9A, 0xF2, 0xE7, 0x25, 0x54, 0x4A, 0x50,
+	0x26, 0x8D, 0xA1, 0x46, 0x2F, 0x15, 0xD8, 0xA1, 0x97, 0xEC, 0xE4, 0xB8, 0x0F, 0xE2, 0x21, 0x12, 0x2F, 0x92, 0xAD, 0x56, 0x32,
+	0x43, 0x80, 0xA0, 0x48, 0x78, 0xEB, 0xF5, 0x63, 0x42, 0x7D, 0xD8, 0x5C, 0x38, 0x64, 0x59, 0x07, 0x58, 0x3E, 0x23, 0xAC, 0x51,
+	0x53, 0xE3, 0x00, 0xCF, 0x84}; // UPC Cablecom (Swiss Cable TV network) 
+static char nagra_7301_00[]={0x79, 0xE8, 0xFD, 0xEB, 0x4E, 0xAB, 0x12, 0x08, 0x92, 0xF6, 0x8D, 0x63, 0x19, 0x99, 0x32, 0x83}; // UPC Cablecom (Swiss Cable TV network) 
+static char nagra_7301_01[]={0xC3, 0xD6, 0xA2, 0x28, 0x03, 0xC2, 0x80, 0xA7, 0xAC, 0xDD, 0x7B, 0x2E, 0xB0, 0x0F, 0x33, 0xCC}; // UPC Cablecom (Swiss Cable TV network) 
+static char nagra_C102_M1[]={0x31, 0x22, 0xD1, 0xC2, 0x29, 0x07, 0xB3, 0x98, 0xDC, 0x25, 0x3F, 0xEA, 0x29, 0xD0, 0x33, 0x85, 0x97,
+	0x1F, 0xD3, 0xDF, 0xBB, 0xD5, 0x23, 0x5A, 0x53, 0x19, 0x59, 0xE9, 0x4C, 0x86, 0x63, 0x78, 0x47, 0xDD, 0xE5, 0x8E, 0x6E, 0x89,
+	0x97, 0xA4, 0x11, 0xD7, 0x03, 0x1F, 0x8A, 0xA0, 0xCB, 0x0A, 0x3E, 0xBB, 0x7C, 0x42, 0x0E, 0x04, 0x3B, 0x31, 0xF6, 0xEA, 0xDA,
+	0x31, 0x10, 0x0C, 0x2A, 0xA0}; // TV Globo
+static char nagra_C102_00[]={0x5B, 0xCE, 0x65, 0x62, 0x5F, 0xA4, 0xED, 0x50, 0x95, 0x94, 0xCE, 0x7C, 0x4B, 0x90, 0x7E, 0xCB}; // TV Globo
+static char nagra_C102_01[]={0xD7, 0xCB, 0xE9, 0x3D, 0x30, 0xE2, 0xC9, 0x13, 0x91, 0x07, 0x38, 0x74, 0x57, 0xDB, 0x90, 0x23}; // TV Globo
+static char nagra_1101_M1[]={0xC7, 0x5C, 0x2F, 0xEC, 0xF4, 0x94, 0xF6, 0xDD, 0x71, 0xBB, 0xF8, 0x98, 0xC6, 0x3F, 0x7F, 0xEB, 0xA1,
+	0x13, 0x45, 0xDF, 0x14, 0xC7, 0x1E, 0xE6, 0x56, 0xBC, 0x23, 0x01, 0x6C, 0x2F, 0x90, 0xA8, 0x81, 0x42, 0x9B, 0x82, 0xA6, 0x8C,
+	0x09, 0x5E, 0x47, 0x2C, 0x99, 0x77, 0x52, 0xD5, 0x89, 0x03, 0x41, 0xCF, 0x9E, 0x06, 0x69, 0x16, 0x72, 0x48, 0x27, 0x18, 0x75,
+	0x0B, 0x91, 0x8A, 0xAE, 0x92}; // Kabel Deutschland
+static char nagra_1101_00[]={0x9A, 0xF1, 0x1C, 0xE0, 0x87, 0x1C, 0x97, 0x91, 0x1F, 0xFF, 0x40, 0x99, 0x85, 0x1B, 0x86, 0x7D}; // Kabel Deutschland
+
+char GetNagraKey(unsigned char *buf, unsigned int ident, char keyName, unsigned char keyIndex)
+{
+	switch(ident) {
+		case 0x2111:  // Digi TV Cablu (Romanian Cable TV)
+			if(keyName == 'M' && keyIndex == 0x01) { memcpy(buf,nagra_2111_M1,64); return 1; }
+			if(keyName == 00 && keyIndex == 0x00) { memcpy(buf,nagra_2111_00,16); return 1; }
+			if(keyName == 00 && keyIndex == 0x01) { memcpy(buf,nagra_2111_01,16); return 1; }												
+			break;				
+		case 0x7301:  // UPC Cablecom (Swiss Cable TV) 
+			if(keyName == 'M' && keyIndex == 0x01) { memcpy(buf,nagra_7301_M1,64); return 1; }
+			if(keyName == 00 && keyIndex == 0x00) { memcpy(buf,nagra_7301_00,16); return 1; }
+			if(keyName == 00 && keyIndex == 0x01) { memcpy(buf,nagra_7301_01,16); return 1; }												
+			break;	
+		case 0xC102:  //  TV Globo
+			if(keyName == 'M' && keyIndex == 0x01) { memcpy(buf,nagra_C102_M1,64); return 1; }
+			if(keyName == 00 && keyIndex == 0x00) { memcpy(buf,nagra_C102_00,16); return 1; }
+			if(keyName == 00 && keyIndex == 0x01) { memcpy(buf,nagra_C102_01,16); return 1; }												
+			break;	
+		case 0x1101:  // Kabel Deutschland
+			if(keyName == 'M' && keyIndex == 0x01) { memcpy(buf,nagra_1101_M1,64); return 1; }
+			if(keyName == 00 && keyIndex == 0x00) { memcpy(buf,nagra_1101_00,16); return 1; }										
+			break;							
+	}
+	return 0;
+}
+
+void ReverseMem(unsigned char *in, int len) 
+{
+	unsigned char temp;
+	int32_t i;
+	for(i = 0; i < (len / 2); i++) {
+		temp = in[i];
+		in[i] = in[len - i - 1];
+		in[len - i - 1] = temp;
+	}
+}
+
+void ReverseMemInOut(unsigned char *out, const unsigned char *in, int n)
+{
+	if(n>0) {
+		out+=n;
+		do { *(--out)=*(in++); } while(--n);
+	}
+}
+
+bool Nagra2RSAInput(BIGNUM *d, const unsigned char *in, int n, bool LE)
+{
+	if(LE) {
+		unsigned char tmp[256];
+		ReverseMemInOut(tmp,in,n);
+		return BN_bin2bn(tmp,n,d)!=0;
+	}
+	else
+		return BN_bin2bn(in,n,d)!=0;
+}
+
+int Nagra2RSAOutput(unsigned char *out, int n, BIGNUM *r, bool LE)
+{
+	int s=BN_num_bytes(r);
+	if(s>n) {
+		unsigned char buff[256];
+		BN_bn2bin(r,buff);
+		memcpy(out,buff+s-n,n);
+	}
+	else if(s<n) {
+		int l=n-s;
+		memset(out,0,l);
+		BN_bn2bin(r,out+l);
+	}
+	else BN_bn2bin(r,out);
+	if(LE) ReverseMem(out,n);
+	return s;
+}
+
+int Nagra2RSA(unsigned char *out, const unsigned char *in, int n, BIGNUM *exp, BIGNUM *mod, bool LE)
+{
+	BN_CTX *ctx;
+	BIGNUM *r, *d;
+	int result = 0;
+
+	ctx = BN_CTX_new();
+	r = BN_new();
+	d = BN_new();
+  
+	if(Nagra2RSAInput(d,in,n,LE) && BN_mod_exp(r,d,exp,mod,ctx)) 
+		result = Nagra2RSAOutput(out,n,r,LE);
+	
+	BN_free(d);
+	BN_free(r);
+	BN_CTX_free(ctx);
+	return result;
+}
+
+bool Nagra2Signature(const unsigned char *vkey, const unsigned char *sig, const unsigned char *msg, int len)
+{
+  unsigned char buff[16];    
+	unsigned char iv[8];
+	int i,j;
+	
+  memcpy(buff,vkey,sizeof(buff));
+  for(i=0; i<len; i+=8) {
+    IDEA_KEY_SCHEDULE ek;
+    idea_set_encrypt_key(buff, &ek);
+    memcpy(buff,buff+8,8);  
+		memset(iv,0,sizeof(iv));
+		idea_cbc_encrypt(msg+i,buff+8,8,&ek,iv,IDEA_ENCRYPT);   
+    for(j=7; j>=0; j--) buff[j+8]^=msg[i+j];
+  }
+  buff[8]&=0x7F;
+  return (memcmp(sig,buff+8,8)==0);
+}
+
+bool DecryptNagra2ECM(unsigned char *in, unsigned char *out, const unsigned char *key, int len, const unsigned char *vkey, unsigned char *keyM)
+{
+  BIGNUM *exp, *mod;
+  unsigned char iv[8];
+	int i = 0, sign = in[0] & 0x80;
+	char binExp = 3;
+	bool result = true;
+ 
+	exp = BN_new(); 
+	mod = BN_new();
+	BN_bin2bn(&binExp, 1, exp); 
+	BN_bin2bn(keyM, 64, mod);
+   	
+  if(Nagra2RSA(out,in+1,64,exp,mod,true)<=0) { BN_free(exp); BN_free(mod); return false; }
+  out[63]|=sign;
+  if(len>64) memcpy(out+64,in+65,len-64);
+
+
+  if(in[0]&0x04) {
+    unsigned char tmp[8];
+    DES_key_schedule ks1, ks2;
+    ReverseMemInOut(tmp,&key[0],8);
+    DES_key_sched((DES_cblock *)tmp,&ks1);
+    ReverseMemInOut(tmp,&key[8],8);
+    DES_key_sched((DES_cblock *)tmp,&ks2);
+    memset(tmp,0,sizeof(tmp));
+    for(i=7; i>=0; i--) ReverseMem(out+8*i,8);
+    DES_ede2_cbc_encrypt(out,out,len,&ks1,&ks2,(DES_cblock *)tmp,DES_DECRYPT);
+
+    for(i=7; i>=0; i--) ReverseMem(out+8*i,8);
+  }
+  else  {
+		memset(iv,0,sizeof(iv));		  	
+ 		IDEA_KEY_SCHEDULE ek;
+		idea_set_encrypt_key(key, &ek);
+		idea_cbc_encrypt(out, out, len&~7, &ek, iv, IDEA_DECRYPT);
+	}
+
+  ReverseMem(out,64);
+  if(result && Nagra2RSA(out,out,64,exp,mod,false)<=0) result = false;
+	if(result && vkey && !Nagra2Signature(vkey,out,out+8,len-8)) result = false;
+    
+  BN_free(exp); BN_free(mod);	   
+  return result;
+}
+
+char Nagra2ECM(unsigned char *ecm, unsigned char *dw)
+{
+	unsigned int ident, identMask, tmp1, tmp2, tmp3;
+	unsigned char cmdLen, ideaKeyNr, dec[256], ideaKey[16], vKey[16], m1Key[64], mecmAlgo = 0;
+	bool useVerifyKey = false;
+	int l=0, s;
+	uint16_t i = 0, ecmLen = (((ecm[1] & 0x0f)<< 8) | ecm[2])+3;
+	
+	cmdLen = ecm[4] - 5;	
+	ident = (ecm[5] << 8) + ecm[6];	
+	ideaKeyNr = (ecm[7]&0x10)>>4;
+	if(ideaKeyNr) ideaKeyNr = 1;
+	if(ident == 1283 || ident == 1285 || ident == 1297) ident = 1281;
+	if(cmdLen <= 63 || ecmLen < cmdLen + 10) return 1;
+	
+	if(!GetNagraKey(ideaKey, ident, 0x00, ideaKeyNr)) return 2;		
+	if(GetNagraKey(vKey, ident, 'V', 0)) { useVerifyKey = true; }
+	if(!GetNagraKey(m1Key, ident, 'M', 1)) return 2;		
+	ReverseMem(m1Key, 64);
+	
+	if(!DecryptNagra2ECM(ecm+9, dec, ideaKey, cmdLen, useVerifyKey?vKey:0, m1Key)) return 1; 	 
+
+	for(i=(dec[14]&0x10)?16:20; i<cmdLen-10 && l!=3; ) {
+		switch(dec[i]) {
+			case 0x10: case 0x11:
+				if(dec[i+1]==0x09) {
+					s = (~dec[i])&1;
+					mecmAlgo = dec[i+2]&0x60;
+					memcpy(dw+(s<<3),&dec[i+3],8);
+					i+=11; l|=(s+1);
+				} else i++;
+        break;
+			case 0x00: 
+				i+=2; break;
+			case 0x30: case 0x31: case 0x32: case 0x33: case 0x34: case 0x35: case 0x36: case 0xB0:
+				i+=dec[i+1]+2; break;
+			default:
+				i++; continue;
+		}
+	}
+	
+	if(l!=3) return 1;
+  if(mecmAlgo>0) return 1;
+   
+  identMask = ident & 0xFF00;
+	if (identMask == 0x1100 || identMask == 0x500 || identMask == 0x3100) { 	
+		tmp1 = *(unsigned int*)dw;
+		tmp2 = *(unsigned int*)(dw + 4);
+		tmp3 = *(unsigned int*)(dw + 12);	
+		*(unsigned int*)dw = *(unsigned int*)(dw + 8);
+		*(unsigned int*)(dw + 4) = tmp3;
+		*(unsigned int*)(dw + 8) = tmp1;
+		*(unsigned int*)(dw + 12) = tmp2;
+  }
+	return 0;
+}
 
 /* Error codes
 0	OK
@@ -1084,5 +1325,7 @@ char ProcessECM(uint16_t CAID, unsigned char *ecm, unsigned char *dw) {
 		return CryptoworksProcessECM(ecm,dw); else
 	if (CAID==0x500)
 		return ViaccessECM(ecm,dw);
+	if(CAID==0x1801)
+		return Nagra2ECM(ecm,dw);		
 	return 1;
 }
