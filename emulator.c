@@ -1308,6 +1308,171 @@ char Nagra2ECM(unsigned char *ecm, unsigned char *dw)
 	return 0;
 }
 
+// Irdeto EMU
+static char irdeto_60400_M1[]={0x98, 0xB4, 0xDC, 0xAD, 0x44, 0xE8, 0xC9, 0x50, 0x4C, 0x3F, 0x4E, 0x51, 0x69, 0x2A, 0x70, 0x47}; // Bulsat 39°E
+static char irdeto_60400_M2[]={0xAE, 0x65, 0x2B, 0x21, 0x0B, 0xF8, 0x9F, 0xC6, 0x95, 0x07, 0x60, 0x98, 0x42, 0xFD, 0x30, 0x3E}; // Bulsat 39°E
+static char irdeto_60400_01[]={0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}; // Bulsat 39°E
+static char irdeto_60400_02[]={0xDF, 0xDD, 0x0C, 0x4B, 0x92, 0xB4, 0xAB, 0xD2, 0x65, 0x14, 0xB9, 0xAF, 0x9F, 0x0C, 0x79, 0xC4}; // Bulsat 39°E
+static char irdeto_60400_03[]={0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}; // Bulsat 39°E
+static char irdeto_60400_04[]={0xE3, 0x1A, 0x2D, 0xE0, 0x01, 0x21, 0x38, 0x62, 0x36, 0xD3, 0x64, 0x1F, 0xD1, 0x52, 0xD4, 0xB4}; // Bulsat 39°E
+static char irdeto_60400_05[]={0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}; // Bulsat 39°E
+static char irdeto_60400_06[]={0xDB, 0x88, 0xB6, 0x68, 0xA9, 0x80, 0xCD, 0xBB, 0xCD, 0x8B, 0x06, 0xCE, 0x49, 0xA0, 0xBA, 0x6B}; // Bulsat 39°E
+
+char GetIrdetoKey(unsigned char *buf, unsigned int ident, char keyName, unsigned char keyIndex)
+{	
+	// irdeto key names collide, so we must add a workaround like trying all 
+	// keys for each provder when we want to support more than 1 provider
+	switch(ident) {
+		case 0x60400:  // Bulsat 39°E
+			if(keyName == 'M' && keyIndex == 0x01) { memcpy(buf,irdeto_60400_M1,16); return 1; }
+			if(keyName == 'M' && keyIndex == 0x02) { memcpy(buf,irdeto_60400_M2,16); return 1; }
+			if(keyName == 00 && keyIndex == 0x01) { memcpy(buf,irdeto_60400_01,16); return 1; }
+			if(keyName == 00 && keyIndex == 0x02) { memcpy(buf,irdeto_60400_02,16); return 1; }												
+			if(keyName == 00 && keyIndex == 0x03) { memcpy(buf,irdeto_60400_03,16); return 1; }
+			if(keyName == 00 && keyIndex == 0x04) { memcpy(buf,irdeto_60400_04,16); return 1; }	
+			if(keyName == 00 && keyIndex == 0x05) { memcpy(buf,irdeto_60400_05,16); return 1; }
+			if(keyName == 00 && keyIndex == 0x06) { memcpy(buf,irdeto_60400_06,16); return 1; }				
+			break;							
+	}
+	return 0;
+}
+
+static inline void xxor(unsigned char *data, int len, const unsigned char *v1, const unsigned char *v2)
+{
+  switch(len) {
+    case 16:
+      *((unsigned int *)data+3) = *((unsigned int *)v1+3) ^ *((unsigned int *)v2+3);
+      *((unsigned int *)data+2) = *((unsigned int *)v1+2) ^ *((unsigned int *)v2+2);
+    case 8:
+      *((unsigned int *)data+1) = *((unsigned int *)v1+1) ^ *((unsigned int *)v2+1);
+    case 4:
+      *((unsigned int *)data+0) = *((unsigned int *)v1+0) ^ *((unsigned int *)v2+0);
+      break;
+    default:
+      while(len--) *data++ = *v1++ ^ *v2++;
+      break;
+    }
+}
+
+void Irdeto2Encrypt(unsigned char *data, const unsigned char *seed, const unsigned char *okey, int len)
+{
+  const unsigned char *tmp = seed; 
+  unsigned char key[16];
+  int i; 
+  
+  memcpy(key, okey, 16);
+	doPC1(key);
+	doPC1(&key[8]);
+  len&=~7;
+   
+  for(i=0; i<len; i+=8) {
+    xxor(&data[i],8,&data[i],tmp); 
+    tmp=&data[i];
+		des(key,DES_ECS2_CRYPT,&data[i]);
+		des(&key[8],DES_ECS2_DECRYPT,&data[i]);
+		des(key,DES_ECS2_CRYPT,&data[i]);		
+  }
+}
+
+void Irdeto2Decrypt(unsigned char *data, const unsigned char *seed, const unsigned char *okey, int len)
+{
+  unsigned char buf[2][8];
+  unsigned char key[16];
+  int i, n=0;
+
+  memcpy(key, okey, 16);
+	doPC1(key);
+	doPC1(&key[8]);
+  len&=~7;
+
+  memcpy(buf[n],seed,8);
+  for(i=0; i<len; i+=8,data+=8,n^=1) {
+    memcpy(buf[1-n],data,8);
+		des(key,DES_ECS2_DECRYPT,data);
+		des(&key[8],DES_ECS2_CRYPT,data);
+		des(key,DES_ECS2_DECRYPT,data);		
+    xxor(data,8,data,buf[n]);
+	}
+}
+
+bool Irdeto2CalculateHash(const unsigned char *okey, const unsigned char *iv, const unsigned char *data, int len)
+{
+  unsigned char cbuff[8];
+  unsigned char key[16];
+  int l, y;
+  
+  memcpy(key, okey, 16);
+	doPC1(key);
+	doPC1(&key[8]);
+
+  memset(cbuff,0,sizeof(cbuff));
+  len-=8;
+  
+  for(y=0; y<len; y+=8) {
+    if(y<len-8) xxor(cbuff,8,cbuff,&data[y]);
+    else {
+      l=len-y;
+      xxor(cbuff,l,cbuff,&data[y]);
+      xxor(cbuff+l,8-l,cbuff+l,iv+8);
+    }
+		des(key,DES_ECS2_CRYPT,cbuff);
+		des(&key[8],DES_ECS2_DECRYPT,cbuff);
+		des(key,DES_ECS2_CRYPT,cbuff);
+  }
+
+  return memcmp(cbuff,&data[len],8)==0;
+}
+
+char Irdeto2ECM(uint16_t CAID, unsigned char *ecm, unsigned char *dw)
+{
+	unsigned char keyNr=0, length, key[16], keyM1[16], keyIV[16], tmp[16];
+	unsigned int i, l, ident;
+	uint16_t index, ecmLen = (((ecm[1] & 0x0f)<< 8) | ecm[2])+3;
+	
+	length = ecm[11]; 
+	keyNr = ecm[9];
+	ident = ecm[8] | CAID << 8;
+		
+	if(ecmLen < length+12) return 1;
+	if(!GetIrdetoKey(key, ident, 0, keyNr)) return 2;
+	if(!GetIrdetoKey(keyM1, ident, 'M', 1)) return 2;
+	if(!GetIrdetoKey(keyIV, ident, 'M', 2)) return 2;
+
+  memset(tmp, 0, 16);
+  Irdeto2Encrypt(keyM1, tmp, key, 16);
+  ecm+=12;
+  Irdeto2Decrypt(ecm, keyIV, keyM1, length); 
+  i=(ecm[0]&7)+1;
+  
+	while(i<length-8) {
+    l = ecm[i+1] ? (ecm[i+1]&0x3F)+2 : 1;
+    switch(ecm[i]) {
+      case 0x10: case 0x50: 
+      	if(l==0x13 && i<=length-8-l) Irdeto2Decrypt(&ecm[i+3], keyIV, key, 16); 
+      break;
+      case 0x78: 
+      	if(l==0x14 && i<=length-8-l) Irdeto2Decrypt(&ecm[i+4], keyIV, key, 16); 
+      break;
+		}
+		i+=l;
+	} 
+  
+  i=(ecm[0]&7)+1;
+	if(Irdeto2CalculateHash(keyM1, keyIV, ecm-6, length+6)) {
+		while(i<length-8) {
+			l = ecm[i+1] ? (ecm[i+1]&0x3F)+2 : 1;
+			switch(ecm[i]) {
+				case 0x78:
+					memcpy(dw, &ecm[i+4], 16);
+          return 0;
+			}
+			i+=l;
+		}
+	}
+	return 1;
+}
+
+
 /* Error codes
 0	OK
 1	ECM not supported	
@@ -1317,15 +1482,16 @@ char Nagra2ECM(unsigned char *ecm, unsigned char *dw)
 5	CW not found
 6	CW checksum error
 */
-
 char ProcessECM(uint16_t CAID, unsigned char *ecm, unsigned char *dw) {
-	if (CAID==0x090F)
-		return SoftNDSECM(ecm,dw); else
-	if ((CAID>>8)==0x0D)
-		return CryptoworksProcessECM(ecm,dw); else
-	if (CAID==0x500)
+	if(CAID==0x090F)
+		return SoftNDSECM(ecm,dw);
+	else if((CAID>>8)==0x0D)
+		return CryptoworksProcessECM(ecm,dw);
+	else if(CAID==0x500)
 		return ViaccessECM(ecm,dw);
-	if(CAID==0x1801)
-		return Nagra2ECM(ecm,dw);		
+	else if(CAID==0x1801)
+		return Nagra2ECM(ecm,dw);
+	else if(CAID==0x0604)
+		return Irdeto2ECM(CAID,ecm,dw);				
 	return 1;
 }
