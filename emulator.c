@@ -360,13 +360,13 @@ char CW_DCW(unsigned char *d ,unsigned char l , unsigned char *dcw)
         if (i == 0) li = 1;
         if ( pi == 0xdf ) return 5;
         if ( pi == 0xdb ) {
-      memcpy(dcw,&d[i+2], li);
-      if(dcw[3]==((dcw[0]+dcw[1]+dcw[2])&0xFF))
-       if(dcw[7]==((dcw[4]+dcw[5]+dcw[6])&0xFF))
-        if(dcw[11]==((dcw[8]+dcw[9]+dcw[10])&0xFF))
-         if(dcw[15]==((dcw[12]+dcw[13]+dcw[14])&0xFF))
-    return 0;
-      return 6;
+          memcpy(dcw,&d[i+2], li);
+          if(dcw[3]==((dcw[0]+dcw[1]+dcw[2])&0xFF))
+            if(dcw[7]==((dcw[4]+dcw[5]+dcw[6])&0xFF))
+              if(dcw[11]==((dcw[8]+dcw[9]+dcw[10])&0xFF))
+                if(dcw[15]==((dcw[12]+dcw[13]+dcw[14])&0xFF))
+                  return 0;
+          return 6;
         }
         i += ( 2 + li );
     }
@@ -409,7 +409,7 @@ char nano80(unsigned char *buf, unsigned char *key, unsigned char *ECM, unsigned
     for(j=0;j<8;j++)
         dat1[j] ^= t[j];
     if(i==8)
-  if (dat1[2]!=(len-11)) return 0;
+      if (dat1[2]!=(len-11)) return 0;
     memcpy(&ECM[i-3],dat1,8);
     memcpy(t,dat2,8);
   }
@@ -436,11 +436,11 @@ char CryptoworksDec(unsigned char *cw, unsigned char *ecm, uint32_t CAID)
     if(!(GetCwKey(key+16,(CAID<<8) | (prov),0x06)))
         return -2;
     if(can8060==0x01 && ecm[3]==0x80)
-    if((CAID==0x0D00 && (prov&0xF0)==0xC0) || (CAID==0x0D02 && (prov&0xF0)==0xA0)){
+      if((CAID==0x0D00 && (prov&0xF0)==0xC0) || (CAID==0x0D02 && (prov&0xF0)==0xA0)){
         if(!(GetCwKey(key,(CAID<<8) | prov, 1 - (keyid>0)))) return 2;
-  if (!nano80(&ecm[5],key,ecm,ecm[4])) return 3;
-  ecm += 5; len = ecm[2] + 3;
-    }
+        if (!nano80(&ecm[5],key,ecm,ecm[4])) return 3;
+        ecm += 5; len = ecm[2] + 3;
+      }
     if(!(GetCwKey(key,(CAID<<8) | (prov),keyid))) return 2;
     CW_PDUDEC (ecm, len-10, key);
     return CW_DCW(ecm, len-10, cw);
@@ -480,14 +480,14 @@ char SoftNDSECM(unsigned char *ecm, unsigned char *dw)
   tDW = &dw[ecm[0]==0x81 ? 8 : 0];
   if (ecm[6]!=0x21) return 1;
   MD5_Init (&mdContext);
-   MD5_Update (&mdContext, ecm+7, 10);
-   MD5_Update (&mdContext, ecm+0x20, 4);
-   MD5_Update (&mdContext, viasat_key, 0x40);
-   MD5_Update (&mdContext, nds_const, 0x10);
-   MD5_Final (digest, &mdContext);
+  MD5_Update (&mdContext, ecm+7, 10);
+  MD5_Update (&mdContext, ecm+0x20, 4);
+  MD5_Update (&mdContext, viasat_key, 0x40);
+  MD5_Update (&mdContext, nds_const, 0x10);
+  MD5_Final (digest, &mdContext);
   for (i=0; i<8; i++) tDW[i] = digest[i+8] ^ ecm[0x17+i];
-  if(((tDW[0]+tDW[1]+tDW[2])&0xFF)-tDW[3])return 6;
-  if(((tDW[4]+tDW[5]+tDW[6])&0xFF)-tDW[7])return 6;
+  if(((tDW[0]+tDW[1]+tDW[2])&0xFF)-tDW[3]) return 6;
+  if(((tDW[4]+tDW[5]+tDW[6])&0xFF)-tDW[7]) return 6;
   return 0;
 }
 
