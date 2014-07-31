@@ -417,7 +417,7 @@ char nano80(unsigned char *buf, unsigned char *key, unsigned char *ECM, unsigned
   return 1;
 }
 
-char CryptoworksProcessECM(uint32_t CAID, unsigned char *cw, unsigned char *ecm)
+char CryptoworksProcessECM(uint32_t CAID, unsigned char *ecm, unsigned char *cw)
 {
     unsigned char key[22],prov=-1, can8060=0 ,i , len, keyid=-1;
     
