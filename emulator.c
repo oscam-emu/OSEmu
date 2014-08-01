@@ -10,7 +10,7 @@
 #include "emulator.h"
 #include "globals.h"
 #include "helpfunctions.h"
-  
+
 // Key DB
 int CharToBin(unsigned char *out, char *in, unsigned int inLen)
 {
@@ -36,7 +36,7 @@ unsigned int keyMax = 0;
 void SetKey(char identifier, unsigned int provider, char *keyName, unsigned char *key, unsigned int keyLength) 
 {
   unsigned int i;
-  identifier = toupper(identifier);
+  identifier = (char)toupper((int)identifier);
   
   switch(identifier) {
   	case 'I': case 'V': case 'N': case 'W': break;
@@ -95,7 +95,6 @@ void ReadKeyFile(char *path)
   unsigned char *key;
   char *filepath, *filename;
   FILE *file = NULL;
-  int linePos;
   char identifier;
 
   if(strstr(path, "SoftCam.Key")) filename = "";
@@ -106,15 +105,16 @@ void ReadKeyFile(char *path)
     else
       filename = "/SoftCam.Key";
   }
-  filepath = (char*)malloc(strlen(path)+strlen(filename)+1);
+  pathLength = strlen(path)+strlen(filename)+1;
+  filepath = (char*)malloc(pathLength);
   if(filepath == NULL) return;
-  sprintf(filepath, "%s%s", path, filename);
+  snprintf(filepath, pathLength, "%s%s", path, filename);
   file = fopen(filepath, "r");
   free(filepath);
   if(file == NULL) return;
   
   while(fgets(line, 1120, file)) {
-    if(sscanf(line, "%c %8x %7s %1024s", &identifier, &provider, &keyName, &keyString) != 4) continue;
+    if(sscanf(line, "%c %8x %7s %1024s", &identifier, &provider, keyName, keyString) != 4) continue;
     
     keyLength = strlen(keyString)/2;
     key = (unsigned char*)malloc(keyLength);
@@ -162,7 +162,7 @@ char GetCwKey(unsigned char *buf, uint32_t CAID, unsigned char ident) {
   if (ident==6 && ((CAID>>8) == 0x0D05)) CAID = 0x0D0504;
   
   tmp = ident;
-  sprintf(keyName, "%.2X", tmp);
+  snprintf(keyName, 8, "%.2X", tmp);
   if(FindKey('W', CAID, keyName, buf, ident == 6 ? 6 : 16))
   	return 1; 	
   	
@@ -679,7 +679,7 @@ static char via_007800_0A[]={0x71, 0x15, 0xCE, 0x2E, 0xF8, 0x36, 0x42, 0x20}; //
 char GetViaKey(unsigned char *buf, unsigned int ident, char keyName, unsigned int keyIndex, unsigned int keyLength) {
   
   char keyStr[8];
-  sprintf(keyStr, "%c%X", keyName, keyIndex);  
+  snprintf(keyStr, 8, "%c%X", keyName, keyIndex);  
   if(FindKey('V', ident, keyStr, buf, keyLength))
   	return 1; 	  
   
@@ -1214,7 +1214,7 @@ static char nagra_1101_00[]={0x9A, 0xF1, 0x1C, 0xE0, 0x87, 0x1C, 0x97, 0x91, 0x1
 char GetNagraKey(unsigned char *buf, unsigned int ident, char keyName, unsigned int keyIndex)
 {
   char keyStr[8];
-  sprintf(keyStr, "%c%X", keyName, keyIndex);	
+  snprintf(keyStr, 8, "%c%X", keyName, keyIndex);	
   if(FindKey('N', ident, keyStr, buf, keyName == 'M' ? 64 : 16))
   	return 1;	 	
 	
@@ -1442,7 +1442,7 @@ static char irdeto_60400_06[]={0xDB, 0x88, 0xB6, 0x68, 0xA9, 0x80, 0xCD, 0xBB, 0
 char GetIrdetoKey(unsigned char *buf, unsigned int ident, char keyName, unsigned int keyIndex)
 {
   char keyStr[8];
-  sprintf(keyStr, "%c%X", keyName, keyIndex);	
+  snprintf(keyStr, 8, "%c%X", keyName, keyIndex);	
   if(FindKey('I', ident, keyStr, buf, 16))
   	return 1;
 
