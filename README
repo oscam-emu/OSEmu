@@ -17,7 +17,9 @@ svn checkout https://github.com/oscam-emu/OSEmu/trunk OSEmu
 You use the program with the following options:
  - -a user:password 
  - -p portnumber
+ - -c folder where SoftCam.key is placed
  - -b (start in background/daemon mode)
+ - -v show some debugging info
 An example would be:
  - /usr/bin/OSEmu -a server:passwd -p 12345 -b
 To specifiy the path of SoftCam.Key:
