@@ -192,7 +192,7 @@ int main(int argc, char**argv)
 	unsigned char md5tmp[MD5_DIGEST_LENGTH];
 	char *path = "./";
 	
-	while ((opt = getopt(argc, argv, "bva:p:")) != -1) {
+	while ((opt = getopt(argc, argv, "bva:p:c:")) != -1) {
 		switch (opt) {
 			case 'b':
 				bg = 1;
