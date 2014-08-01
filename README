@@ -22,7 +22,7 @@ You use the program with the following options:
  - -v show some debugging info
 An example would be:
  - /usr/bin/OSEmu -a server:passwd -p 12345 -b
-To specifiy the path of SoftCam.Key:
+To specify the path of SoftCam.Key:
  - /usr/bin/OSEmu -a server:passwd -p 12345 -b -c /usr/keys
 
 And the corresponding oscam reader entry:
