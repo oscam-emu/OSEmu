@@ -146,7 +146,9 @@ static void camd35_process_ecm(uchar *buf, int buflen){
 	er.prid = b2i(4, buf+12);
 	er.rc = buf[3];
 	
-	ProcessECM(er.caid,buf + 20,er.cw);
+	if(ProcessECM(er.caid,buf + 20,er.cw)) {
+	  er.rc = E_NOTFOUND;
+	}
 
 	if (er.rc == E_STOPPED) {
 		buf[0] = 0x08;
@@ -175,9 +177,10 @@ static void camd35_process_ecm(uchar *buf, int buflen){
 }
 
 void show_usage(char *cmdline){
-	fprintf(stderr, "Usage: %s -a <user>:<password> -p <port> [-b -v]\n", cmdline);
+	fprintf(stderr, "Usage: %s -a <user>:<password> -p <port> [-b -v -c <path>]\n", cmdline);
 	fprintf(stderr, "-b enables to start as a daemon (background)\n");;
 	fprintf(stderr, "-v enables a more verbose output (debug output)\n");
+	fprintf(stderr, "-c sets path of SoftCam.Key\n");
 }
 
 int main(int argc, char**argv)
@@ -187,6 +190,7 @@ int main(int argc, char**argv)
 	socklen_t len;
 	unsigned char mbuf[1000];
 	unsigned char md5tmp[MD5_DIGEST_LENGTH];
+	char *path = "./";
 	
 	while ((opt = getopt(argc, argv, "bva:p:")) != -1) {
 		switch (opt) {
@@ -209,6 +213,9 @@ int main(int argc, char**argv)
 			case 'v':
 				debuglog = 1;
 				break;
+			case 'c':
+				path = strdup(optarg);
+				break;
 			default:
 				show_usage(argv[0]);
 				exit(0);
@@ -227,6 +234,8 @@ int main(int argc, char**argv)
 	}
 	
 	get_random_bytes_init();
+	
+	ReadKeyFile(path);
 	
 	cl_sockfd = socket(AF_INET,SOCK_DGRAM,0);
 	

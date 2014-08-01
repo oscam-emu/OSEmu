@@ -3,6 +3,9 @@ It includes the basic needed Camd35 UDP functionality and is really very simple 
 
 Build: Just enter "make", there are no options necessary as long as you don't crosscompile (but as it's standard c code with no dependencies it should work quite easy on all plattforms)
 
+Configure (optional): OSEmu does not require, but will make us of "SoftCam.Key" if available.
+"SoftCam.Key" is searched in the folder OSEmu is run from, or the folder specified with the "-c <folder>" option.
+
 Start: Start the built OSEmu binary. The necessary options will get displayed as usage info (a single user account and the port). It automatically listens on all IP addresses on the machine, including localhost.
 
 Use in OSCam: Create a camd35 reader with caid/ident defined accordingly to what you emulate and maybe also services if you want. Use the user/password/port that you specified on start of OSEmu and it should start to get decoded.
@@ -17,6 +20,8 @@ You use the program with the following options:
  - -b (start in background/daemon mode)
 An example would be:
  - /usr/bin/OSEmu -a server:passwd -p 12345 -b
+To specifiy the path of SoftCam.Key:
+ - /usr/bin/OSEmu -a server:passwd -p 12345 -b -c /usr/keys
 
 And the corresponding oscam reader entry:
 
