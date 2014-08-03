@@ -471,8 +471,8 @@ void CW_PDUDEC(unsigned char* d, int l, unsigned char* k )
         if (i == 0 && li == 0) li = 1;
         if(pi == 0xdf) return;
         if ( ( pi == 0xda ) || ( pi == 0xdb ) || ( pi == 0xdc ) )
-        for ( j = 0; j < ( li / 8 ); j++ )
-        CW_DEC(&d[i + 2 + ( j * 8 )], key, algo);
+          for ( j = 0; j < ( li / 8 ); j++ )
+            CW_DEC(&d[i + 2 + ( j * 8 )], key, algo);
         i += ( 2 + li );
     }
     return;
@@ -487,27 +487,18 @@ char CW_DCW(unsigned char *d ,unsigned char l , unsigned char *dcw)
         li = d[i + 1];
         if (i == 0) li = 1;
         if ( pi == 0xdf ) return 5;
-        if ( pi == 0xdb ) {
+        if ( pi == 0xdb && li == 16) {
           memcpy(dcw,&d[i+2], li);
-          if(dcw[3]==((dcw[0]+dcw[1]+dcw[2])&0xFF))
-            if(dcw[7]==((dcw[4]+dcw[5]+dcw[6])&0xFF))
-              if(dcw[11]==((dcw[8]+dcw[9]+dcw[10])&0xFF))
-                if(dcw[15]==((dcw[12]+dcw[13]+dcw[14])&0xFF))
-                  return 0;
-          return 6;
+          dcw[3]=((dcw[0]+dcw[1]+dcw[2])&0xFF);
+          dcw[7]=((dcw[4]+dcw[5]+dcw[6])&0xFF);
+          dcw[11]=((dcw[8]+dcw[9]+dcw[10])&0xFF);
+          dcw[15]=((dcw[12]+dcw[13]+dcw[14])&0xFF);
+          return 0;
         }
         i += ( 2 + li );
     }
     return 4;
 }
-
-#define DES_LEFT      0
-#define DES_IP              1
-#define DES_IP_1            2
-#define DES_RIGHT           4
-#define DES_HASH            8
-#define DES_ECS2_DECRYPT    (DES_IP | DES_IP_1 | DES_RIGHT)
-#define DES_ECS2_CRYPT      (DES_IP | DES_IP_1) 
 
 void cryptoworks_3des(unsigned char *data, unsigned char *key) {
   doPC1(key);
@@ -542,6 +533,7 @@ char nano80(unsigned char *buf, unsigned char *key, unsigned char *ECM, unsigned
     memcpy(t,dat2,8);
   }
   ECM[0] = 0x80; ECM[1] = 0x70; ECM[2] = len - 6; ECM[3] = 0x81; ECM[4] = 0xFF;
+
   return 1;
 }
 

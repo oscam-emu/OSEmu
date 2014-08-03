@@ -183,6 +183,41 @@ void show_usage(char *cmdline){
 	fprintf(stderr, "-c sets path of SoftCam.Key\n");
 }
 
+
+const char *HexStr(char *str, const unsigned char *mem, int len)
+{
+	int i;
+    for (i=0 ; i<len ; i++) sprintf(&str[i*2],"%02X",mem[i]);
+    return str;
+}
+
+
+int Asc2Hex(char *Dest,char *Src,int SrcLen)
+{
+    int i;
+    unsigned int tmp;
+    for (i = 0; i < SrcLen / 2; i ++ )
+    {
+        sscanf(Src + i * 2,"%02X", &tmp);
+		Dest[i] = (unsigned char)tmp;
+    }
+    return 1;
+}
+
+void PrintHexDump(char* label,const unsigned char *buffer, int n)
+{
+    char Message[3000];
+    HexStr(Message,buffer,n);
+    char *str3 = (char *)malloc((strlen(label) + strlen(Message) + 1)*sizeof(char));
+    if (str3)
+    {
+        strcpy(str3, label);
+        strcat(str3, Message);
+        printf("%s\n", str3);
+        free(str3);
+    }
+}
+
 int main(int argc, char**argv)
 {
 	int bg = 0, n, opt, port = 0, accountok = 0;
@@ -191,6 +226,33 @@ int main(int argc, char**argv)
 	unsigned char mbuf[1000];
 	unsigned char md5tmp[MD5_DIGEST_LENGTH];
 	char *path = "./";
+	
+
+	unsigned char *ecm;
+	unsigned char cw[16];
+	char *ecmString = "8070BC81FF0000B780989E0CC2EE92CD092559CFC053B1382DF245BBC12E844ABE688DBEE60F5AFDBFA59508116C89F9D6E3BD65681316FE647B925AA1CDB4DBD3DA6E6A5B6458EEA2CF04252ABCF1A01F800228469331D7A09DE7E8B9298E0732508C7559E786CF67008D2527A722BA941B10776764D5304CF74B937FC88730E29E8286F7817A6F3BCCCE21F4A7357C16B26B34D1FE6DB21249AB91A3F1C0194DE48301C18402C8018A01808C030919198E0230B2DF08E774962F2188BE74";
+	ecm = (unsigned char*)malloc(strlen(ecmString)/2);
+	Asc2Hex(ecm, ecmString, strlen(ecmString));
+
+if (ecm[2]==0x99 && ecm[0x73]==0x0B && ecm[0x74]==0x05)
+printf("0x0D03\n");
+if (ecm[2]==0x99 && ecm[0x73]==0x08 && ecm[0x74]==0x00)
+printf("0x0D05\n");
+if (ecm[2]>=0x6C && (ecm[ecm[9]+12]&0xF0)==0xA0)
+printf("0x0D02\n");
+if (ecm[2]>=0x6C && (ecm[ecm[9]+12]&0xF0)==0xC0)
+printf("0x0D00\n");
+
+	
+	int result = ProcessECM(0x0D00,ecm,cw);
+	if(result == 0) {
+	 PrintHexDump("final dcw: ", cw, 16);
+	}
+	else {
+		printf("failed with code %d\n", result);
+    }	
+	return 0;
+
 	
 	while ((opt = getopt(argc, argv, "bva:p:c:")) != -1) {
 		switch (opt) {
