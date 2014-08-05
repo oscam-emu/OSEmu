@@ -39,32 +39,32 @@ void SetKey(char identifier, unsigned int provider, char *keyName, unsigned char
   identifier = (char)toupper((int)identifier);
   
   switch(identifier) {
-  	case 'I': case 'V': case 'N': case 'W': break;
-  	default: return;
+   case 'I': case 'V': case 'N': case 'W': break;
+   default: return;
   }
   
   for(i=0; i<keyCount; i++) {
-  	if(EmuKeys[i].identifier != identifier) continue;
-   	if(EmuKeys[i].provider != provider) continue; 	
-   	if(strcmp(EmuKeys[i].keyName, keyName)) continue;
+    if(EmuKeys[i].identifier != identifier) continue;
+    if(EmuKeys[i].provider != provider) continue;  
+    if(strcmp(EmuKeys[i].keyName, keyName)) continue;
 	
 	free(EmuKeys[i].key);
     EmuKeys[i].key = key;
     EmuKeys[i].keyLength = keyLength;
-   	return;
+    return;
   }	
 	
   if(keyCount+1 > keyMax) {
-  	if(EmuKeys == NULL) {
-  	  EmuKeys = (KeyData*)malloc(sizeof(KeyData)*(keyMax+64));
-  	  if(EmuKeys == NULL) return;
-  	  keyMax+=64;
-  	}
-  	else {
-  	  EmuKeys = (KeyData*)realloc(EmuKeys, sizeof(KeyData)*(keyMax+16));
-  	  if(EmuKeys == NULL) return;
-  	  keyMax+=16;
-  	}
+   if(EmuKeys == NULL) {
+     EmuKeys = (KeyData*)malloc(sizeof(KeyData)*(keyMax+64));
+     if(EmuKeys == NULL) return;
+     keyMax+=64;
+   }
+   else {
+     EmuKeys = (KeyData*)realloc(EmuKeys, sizeof(KeyData)*(keyMax+16));
+     if(EmuKeys == NULL) return;
+     keyMax+=16;
+   }
   }
   EmuKeys[keyCount].identifier = identifier;
   EmuKeys[keyCount].provider = provider;
@@ -80,12 +80,12 @@ int FindKey(char identifier, unsigned int provider, char *keyName, unsigned char
   unsigned int i;
 
   for(i=0; i<keyCount; i++) {
-  	if(EmuKeys[i].identifier != identifier) continue;
-   	if(EmuKeys[i].provider != provider) continue; 	
-   	if(strcmp(EmuKeys[i].keyName, keyName)) continue;
+    if(EmuKeys[i].identifier != identifier) continue;
+    if(EmuKeys[i].provider != provider) continue;  
+    if(strcmp(EmuKeys[i].keyName, keyName)) continue;
 	
-   	memcpy(key, EmuKeys[i].key, EmuKeys[i].keyLength > maxKeyLength ? maxKeyLength : EmuKeys[i].keyLength);
-   	return 1;
+    memcpy(key, EmuKeys[i].key, EmuKeys[i].keyLength > maxKeyLength ? maxKeyLength : EmuKeys[i].keyLength);
+    return 1;
   }
   return 0;  
 }
@@ -234,8 +234,8 @@ char GetCwKey(unsigned char *buf,unsigned int ident, unsigned char keyIndex, uns
   tmp = keyIndex;
   snprintf(keyName, 8, "%.2X", tmp);
   if(FindKey('W', ident, keyName, buf, keyLength))
-  	return 1; 	
-  	
+   return 1;  
+   
   switch ((ident << 8) + keyIndex) {
     case 0x0D00C000 : memcpy(buf,crw_0D00C000,16);  return 1; // DigiTurk 7°E/42°E
     case 0x0D00C001 : memcpy(buf,crw_0D00C001,16);  return 1; // DigiTurk 7°E/42°E
@@ -551,7 +551,7 @@ void CryptoworksSignature(const unsigned char *data, unsigned int length, unsign
   char algo, first;
 
   algo = data[0] & 7;
-  if(algo == 7) algo = 6;  	
+  if(algo == 7) algo = 6;   
   memset(signature, 0, 8);
   first = 1;
   sigPos = 0;
@@ -597,9 +597,9 @@ char CryptoworksECM(uint32_t CAID, unsigned char *ecm, unsigned char *cw)
   unsigned int ident;
   unsigned char keyIndex, nanoLength, newEcmLength, key[22], signature[8], nano80Mode = 0;
   int provider = -1;
-  uint16_t i, j, ecmLen = (((ecm[1] & 0x0f)<< 8) | ecm[2])+3; 	
+  uint16_t i, j, ecmLen = (((ecm[1] & 0x0f)<< 8) | ecm[2])+3;  
   memset(key, 0, 22);
- 	
+  
   if(ecm[7] != ecmLen - 8) return 1;
 
   for(i = 8; i < ecmLen; i += ecm[i+1] + 2) {
@@ -769,7 +769,7 @@ char GetViaKey(unsigned char *buf, unsigned int ident, char keyName, unsigned in
   char keyStr[8];
   snprintf(keyStr, 8, "%c%X", keyName, keyIndex);  
   if(FindKey('V', ident, keyStr, buf, keyLength))
-  	return 1; 	  
+   return 1;    
   
   switch(ident) {
     case 0x030B00:  // TNTSat 19.2°E
@@ -819,6 +819,51 @@ char GetViaKey(unsigned char *buf, unsigned int ident, char keyName, unsigned in
   return 0;
 }
 
+void Via1Mod(const unsigned char* key2, unsigned char* data)
+{
+  int kb, db;
+  for (db=7; db>=0; db--) {
+    for (kb=7; kb>3; kb--) {
+      int a0=kb^db;
+      int pos=7;
+      if (a0&4) {
+        a0^=7;
+        pos^=7;
+      }
+      a0=(a0^(kb&3)) + (kb&3);
+      if (!(a0&4))
+        data[db]^=(key2[kb] ^ ((data[kb^pos]*key2[kb^4]) & 0xFF));
+    }
+  }
+  for (db=0; db<8; db++) {
+    for (kb=0; kb<4; kb++) {
+      int a0=kb^db;
+      int pos=7;
+      if (a0&4) {
+        a0^=7;
+        pos^=7;
+      }
+      a0=(a0^(kb&3)) + (kb&3);
+      if (!(a0&4))
+        data[db]^=(key2[kb] ^ ((data[kb^pos]*key2[kb^4]) & 0xFF));
+    }
+  }
+}
+
+void Via1Decode(unsigned char *data, unsigned char *key)
+{
+  Via1Mod(key+8, data);
+  des(key, DES_ECM_CRYPT, data);
+  Via1Mod(key+8, data);
+}
+
+void Via1Hash(unsigned char *data, unsigned char *key)
+{
+  Via1Mod(key+8, data);
+  des(key, DES_ECM_HASH, data);
+  Via1Mod(key+8, data);
+}
+
 char Via1Decrypt(unsigned char* source, unsigned char* dw, unsigned int ident, unsigned char desKeyIndex)
 {
     unsigned char work_key[16];
@@ -830,6 +875,7 @@ char Via1Decrypt(unsigned char* source, unsigned char* dw, unsigned int ident, u
     unsigned char hashbuffer[8], prepared_key[16], tmp, k, hashkey[16], pH;
 
     if (ident == 0) return 4;
+    memset(work_key, 0, 16);
     if(!GetViaKey(work_key, ident, '0', desKeyIndex, 8)) return 2;
 
     data = source+9;
@@ -857,15 +903,16 @@ char Via1Decrypt(unsigned char* source, unsigned char* dw, unsigned int ident, u
     }
     pH=i=0;
     if (data[0] == 0x9f) {
-        { hashbuffer[pH] ^= data[i++]; pH++; if(pH == 8) { des_encrypt(hashbuffer, 8, hashkey); pH = 0; } }
-        { hashbuffer[pH] ^= data[i++]; pH++; if(pH == 8) { des_encrypt(hashbuffer, 8, hashkey); pH = 0; } }
+        { hashbuffer[pH] ^= data[i++]; pH++; if(pH == 8) { Via1Hash(hashbuffer, hashkey); pH = 0; } }
+        { hashbuffer[pH] ^= data[i++]; pH++; if(pH == 8) { Via1Hash(hashbuffer, hashkey); pH = 0; } }
         for (hash_start=0; hash_start < data[1];hash_start++) 
-          { hashbuffer[pH] ^= data[i++]; pH++; if(pH == 8) { des_encrypt(hashbuffer, 8, hashkey); pH = 0; } }
-        while (pH != 0) { hashbuffer[pH] ^= (unsigned char) 0; pH++; if(pH == 8) { des_encrypt(hashbuffer, 8, hashkey); pH = 0; } }
+          { hashbuffer[pH] ^= data[i++]; pH++; if(pH == 8) { Via1Hash(hashbuffer, hashkey); pH = 0; } }
+        while (pH != 0) { hashbuffer[pH] ^= (unsigned char) 0; pH++; if(pH == 8) 
+         { Via1Hash(hashbuffer, hashkey); pH = 0; } }
     }   
     if (work_key[7] == 0) {
         for (; i < encStart + 16; i++) 
-          { hashbuffer[pH] ^= data[i]; pH++; if(pH == 8) { des_encrypt(hashbuffer, 8, hashkey); pH = 0; } }
+          { hashbuffer[pH] ^= data[i]; pH++; if(pH == 8) { Via1Hash(hashbuffer, hashkey); pH = 0; } }
         memcpy(prepared_key, work_key, 8);
     }
     else {
@@ -881,28 +928,28 @@ char Via1Decrypt(unsigned char* source, unsigned char* dw, unsigned int ident, u
 
         if (work_key[7] & 1) {
             for (; i < encStart; i++) 
-              { hashbuffer[pH] ^= data[i]; pH++; if(pH == 8) { des_encrypt(hashbuffer, 8, hashkey); pH = 0; } }
+              { hashbuffer[pH] ^= data[i]; pH++; if(pH == 8) { Via1Hash(hashbuffer, hashkey); pH = 0; } }
             k = ((work_key[7] & 0xf0) == 0) ? 0x5a : 0xa5;
             for (i=0; i<8; i++) {
                 tmp = des_data1[i];
                 des_data1[i] = (k & hashbuffer[pH] ) ^ tmp;
-                { hashbuffer[pH] ^= tmp; pH++; if(pH == 8) { des_encrypt(hashbuffer, 8, hashkey); pH = 0; } };
+                { hashbuffer[pH] ^= tmp; pH++; if(pH == 8) { Via1Hash(hashbuffer, hashkey); pH = 0; } };
             }
             for (i = 0; i < 8; i++) {
                 tmp = des_data2[i];
                 des_data2[i] = (k & hashbuffer[pH] ) ^ tmp;
-                { hashbuffer[pH] ^= tmp; pH++; if(pH == 8) { des_encrypt(hashbuffer, 8, hashkey); pH = 0; } };
+                { hashbuffer[pH] ^= tmp; pH++; if(pH == 8) { Via1Hash(hashbuffer, hashkey); pH = 0; } };
             }
         }
         else {
             for (; i < encStart + 16; i++)
-              { hashbuffer[pH] ^= data[i]; pH++; if(pH == 8) { des_encrypt(hashbuffer, 8, hashkey); pH = 0; } };
+              { hashbuffer[pH] ^= data[i]; pH++; if(pH == 8) { Via1Hash(hashbuffer, hashkey); pH = 0; } };
         }
     }
-    des_decrypt(des_data1, 8, prepared_key);
-    des_decrypt(des_data2, 8, prepared_key);
-    des_encrypt(hashbuffer, 8, hashkey);
-    if (memcmp(signature, hashbuffer, 8)) return 6;
+    Via1Decode(des_data1, prepared_key);
+    Via1Decode(des_data2, prepared_key);
+    Via1Hash(hashbuffer, hashkey);
+    if(memcmp(signature, hashbuffer, 8)) return 6;
     return 0;
 }
 
@@ -1305,7 +1352,7 @@ char GetNagraKey(unsigned char *buf, unsigned int ident, char keyName, unsigned 
   char keyStr[8];
   snprintf(keyStr, 8, "%c%X", keyName, keyIndex);	
   if(FindKey('N', ident, keyStr, buf, keyName == 'M' ? 64 : 16))
-  	return 1;	 	
+   return 1;	  
 	
   switch(ident) {
     case 0x2111:  // Digi TV Cablu (Romanian Cable TV)
@@ -1466,7 +1513,7 @@ char GetIrdetoKey(unsigned char *buf, unsigned int ident, char keyName, unsigned
   char keyStr[8];
   snprintf(keyStr, 8, "%c%X", keyName, keyIndex);	
   if(FindKey('I', ident, keyStr, buf, 16))
-  	return 1;
+   return 1;
 
   switch(ident) {
     case 0x60400:  // Bulsat 39°E
