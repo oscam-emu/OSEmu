@@ -1,3 +1,4 @@
+UNAME := $(shell uname -s)
 CC = gcc
 STRIP = strip
 CFLAGS=-I.
@@ -17,7 +18,11 @@ all: OSEmu
 	$(CC) -MM $(CFLAGS) $*.c > $*.d
 
 OSEmu: $(OBJS)
+ifeq ($(UNAME),Darwin)
+	$(CC) -O2 -o $(BIN) $(OBJS) $(CFLAGS)
+else
 	$(CC) -O2 -o $(BIN) $(OBJS) $(CFLAGS) -Wl,--format=binary -Wl,SoftCam.Key -Wl,--format=default	
+endif
 	$(STRIP) $(BIN)
 	
 clean:

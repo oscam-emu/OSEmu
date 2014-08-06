@@ -28,7 +28,7 @@ void PrintHexDump(char* label,const unsigned char *buffer, int n)
     {
         strcpy(str3, label);
         strcat(str3, Message);
-        printf("%s\n", str3);
+        fprintf(stderr, "%s\n", str3);
         free(str3);
     }
 }
@@ -141,7 +141,7 @@ static int32_t camd35_recv(uchar *buf, int32_t rs)
 				if (crc32(0L, buf+20, buflen)!=b2i(4, buf+4)) {
 					rc=-4;
 					if(debuglog) PrintHexDump("camd35 checksum failed for: ", buf+20, buflen);
-					if(debuglog) printf("checksum: %X\n", b2i(4, buf+4));
+					if(debuglog) fprintf(stderr, "checksum: %X\n", b2i(4, buf+4));
 				}
 				if (!rc) rc=n;
 				break;
@@ -171,12 +171,12 @@ static void camd35_process_ecm(uchar *buf, int buflen){
 	er.prid = b2i(4, buf+12);
 	er.rc = buf[3];
 	
-	if(debuglog) printf("ProcessECM CAID: %X\n", er.caid);
+	if(debuglog) fprintf(stderr, "ProcessECM CAID: %X\n", er.caid);
 	if(debuglog) PrintHexDump("ProcessECM: ", buf+20, ecmlen);
 	
 	if(ProcessECM(er.caid,buf+20,er.cw)) {
 	  er.rc = E_NOTFOUND;
-	  if(debuglog) printf("CW not found\n");
+	  if(debuglog) fprintf(stderr, "CW not found\n");
 	}
 	else {
 	  if(debuglog) PrintHexDump("Found CW: ", er.cw, 16);
@@ -266,8 +266,10 @@ int main(int argc, char**argv)
 	}
 	
 	get_random_bytes_init();
-	
+
+#ifndef __APPLE__
 	ReadKeyMemory();
+#endif
 	ReadKeyFile("/var/keys/");
 	ReadKeyFile(path);
 	
