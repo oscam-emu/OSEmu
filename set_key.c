@@ -2,6 +2,7 @@
 #include <string.h>
 #include "des.h"
 
+#ifndef WITH_LIBCRYPTO
 
 #define	ROTATE(a,n)	(((a)>>(n))+((a)<<(32-(n))))
 
@@ -14,7 +15,7 @@
 			 l|=((DES_LONG)(*((c)++)))<<16L, \
 			 l|=((DES_LONG)(*((c)++)))<<24L)
 
-int DES_check_key = 0;
+static int DES_check_key = 0;
 
 static const unsigned char odd_parity[256]={
   1,  1,  2,  2,  4,  4,  7,  7,  8,  8, 11, 11, 13, 13, 14, 14,
@@ -34,15 +35,8 @@ static const unsigned char odd_parity[256]={
 224,224,227,227,229,229,230,230,233,233,234,234,236,236,239,239,
 241,241,242,242,244,244,247,247,248,248,251,251,253,253,254,254};
 
-void DES_set_odd_parity(DES_cblock *key)
-	{
-	unsigned int i;
 
-	for (i=0; i<DES_KEY_SZ; i++)
-		(*key)[i]=odd_parity[(*key)[i]];
-	}
-
-int DES_check_key_parity(const_DES_cblock *key)
+static int DES_check_key_parity(const_DES_cblock *key)
 	{
 	unsigned int i;
 
@@ -84,7 +78,7 @@ static const DES_cblock weak_keys[NUM_WEAK_KEY]={
 	{0xE0,0xFE,0xE0,0xFE,0xF1,0xFE,0xF1,0xFE},
 	{0xFE,0xE0,0xFE,0xE0,0xFE,0xF1,0xFE,0xF1}};
 
-int DES_is_weak_key(const_DES_cblock *key)
+static int DES_is_weak_key(const_DES_cblock *key)
 	{
 	int i;
 
@@ -256,13 +250,13 @@ static const DES_LONG des_skb[8][64]={
 	0x00002822L,0x04002822L,0x00042822L,0x04042822L,
 	}};
 
-void DES_set_key_unchecked(const_DES_cblock *key, DES_key_schedule *schedule)
+static void DES_set_key_unchecked(const_DES_cblock *key, DES_key_schedule *schedule)
 #ifdef OPENSSL_FIPS
 	{
 	fips_cipher_abort(DES);
 	private_DES_set_key_unchecked(key, schedule);
 	}
-void private_DES_set_key_unchecked(const_DES_cblock *key, DES_key_schedule *schedule)
+static void private_DES_set_key_unchecked(const_DES_cblock *key, DES_key_schedule *schedule)
 #endif
 	{
 	static const int shifts2[16]={0,0,1,1,1,1,1,1,0,1,1,1,1,1,1,0};
@@ -327,7 +321,7 @@ void private_DES_set_key_unchecked(const_DES_cblock *key, DES_key_schedule *sche
  * return -1 if key parity error,
  * return -2 if illegal weak key.
  */
-int DES_set_key_checked(const_DES_cblock *key, DES_key_schedule *schedule)
+static int DES_set_key_checked(const_DES_cblock *key, DES_key_schedule *schedule)
 	{
 	if (!DES_check_key_parity(key))
 		return(-1);
@@ -337,8 +331,7 @@ int DES_set_key_checked(const_DES_cblock *key, DES_key_schedule *schedule)
 	return 0;
 	}
 
-
-int DES_set_key(const_DES_cblock *key, DES_key_schedule *schedule)
+static int DES_set_key(const_DES_cblock *key, DES_key_schedule *schedule)
 	{
 	if (DES_check_key)
 		{
@@ -351,14 +344,10 @@ int DES_set_key(const_DES_cblock *key, DES_key_schedule *schedule)
 		}
 	}
 
+
 int DES_key_sched(const_DES_cblock *key, DES_key_schedule *schedule)
 	{
 	return(DES_set_key(key,schedule));
 	}
-/*
-#undef des_fixup_key_parity
-void des_fixup_key_parity(des_cblock *key)
-	{
-	des_set_odd_parity(key);
-	}
-*/
+
+#endif
