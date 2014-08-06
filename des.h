@@ -43,11 +43,11 @@ extern void DES_ede3_cbc_encrypt(const unsigned char *input, unsigned char *outp
 #define DES_ede2_cbc_encrypt(i,o,l,k1,k2,iv,e) \
 DES_ede3_cbc_encrypt((i),(o),(l),(k1),(k2),(k1),(iv),(e))	
 
-extern int des_encrypt(unsigned char *buffer, int len, unsigned char *deskey);
-extern int des_decrypt(unsigned char *buffer, int len, unsigned char *deskey);
-extern unsigned char *des_login_key_get(unsigned char *key1, unsigned char *key2, int len, unsigned char *des16);
-extern void doPC1(unsigned char data[]);
-extern void des(unsigned char key[], unsigned char mode, unsigned char data[]);
+	extern int des_encrypt(unsigned char *buffer, int len, unsigned char *deskey);
+	extern int des_decrypt(unsigned char *buffer, int len, unsigned char *deskey);
+	extern unsigned char *des_login_key_get(unsigned char *key1, unsigned char *key2, int len, unsigned char *des16);
+	extern void doPC1(unsigned char data[]);
+	extern void des(unsigned char key[], unsigned char mode, unsigned char data[]);
 
 #ifdef  __cplusplus
 }

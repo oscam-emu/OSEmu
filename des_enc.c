@@ -1,5 +1,7 @@
 #include "des.h"
 
+#ifndef WITH_LIBCRYPTO
+
 #define D_ENCRYPT(LL,R,S) {\
 	LOAD_DATA_tmp(R,S,u,t,E0,E1); \
 	t=ROTATE(t,4); \
@@ -84,7 +86,7 @@
 				} \
 			}			 
 
-const DES_LONG DES_SPtrans[8][64]={
+static const DES_LONG DES_SPtrans[8][64]={
 {
 /* nibble 0 */
 0x02080800L, 0x00080000L, 0x02000002L, 0x02080802L,
@@ -231,102 +233,7 @@ const DES_LONG DES_SPtrans[8][64]={
 0x20000000L, 0x20800080L, 0x00020000L, 0x00820080L,
 }};
 
-
-void DES_encrypt1(DES_LONG *data, DES_key_schedule *ks, int enc)
-	{
-	register DES_LONG l,r,t,u;
-#ifdef DES_PTR
-	register const unsigned char *des_SP=(const unsigned char *)DES_SPtrans;
-#endif
-#ifndef DES_UNROLL
-	register int i;
-#endif
-	register DES_LONG *s;
-
-	r=data[0];
-	l=data[1];
-
-	IP(r,l);
-	/* Things have been modified so that the initial rotate is
-	 * done outside the loop.  This required the
-	 * DES_SPtrans values in sp.h to be rotated 1 bit to the right.
-	 * One perl script later and things have a 5% speed up on a sparc2.
-	 * Thanks to Richard Outerbridge <71755.204@CompuServe.COM>
-	 * for pointing this out. */
-	/* clear the top bits on machines with 8byte longs */
-	/* shift left by 2 */
-	r=ROTATE(r,29)&0xffffffffL;
-	l=ROTATE(l,29)&0xffffffffL;
-
-	s=ks->ks->deslong;
-	/* I don't know if it is worth the effort of loop unrolling the
-	 * inner loop */
-	if (enc)
-		{
-#ifdef DES_UNROLL
-		D_ENCRYPT(l,r, 0); /*  1 */
-		D_ENCRYPT(r,l, 2); /*  2 */
-		D_ENCRYPT(l,r, 4); /*  3 */
-		D_ENCRYPT(r,l, 6); /*  4 */
-		D_ENCRYPT(l,r, 8); /*  5 */
-		D_ENCRYPT(r,l,10); /*  6 */
-		D_ENCRYPT(l,r,12); /*  7 */
-		D_ENCRYPT(r,l,14); /*  8 */
-		D_ENCRYPT(l,r,16); /*  9 */
-		D_ENCRYPT(r,l,18); /*  10 */
-		D_ENCRYPT(l,r,20); /*  11 */
-		D_ENCRYPT(r,l,22); /*  12 */
-		D_ENCRYPT(l,r,24); /*  13 */
-		D_ENCRYPT(r,l,26); /*  14 */
-		D_ENCRYPT(l,r,28); /*  15 */
-		D_ENCRYPT(r,l,30); /*  16 */
-#else
-		for (i=0; i<32; i+=4)
-			{
-			D_ENCRYPT(l,r,i+0); /*  1 */
-			D_ENCRYPT(r,l,i+2); /*  2 */
-			}
-#endif
-		}
-	else
-		{
-#ifdef DES_UNROLL
-		D_ENCRYPT(l,r,30); /* 16 */
-		D_ENCRYPT(r,l,28); /* 15 */
-		D_ENCRYPT(l,r,26); /* 14 */
-		D_ENCRYPT(r,l,24); /* 13 */
-		D_ENCRYPT(l,r,22); /* 12 */
-		D_ENCRYPT(r,l,20); /* 11 */
-		D_ENCRYPT(l,r,18); /* 10 */
-		D_ENCRYPT(r,l,16); /*  9 */
-		D_ENCRYPT(l,r,14); /*  8 */
-		D_ENCRYPT(r,l,12); /*  7 */
-		D_ENCRYPT(l,r,10); /*  6 */
-		D_ENCRYPT(r,l, 8); /*  5 */
-		D_ENCRYPT(l,r, 6); /*  4 */
-		D_ENCRYPT(r,l, 4); /*  3 */
-		D_ENCRYPT(l,r, 2); /*  2 */
-		D_ENCRYPT(r,l, 0); /*  1 */
-#else
-		for (i=30; i>0; i-=4)
-			{
-			D_ENCRYPT(l,r,i-0); /* 16 */
-			D_ENCRYPT(r,l,i-2); /* 15 */
-			}
-#endif
-		}
-
-	/* rotate and clear the top bits on machines with 8byte longs */
-	l=ROTATE(l,3)&0xffffffffL;
-	r=ROTATE(r,3)&0xffffffffL;
-
-	FP(r,l);
-	data[0]=l;
-	data[1]=r;
-	l=r=t=u=0;
-	}
-
-void DES_encrypt2(DES_LONG *data, DES_key_schedule *ks, int enc)
+static void DES_encrypt2(DES_LONG *data, DES_key_schedule *ks, int enc)
 	{
 	register DES_LONG l,r,t,u;
 #ifdef DES_PTR
@@ -413,7 +320,7 @@ void DES_encrypt2(DES_LONG *data, DES_key_schedule *ks, int enc)
 	l=r=t=u=0;
 	}
 
-void DES_encrypt3(DES_LONG *data, DES_key_schedule *ks1,
+static void DES_encrypt3(DES_LONG *data, DES_key_schedule *ks1,
 		  DES_key_schedule *ks2, DES_key_schedule *ks3)
 	{
 	register DES_LONG l,r;
@@ -433,7 +340,7 @@ void DES_encrypt3(DES_LONG *data, DES_key_schedule *ks1,
 	data[1]=r;
 	}
 
-void DES_decrypt3(DES_LONG *data, DES_key_schedule *ks1,
+static void DES_decrypt3(DES_LONG *data, DES_key_schedule *ks1,
 		  DES_key_schedule *ks2, DES_key_schedule *ks3)
 	{
 	register DES_LONG l,r;
@@ -566,3 +473,4 @@ void DES_ede3_cbc_encrypt(const unsigned char *input, unsigned char *output,
 	tin[0]=tin[1]=0;
 	}
 
+#endif
