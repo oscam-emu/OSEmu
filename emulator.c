@@ -133,19 +133,19 @@ void ReadKeyFile(char *path)
 extern char SoftCamKey_Data[]    asm("_binary_SoftCam_Key_start");
 extern char SoftCamKey_DataEnd[] asm("_binary_SoftCam_Key_end");
 
-void ReadKeyMemory()
+void ReadKeyMemory(void)
 {
-  char *line, keyName[8], keyString[1026];
-  unsigned int i, endOfLine, provider, keyLength;
+  char *line, *saveptr, keyName[8], keyString[1026];
+  unsigned int provider, keyLength;
   unsigned char *key;
   char identifier;
 
   SoftCamKey_Data[SoftCamKey_DataEnd-SoftCamKey_Data-1] = 0x00;
   
-  line = strtok(SoftCamKey_Data, "\n");
+  line = strtok_r(SoftCamKey_Data, "\n", &saveptr);
   while(line != NULL) {
     if(sscanf(line, "%c %8x %7s %1024s", &identifier, &provider, keyName, keyString) != 4) {
-    	 line = strtok(NULL, "\n");
+    	 line = strtok_r(NULL, "\n", &saveptr);
     	 continue;
     }
     keyLength = strlen(keyString)/2;
@@ -156,7 +156,7 @@ void ReadKeyMemory()
       SetKey(identifier, provider, keyName, key, keyLength);
     else 
       free(key);  
-    line = strtok(NULL, "\n");
+    line = strtok_r(NULL, "\n", &saveptr);
   }
 }
 
