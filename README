@@ -1,7 +1,9 @@
 Here is a working sample for such a simple (micro) emu.
 It includes the basic needed Camd35 UDP functionality and is really very simple and compact.
 
-Build: Just enter "make", there are no options necessary as long as you don't crosscompile (but as it's standard c code with no dependencies it should work quite easy on all plattforms)
+Build: 
+- Put a SoftCam.Key file into the source code directory
+- Then just enter "make", there are no options necessary as long as you don't crosscompile (but as it's standard c code with no dependencies it should work quite easy on all plattforms)
 
 Configure (optional): OSEmu does not require, but will make us of "SoftCam.Key" if available.
 "SoftCam.Key" is searched in the folder OSEmu is run from, or the folder specified with the "-c <folder>" option.
