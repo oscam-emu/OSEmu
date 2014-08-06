@@ -23,10 +23,11 @@ You use the program with the following options:
  - -c folder where SoftCam.key is placed
  - -b (start in background/daemon mode)
  - -v show some debugging info
+ - -l logfile 
 An example would be:
  - /usr/bin/OSEmu -a server:passwd -p 12345 -b
 To specify the path of SoftCam.Key:
- - /usr/bin/OSEmu -a server:passwd -p 12345 -b -c /usr/keys
+ - /usr/bin/OSEmu -a server:passwd -p 12345 -b -c /usr/keys -l /var/log/osemu.log
 
 And the corresponding oscam reader entry:
 

@@ -28,6 +28,7 @@ typedef unsigned char uchar;
 extern int8_t debuglog;
 extern int8_t havelogfile;
 extern char*  logfile;
+extern int bg;
 
 struct aes_keys {
 	AES_KEY			aeskey_encrypt;		// encryption key needed by monitor and used by camd33, camd35

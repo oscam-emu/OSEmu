@@ -5,10 +5,10 @@ void cs_log(const char* format, ... ){
   if(havelogfile) fp = fopen(logfile, "a");
   va_list arglist;
   va_start(arglist, format);
-  vfprintf(stderr, format, arglist);  
+  if(!bg) vfprintf(stderr, format, arglist);  
   if(fp != NULL) vfprintf(fp, format, arglist);  
   va_end(arglist);
-  fprintf(stderr, "\n");
+  if(!bg) fprintf(stderr, "\n");
   if(fp != NULL) fprintf(fp, "\n");
   if(fp != NULL) fclose(fp);
 }
@@ -19,10 +19,10 @@ void cs_log_debug(const char* format, ... ){
     if(havelogfile) fp = fopen(logfile, "a");
     va_list arglist;
     va_start(arglist, format);
-    vfprintf(stderr, format, arglist);  
+    if(!bg) vfprintf(stderr, format, arglist);  
     if(fp != NULL) vfprintf(fp, format, arglist);  
     va_end(arglist);
-    fprintf(stderr, "\n");
+    if(!bg) fprintf(stderr, "\n");
     if(fp != NULL) fprintf(fp, "\n");
     if(fp != NULL) fclose(fp);
   }
