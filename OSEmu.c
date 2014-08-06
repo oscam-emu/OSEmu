@@ -13,6 +13,7 @@ static struct sockaddr_in cl_socket;
 int8_t debuglog = 0;
 int8_t havelogfile = 0;
 char*  logfile = NULL;
+int bg = 0;
 
 #define REQ_SIZE	584		// 512 + 20 + 0x34
 
@@ -193,15 +194,16 @@ static void camd35_process_ecm(uchar *buf, int buflen){
 }
 
 void show_usage(char *cmdline){
-	cs_log("Usage: %s -a <user>:<password> -p <port> [-b -v -c <path>]", cmdline);
+	cs_log("Usage: %s -a <user>:<password> -p <port> [-b -v -c <path> -l <logfile>]", cmdline);
 	cs_log("-b enables to start as a daemon (background)");
 	cs_log("-v enables a more verbose output (debug output)");
 	cs_log("-c sets path of SoftCam.Key");
+	cs_log("-l sets log file");	
 }
 
 int main(int argc, char**argv)
 {
-	int bg = 0, n, opt, port = 0, accountok = 0;
+	int n, opt, port = 0, accountok = 0;
 	struct sockaddr_in servaddr;
 	socklen_t len;
 	unsigned char mbuf[1000];
