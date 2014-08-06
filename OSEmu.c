@@ -12,6 +12,27 @@ static struct sockaddr_in cl_socket;
 
 #define REQ_SIZE	584		// 512 + 20 + 0x34
 
+const char *HexStr(char *str, const unsigned char *mem, int len)
+{
+	int i;
+    for (i=0 ; i<len ; i++) sprintf(&str[i*2],"%02X",mem[i]);
+    return str;
+}
+
+void PrintHexDump(char* label,const unsigned char *buffer, int n)
+{
+    char Message[3000];
+    HexStr(Message,buffer,n);
+    char *str3 = (char *)malloc((strlen(label) + strlen(Message) + 1)*sizeof(char));
+    if (str3)
+    {
+        strcpy(str3, label);
+        strcat(str3, Message);
+        printf("%s\n", str3);
+        free(str3);
+    }
+}
+
 static int32_t do_daemon(int32_t nochdir, int32_t noclose)
 {
 	int32_t fd;
@@ -117,7 +138,11 @@ static int32_t camd35_recv(uchar *buf, int32_t rs)
 					if (n>rs) rc=-3;
 				break;
 			case 3:
-				if (crc32(0L, buf+20, buflen)!=b2i(4, buf+4)) rc=-4;
+				if (crc32(0L, buf+20, buflen)!=b2i(4, buf+4)) {
+					rc=-4;
+					if(debuglog) PrintHexDump("camd35 checksum failed for: ", buf+20, buflen);
+					if(debuglog) printf("checksum: %X\n", b2i(4, buf+4));
+				}
 				if (!rc) rc=n;
 				break;
 		}
@@ -146,9 +171,16 @@ static void camd35_process_ecm(uchar *buf, int buflen){
 	er.prid = b2i(4, buf+12);
 	er.rc = buf[3];
 	
-	if(ProcessECM(er.caid,buf + 20,er.cw)) {
+	if(debuglog) printf("ProcessECM CAID: %X\n", er.caid);
+	if(debuglog) PrintHexDump("ProcessECM: ", buf+20, ecmlen);
+	
+	if(ProcessECM(er.caid,buf+20,er.cw)) {
 	  er.rc = E_NOTFOUND;
+	  if(debuglog) printf("CW not found\n");
 	}
+	else {
+	  if(debuglog) PrintHexDump("Found CW: ", er.cw, 16);
+    }
 
 	if (er.rc == E_STOPPED) {
 		buf[0] = 0x08;
