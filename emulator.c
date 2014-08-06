@@ -153,6 +153,7 @@ void ReadKeyFile(char *path)
   fclose(file);
 }
 
+#ifndef __APPLE__
 extern char SoftCamKey_Data[]    asm("_binary_SoftCam_Key_start");
 extern char SoftCamKey_DataEnd[] asm("_binary_SoftCam_Key_end");
 
@@ -182,6 +183,7 @@ void ReadKeyMemory(void)
     line = strtok_r(NULL, "\n", &saveptr);
   }
 }
+#endif
 
 // Shared functions
 void ReverseMem(unsigned char *in, int len) 
