@@ -150,7 +150,7 @@ void ReverseMemInOut(unsigned char *out, const unsigned char *in, int n)
   }
 }
 
-char RSAInput(BIGNUM *d, const unsigned char *in, int n, char LE)
+char EmuRSAInput(BIGNUM *d, const unsigned char *in, int n, char LE)
 {
   if(LE) {
     unsigned char tmp[256];
@@ -161,7 +161,7 @@ char RSAInput(BIGNUM *d, const unsigned char *in, int n, char LE)
     return BN_bin2bn(in,n,d)!=0;
 }
 
-int RSAOutput(unsigned char *out, int n, BIGNUM *r, char LE)
+int EmuRSAOutput(unsigned char *out, int n, BIGNUM *r, char LE)
 {
   int s=BN_num_bytes(r);
   if(s>n) {
@@ -179,7 +179,7 @@ int RSAOutput(unsigned char *out, int n, BIGNUM *r, char LE)
   return s;
 }
 
-int RSA(unsigned char *out, const unsigned char *in, int n, BIGNUM *exp, BIGNUM *mod, char LE)
+int EmuRSA(unsigned char *out, const unsigned char *in, int n, BIGNUM *exp, BIGNUM *mod, char LE)
 {
   BN_CTX *ctx;
   BIGNUM *r, *d;
@@ -189,8 +189,8 @@ int RSA(unsigned char *out, const unsigned char *in, int n, BIGNUM *exp, BIGNUM 
   r = BN_new();
   d = BN_new();
   
-  if(RSAInput(d,in,n,LE) && BN_mod_exp(r,d,exp,mod,ctx)) 
-    result = RSAOutput(out,n,r,LE);
+  if(EmuRSAInput(d,in,n,LE) && BN_mod_exp(r,d,exp,mod,ctx)) 
+    result = EmuRSAOutput(out,n,r,LE);
   
   BN_free(d);
   BN_free(r);
@@ -1410,7 +1410,7 @@ char DecryptNagra2ECM(unsigned char *in, unsigned char *out, const unsigned char
   BN_bin2bn(&binExp, 1, exp); 
   BN_bin2bn(keyM, 64, mod);
      
-  if(RSA(out,in+1,64,exp,mod,1)<=0) { BN_free(exp); BN_free(mod); return 0; }
+  if(EmuRSA(out,in+1,64,exp,mod,1)<=0) { BN_free(exp); BN_free(mod); return 0; }
   out[63]|=sign;
   if(len>64) memcpy(out+64,in+65,len-64);
 
@@ -1434,7 +1434,7 @@ char DecryptNagra2ECM(unsigned char *in, unsigned char *out, const unsigned char
   }
 
   ReverseMem(out,64);
-  if(result && RSA(out,out,64,exp,mod,0)<=0) result = 0;
+  if(result && EmuRSA(out,out,64,exp,mod,0)<=0) result = 0;
   if(result && vkey && !Nagra2Signature(vkey,out,out+8,len-8)) result = 0;
     
   BN_free(exp); BN_free(mod);     
