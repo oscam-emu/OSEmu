@@ -1,58 +1,91 @@
 #include "globals.h"
 
 void cs_log(const char* format, ... ){
+  FILE *fp = NULL;
+  if(havelogfile) fp = fopen(logfile, "a");
   va_list arglist;
   va_start(arglist, format);
-  vprintf(format, arglist);  
+  vfprintf(stderr, format, arglist);  
+  if(fp != NULL) vfprintf(fp, format, arglist);  
   va_end(arglist);
-  printf("\n");
+  fprintf(stderr, "\n");
+  if(fp != NULL) fprintf(fp, "\n");
+  if(fp != NULL) fclose(fp);
 }
-
+  
 void cs_log_debug(const char* format, ... ){
   if(debuglog){
-	  va_list arglist;
-	  va_start(arglist, format);
-	  vprintf(format, arglist);
-	  va_end(arglist);
-	  printf("\n");
-	}
+    FILE *fp = NULL;
+    if(havelogfile) fp = fopen(logfile, "a");
+    va_list arglist;
+    va_start(arglist, format);
+    vfprintf(stderr, format, arglist);  
+    if(fp != NULL) vfprintf(fp, format, arglist);  
+    va_end(arglist);
+    fprintf(stderr, "\n");
+    if(fp != NULL) fprintf(fp, "\n");
+    if(fp != NULL) fclose(fp);
+  }
+}
+
+const char *HexStr(char *str, const unsigned char *mem, int len)
+{
+  int i;
+    for (i=0 ; i<len ; i++) sprintf(&str[i*2],"%02X",mem[i]);
+    return str;
+}
+
+void cs_log_hexdump(char* label,const unsigned char *buffer, int n)
+{
+    char Message[3000];
+    if(!debuglog) return;
+   
+    HexStr(Message,buffer,n);
+    char *str3 = (char *)malloc((strlen(label) + strlen(Message) + 1)*sizeof(char));
+    if (str3)
+    {
+        strcpy(str3, label);
+        strcat(str3, Message);
+        cs_log_debug("%s", str3);
+        free(str3);
+    }
 }
 
 int32_t boundary(int32_t exp, int32_t n)
 {
-	return (((n-1) >> exp) + 1) << exp;
+  return (((n-1) >> exp) + 1) << exp;
 }
 
 uint32_t b2i(int32_t n, const uchar *b)
 {
-	switch(n) {
-	case 2: return  (b[0] <<  8) |  b[1];
-	case 3: return  (b[0] << 16) | (b[1] <<  8) |  b[2];
-	case 4: return ((b[0] << 24) | (b[1] << 16) | (b[2] <<8 ) | b[3]) & 0xffffffffL;
-	default: cs_log("Error in b2i, n=%i",n);
-	}
-	return 0;
+  switch(n) {
+  case 2: return  (b[0] <<  8) |  b[1];
+  case 3: return  (b[0] << 16) | (b[1] <<  8) |  b[2];
+  case 4: return ((b[0] << 24) | (b[1] << 16) | (b[2] <<8 ) | b[3]) & 0xffffffffL;
+  default: cs_log("Error in b2i, n=%i",n);
+  }
+  return 0;
 }
 
 uchar *i2b_buf(int32_t n, uint32_t i, uchar *b)
 {
-	switch(n) {
-	case 2:
-		b[0] = (i>> 8) & 0xff;
-		b[1] = (i    ) & 0xff;
-		break;
-	case 3:
-		b[0] = (i>>16) & 0xff;
-		b[1] = (i>> 8) & 0xff;
-		b[2] = (i    ) & 0xff;
-	case 4:
-		b[0] = (i>>24) & 0xff;
-		b[1] = (i>>16) & 0xff;
-		b[2] = (i>> 8) & 0xff;
-		b[3] = (i    ) & 0xff;
-		break;
-	}
-	return b;
+  switch(n) {
+  case 2:
+    b[0] = (i>> 8) & 0xff;
+    b[1] = (i    ) & 0xff;
+    break;
+  case 3:
+    b[0] = (i>>16) & 0xff;
+    b[1] = (i>> 8) & 0xff;
+    b[2] = (i    ) & 0xff;
+  case 4:
+    b[0] = (i>>24) & 0xff;
+    b[1] = (i>>16) & 0xff;
+    b[2] = (i>> 8) & 0xff;
+    b[3] = (i    ) & 0xff;
+    break;
+  }
+  return b;
 }
 
 /* Ordinary strncpy does not terminate the string if the source is exactly
@@ -61,17 +94,17 @@ uchar *i2b_buf(int32_t n, uint32_t i, uchar *b)
    num should be the real size of char array (do not subtract -1). */
 void cs_strncpy(char *destination, const char *source, size_t num)
 {
-	if (!source) {
-		destination[0] = '\0';
-		return;
-	}
-	uint32_t l, size = strlen(source);
-	if (size > num - 1)
-		l = num - 1;
-	else
-		l = size;
-	memcpy(destination, source, l);
-	destination[l] = '\0';
+  if (!source) {
+    destination[0] = '\0';
+    return;
+  }
+  uint32_t l, size = strlen(source);
+  if (size > num - 1)
+    l = num - 1;
+  else
+    l = size;
+  memcpy(destination, source, l);
+  destination[l] = '\0';
 }
 
 /* CRYPTO */
@@ -82,27 +115,27 @@ void cs_strncpy(char *destination, const char *source, size_t num)
 static uint8_t rand_pool[RAND_POOL_SIZE + sizeof(uint32_t)];
 
 void get_random_bytes_init(void) {
-	srand(time(NULL));
-	int fd = open("/dev/urandom", O_RDONLY);
-	if (fd < 0) {
-		fd = open("/dev/random", O_RDONLY);
-		if (fd < 0)
-			return;
-	}
-	if (read(fd, rand_pool, RAND_POOL_SIZE + sizeof(uint32_t)) > -1) {
-		uint32_t *pool_seed = (uint32_t *)rand_pool + RAND_POOL_SIZE;
-		srand(*pool_seed);
-	}
-	close(fd);
+  srand(time(NULL));
+  int fd = open("/dev/urandom", O_RDONLY);
+  if (fd < 0) {
+    fd = open("/dev/random", O_RDONLY);
+    if (fd < 0)
+      return;
+  }
+  if (read(fd, rand_pool, RAND_POOL_SIZE + sizeof(uint32_t)) > -1) {
+    uint32_t *pool_seed = (uint32_t *)rand_pool + RAND_POOL_SIZE;
+    srand(*pool_seed);
+  }
+  close(fd);
 }
 
 void get_random_bytes(uint8_t *dst, uint32_t dst_len) {
-	static uint32_t rand_pool_pos; // *MUST* be static
-	uint32_t i;
-	for (i = 0; i < dst_len; i++) {
-		rand_pool_pos++; // Races are welcome...
-		dst[i] = rand() ^ rand_pool[rand_pool_pos % RAND_POOL_SIZE];
-	}
+  static uint32_t rand_pool_pos; // *MUST* be static
+  uint32_t i;
+  for (i = 0; i < dst_len; i++) {
+    rand_pool_pos++; // Races are welcome...
+    dst[i] = rand() ^ rand_pool[rand_pool_pos % RAND_POOL_SIZE];
+  }
 }
 
 /*
@@ -172,40 +205,40 @@ static unsigned long crc_table[256] = {
 
 unsigned long crc32(unsigned long crc, const unsigned char *buf, unsigned int len)
 {
-	if (!buf)
-		return 0L;
-	crc = crc ^ 0xffffffffL;
-	while (len >= 8) {
-		DO8(buf);
-		len -= 8;
-	}
-	if (len) {
-		do {
-			DO1(buf);
-		} while (--len);
-	}
-	return crc ^ 0xffffffffL;
+  if (!buf)
+    return 0L;
+  crc = crc ^ 0xffffffffL;
+  while (len >= 8) {
+    DO8(buf);
+    len -= 8;
+  }
+  if (len) {
+    do {
+      DO1(buf);
+    } while (--len);
+  }
+  return crc ^ 0xffffffffL;
 }
 
 void aes_set_key(struct aes_keys *aes, char *key)
 {
-	AES_set_decrypt_key((const unsigned char *)key, 128, &aes->aeskey_decrypt);
-	AES_set_encrypt_key((const unsigned char *)key, 128, &aes->aeskey_encrypt);
+  AES_set_decrypt_key((const unsigned char *)key, 128, &aes->aeskey_decrypt);
+  AES_set_encrypt_key((const unsigned char *)key, 128, &aes->aeskey_encrypt);
 }
 
 void aes_decrypt(struct aes_keys *aes, uchar *buf, int32_t n)
 {
-	int32_t i;
-	for (i=0; i<n; i+=16) {
-		AES_decrypt(buf+i, buf+i, &aes->aeskey_decrypt);
-	}
+  int32_t i;
+  for (i=0; i<n; i+=16) {
+    AES_decrypt(buf+i, buf+i, &aes->aeskey_decrypt);
+  }
 }
 
 void aes_encrypt_idx(struct aes_keys *aes, uchar *buf, int32_t n)
 {
-	int32_t i;
-	for (i=0; i<n; i+=16) {
-		AES_encrypt(buf+i, buf+i, &aes->aeskey_encrypt);
-	}
+  int32_t i;
+  for (i=0; i<n; i+=16) {
+    AES_encrypt(buf+i, buf+i, &aes->aeskey_encrypt);
+  }
 }
 

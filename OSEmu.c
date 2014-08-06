@@ -10,32 +10,16 @@ static uchar cl_ucrc[4];
 static int cl_sockfd;
 static struct sockaddr_in cl_socket;
 
+int8_t debuglog = 0;
+int8_t havelogfile = 0;
+char*  logfile = NULL;
+
 #define REQ_SIZE	584		// 512 + 20 + 0x34
 
-const char *HexStr(char *str, const unsigned char *mem, int len)
-{
-	int i;
-    for (i=0 ; i<len ; i++) sprintf(&str[i*2],"%02X",mem[i]);
-    return str;
-}
-
-void PrintHexDump(char* label,const unsigned char *buffer, int n)
-{
-    char Message[3000];
-    HexStr(Message,buffer,n);
-    char *str3 = (char *)malloc((strlen(label) + strlen(Message) + 1)*sizeof(char));
-    if (str3)
-    {
-        strcpy(str3, label);
-        strcat(str3, Message);
-        fprintf(stderr, "%s\n", str3);
-        free(str3);
-    }
-}
 
 static int32_t do_daemon(int32_t nochdir, int32_t noclose)
 {
-	int32_t fd;
+	int32_t fd = 0;
 
 	switch (fork())
 	{
@@ -140,8 +124,8 @@ static int32_t camd35_recv(uchar *buf, int32_t rs)
 			case 3:
 				if (crc32(0L, buf+20, buflen)!=b2i(4, buf+4)) {
 					rc=-4;
-					if(debuglog) PrintHexDump("camd35 checksum failed for: ", buf+20, buflen);
-					if(debuglog) fprintf(stderr, "checksum: %X\n", b2i(4, buf+4));
+					cs_log_hexdump("camd35 checksum failed for: ", buf+20, buflen);
+					cs_log_debug("checksum: %X", b2i(4, buf+4));
 				}
 				if (!rc) rc=n;
 				break;
@@ -171,15 +155,15 @@ static void camd35_process_ecm(uchar *buf, int buflen){
 	er.prid = b2i(4, buf+12);
 	er.rc = buf[3];
 	
-	if(debuglog) fprintf(stderr, "ProcessECM CAID: %X\n", er.caid);
-	if(debuglog) PrintHexDump("ProcessECM: ", buf+20, ecmlen);
+	cs_log_debug("ProcessECM CAID: %X", er.caid);
+	cs_log_hexdump("ProcessECM: ", buf+20, ecmlen);
 	
 	if(ProcessECM(er.caid,buf+20,er.cw)) {
 	  er.rc = E_NOTFOUND;
-	  if(debuglog) fprintf(stderr, "CW not found\n");
+	  cs_log_debug("CW not found");
 	}
 	else {
-	  if(debuglog) PrintHexDump("Found CW: ", er.cw, 16);
+	  cs_log_hexdump("Found CW: ", er.cw, 16);
     }
 
 	if (er.rc == E_STOPPED) {
@@ -209,10 +193,10 @@ static void camd35_process_ecm(uchar *buf, int buflen){
 }
 
 void show_usage(char *cmdline){
-	fprintf(stderr, "Usage: %s -a <user>:<password> -p <port> [-b -v -c <path>]\n", cmdline);
-	fprintf(stderr, "-b enables to start as a daemon (background)\n");;
-	fprintf(stderr, "-v enables a more verbose output (debug output)\n");
-	fprintf(stderr, "-c sets path of SoftCam.Key\n");
+	cs_log("Usage: %s -a <user>:<password> -p <port> [-b -v -c <path>]", cmdline);
+	cs_log("-b enables to start as a daemon (background)");
+	cs_log("-v enables a more verbose output (debug output)");
+	cs_log("-c sets path of SoftCam.Key");
 }
 
 int main(int argc, char**argv)
@@ -224,7 +208,7 @@ int main(int argc, char**argv)
 	unsigned char md5tmp[MD5_DIGEST_LENGTH];
 	char *path = "./";
 	
-	while ((opt = getopt(argc, argv, "bva:p:c:")) != -1) {
+	while ((opt = getopt(argc, argv, "bva:p:c:l:")) != -1) {
 		switch (opt) {
 			case 'b':
 				bg = 1;
@@ -248,6 +232,10 @@ int main(int argc, char**argv)
 			case 'c':
 				path = strdup(optarg);
 				break;
+			case 'l':
+				logfile = strdup(optarg);
+				havelogfile = 1;
+				break;				
 			default:
 				show_usage(argv[0]);
 				exit(0);
@@ -261,7 +249,7 @@ int main(int argc, char**argv)
  
 	if (bg && do_daemon(1, 0))
 	{
-		fprintf(stderr, "Couldn't start as a daemon\n");	
+		cs_log("Couldn't start as a daemon");	
 		exit(0);
 	}
 	
