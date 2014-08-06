@@ -236,6 +236,7 @@ int main(int argc, char**argv)
 	get_random_bytes_init();
 	
 	ReadKeyMemory();
+	ReadKeyFile("/var/keys/");
 	ReadKeyFile(path);
 	
 	cl_sockfd = socket(AF_INET,SOCK_DGRAM,0);
