@@ -20,10 +20,16 @@ typedef unsigned char uchar;
 
 #define MAX_ECM_SIZE 512
 
-#define E_FOUND			0
-#define E_NOTFOUND			4
-#define E_INVALID       		8
-#define E_STOPPED       		13
+//ECM rc codes:
+#define E_FOUND         0
+///////above is all found
+#define E_NOTFOUND  4  //for selection of found, use < E_NOTFOUND
+#define E_FAKE          7
+#define E_INVALID       8
+#define E_STOPPED       13 //for selection of error, use <= E_STOPPED and exclude selection of found
+///////above is all notfound, some error or problem
+#define E_UNHANDLED 100 //for selection of unhandled, use >= E_UNHANDLED
+
 
 extern int8_t debuglog;
 extern int8_t havelogfile;
@@ -43,4 +49,3 @@ typedef struct ecm_request_t {
 	uint32_t		prid;
 	int8_t			rc;
 } ECM_REQUEST;
-

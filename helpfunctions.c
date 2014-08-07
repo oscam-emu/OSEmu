@@ -229,7 +229,7 @@ void aes_set_key(struct aes_keys *aes, char *key)
 void aes_decrypt(struct aes_keys *aes, uchar *buf, int32_t n)
 {
   int32_t i;
-  for (i=0; i<n; i+=16) {
+  for (i=0; i+15<n; i+=16) {
     AES_decrypt(buf+i, buf+i, &aes->aeskey_decrypt);
   }
 }
@@ -237,7 +237,7 @@ void aes_decrypt(struct aes_keys *aes, uchar *buf, int32_t n)
 void aes_encrypt_idx(struct aes_keys *aes, uchar *buf, int32_t n)
 {
   int32_t i;
-  for (i=0; i<n; i+=16) {
+  for (i=0; i+15<n; i+=16) {
     AES_encrypt(buf+i, buf+i, &aes->aeskey_encrypt);
   }
 }
