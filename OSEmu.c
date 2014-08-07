@@ -59,7 +59,7 @@ static int32_t camd35_send(uchar *buf, int32_t buflen)
 	memcpy(rbuf, cl_ucrc, 4);
 	memcpy(sbuf, buf, l);
 	memset(sbuf + l, 0xff, 15); // set unused space to 0xff for newer camd3's
-	i2b_buf(4, crc32(0L, sbuf + 20, buflen), sbuf + 4);
+	i2b_buf(4, crc32(0, sbuf + 20, buflen), sbuf + 4);
 	l = boundary(4, l);
 	cs_log_debug("send %d bytes to client", l);
 	aes_encrypt_idx(&cl_aes_keys, sbuf, l);
@@ -73,9 +73,9 @@ static int32_t camd35_auth_client(uchar *ucrc)
 	int32_t rc = 1;
 	uint32_t crc;
 	unsigned char md5tmp[MD5_DIGEST_LENGTH];
-	crc = (((ucrc[0] << 24) | (ucrc[1] << 16) | (ucrc[2] << 8) | ucrc[3]) & 0xffffffffL);
+	crc = (((ucrc[0] << 24) | (ucrc[1] << 16) | (ucrc[2] << 8) | ucrc[3]) & 0xffffffff);
 
-	if(crc == crc32(0L, MD5(cl_user, strlen((char *)cl_user), md5tmp), MD5_DIGEST_LENGTH))
+	if(crc == crc32(0, MD5(cl_user, strlen((char *)cl_user), md5tmp), MD5_DIGEST_LENGTH))
 	{
 		memcpy(cl_ucrc, ucrc, 4);
 		return 0;
@@ -135,7 +135,7 @@ static int32_t camd35_recv(uchar *buf, int32_t rs)
 			else if(n > rs) { rc = -3; }
 			break;
 		case 3:
-			if(crc32(0L, buf + 20, buflen) != b2i(4, buf + 4)) { 
+			if(crc32(0, buf + 20, buflen) != b2i(4, buf + 4)) { 
 				rc = -4;
 				cs_log_hexdump("camd35 checksum failed for packet: ", buf, rs);
 				cs_log_debug("checksum: %X", b2i(4, buf+4)); 
