@@ -7,7 +7,7 @@ uchar *i2b_buf(int32_t n, uint32_t i, uchar *b);
 void cs_strncpy(char *destination, const char *source, size_t num);
 void get_random_bytes_init(void);
 void get_random_bytes(uint8_t *dst, uint32_t dst_len);
-unsigned long crc32(unsigned long crc, const unsigned char *buf, unsigned int len);
+uint32_t crc32(uint32_t crc, const unsigned char *buf, uint32_t len);
 void aes_set_key(struct aes_keys *aes, char *key);
 void aes_decrypt(struct aes_keys *aes, uchar *buf, int32_t n);
 void aes_encrypt_idx(struct aes_keys *aes, uchar *buf, int32_t n);
