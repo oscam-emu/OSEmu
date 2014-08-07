@@ -85,7 +85,7 @@ static int32_t camd35_auth_client(uchar *ucrc)
 
 static int32_t camd35_recv(uchar *buf, int32_t rs)
 {
-	int32_t rc, s, n = 0, buflen = 0, len = 0;
+	int32_t rc, s, n = 0, buflen = 0;
 	for(rc = s = 0; !rc; s++)
 	{
 		switch(s)
