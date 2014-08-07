@@ -115,7 +115,7 @@ int FindKey(char identifier, unsigned int provider, char *keyName, unsigned char
 
 void ReadKeyFile(char *path)
 {
-  char line[1120], keyName[8], keyString[1026];
+  char line[2048], keyName[8], keyString[1026];
   unsigned int pathLength, provider, keyLength;
   unsigned char *key;
   char *filepath, *filename;
@@ -138,7 +138,7 @@ void ReadKeyFile(char *path)
   free(filepath);
   if(file == NULL) return;
   
-  while(fgets(line, 1120, file)) {
+  while(fgets(line, 2048, file)) {
     if(sscanf(line, "%c %8x %7s %1024s", &identifier, &provider, keyName, keyString) != 4) continue;
     
     keyLength = strlen(keyString)/2;
@@ -161,12 +161,15 @@ void ReadKeyMemory(void)
 {
   char *line, *saveptr, keyName[8], keyString[1026];
   unsigned int provider, keyLength;
-  unsigned char *key;
+  unsigned char *keyData, *key;
   char identifier;
 
-  SoftCamKey_Data[SoftCamKey_DataEnd-SoftCamKey_Data-1] = 0x00;
+  keyData = (unsigned char*)malloc(SoftCamKey_DataEnd-SoftCamKey_Data+1);
+  if(keyData == NULL) return;
+  memcpy(keyData, SoftCamKey_Data, SoftCamKey_DataEnd-SoftCamKey_Data);
+  keyData[SoftCamKey_DataEnd-SoftCamKey_Data] = 0x00;
   
-  line = strtok_r(SoftCamKey_Data, "\n", &saveptr);
+  line = strtok_r(keyData, "\n", &saveptr);
   while(line != NULL) {
     if(sscanf(line, "%c %8x %7s %1024s", &identifier, &provider, keyName, keyString) != 4) {
     	 line = strtok_r(NULL, "\n", &saveptr);
@@ -174,7 +177,7 @@ void ReadKeyMemory(void)
     }
     keyLength = strlen(keyString)/2;
     key = (unsigned char*)malloc(keyLength);
-    if(key == NULL) return;
+    if(key == NULL) { free(keyData); return; }
     
     if(CharToBin(key, keyString, strlen(keyString)))
       SetKey(identifier, provider, keyName, key, keyLength);
@@ -182,6 +185,7 @@ void ReadKeyMemory(void)
       free(key);  
     line = strtok_r(NULL, "\n", &saveptr);
   }
+  free(keyData);
 }
 #endif
 
