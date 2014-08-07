@@ -523,7 +523,7 @@ unsigned char CryptoworksProcessNano80(unsigned char *data, int provider, unsign
 {
   int i, j;
   unsigned char key[16], desKey[16], t[8], dat1[8], dat2[8], k0D00C000[16];
-  if(provider != 0xA0 && !GetCwKey(k0D00C000, 0x0D00C000, 0, 16)) return 2;
+  if(provider != 0xA0 && !GetCwKey(k0D00C000, 0x0D00C0, 0, 16)) return 2;
   memset(t, 0, 8);
 
   memcpy(dat1, data, 8);
