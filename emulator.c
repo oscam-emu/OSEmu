@@ -53,7 +53,7 @@ KeyDataContainer *GetKeyContainer(char identifier)
   return NULL;
 }
 
-void SetKey(char identifier, unsigned int provider, char *keyName, unsigned char *key, unsigned int keyLength) 
+int SetKey(char identifier, unsigned int provider, char *keyName, unsigned char *key, unsigned int keyLength) 
 {
   unsigned int i;
   KeyDataContainer *KeyDB;
@@ -61,7 +61,7 @@ void SetKey(char identifier, unsigned int provider, char *keyName, unsigned char
   
   KeyDB = NULL;
   KeyDB = GetKeyContainer(identifier);
-  if(KeyDB == NULL) return;
+  if(KeyDB == NULL) return 0;
 
   for(i=0; i<KeyDB->keyCount; i++) {
     if(KeyDB->EmuKeys[i].provider != provider) continue;  
@@ -70,18 +70,18 @@ void SetKey(char identifier, unsigned int provider, char *keyName, unsigned char
 	free(KeyDB->EmuKeys[i].key);
     KeyDB->EmuKeys[i].key = key;
     KeyDB->EmuKeys[i].keyLength = keyLength;
-    return;
+    return 1;
   }	
 
   if(KeyDB->keyCount+1 > KeyDB->keyMax) {
    if(KeyDB->EmuKeys == NULL) {
      KeyDB->EmuKeys = (KeyData*)malloc(sizeof(KeyData)*(KeyDB->keyMax+64));
-     if(KeyDB->EmuKeys == NULL) return;
+     if(KeyDB->EmuKeys == NULL) return 0;
      KeyDB->keyMax+=64;
    }
    else {
      KeyDB->EmuKeys = (KeyData*)realloc(KeyDB->EmuKeys, sizeof(KeyData)*(KeyDB->keyMax+16));
-     if(KeyDB->EmuKeys == NULL) return;
+     if(KeyDB->EmuKeys == NULL) return 0;
      KeyDB->keyMax+=16;
    }
   }
@@ -93,6 +93,7 @@ void SetKey(char identifier, unsigned int provider, char *keyName, unsigned char
   KeyDB->EmuKeys[KeyDB->keyCount].key = key;
   KeyDB->EmuKeys[KeyDB->keyCount].keyLength = keyLength;  
   KeyDB->keyCount++;
+  return 1;
 }
 
 int FindKey(char identifier, unsigned int provider, char *keyName, unsigned char *key, unsigned int maxKeyLength)
@@ -115,7 +116,7 @@ int FindKey(char identifier, unsigned int provider, char *keyName, unsigned char
 
 void ReadKeyFile(char *path)
 {
-  char line[2048], keyName[8], keyString[1026];
+  char line[1200], keyName[8], keyString[1026];
   unsigned int pathLength, provider, keyLength;
   unsigned char *key;
   char *filepath, *filename;
@@ -138,16 +139,15 @@ void ReadKeyFile(char *path)
   free(filepath);
   if(file == NULL) return;
   
-  while(fgets(line, 2048, file)) {
+  while(fgets(line, 1200, file)) {
     if(sscanf(line, "%c %8x %7s %1024s", &identifier, &provider, keyName, keyString) != 4) continue;
     
     keyLength = strlen(keyString)/2;
     key = (unsigned char*)malloc(keyLength);
     if(key == NULL)  { fclose(file); return; }
     
-    if(CharToBin(key, keyString, strlen(keyString)))
-      SetKey(identifier, provider, keyName, key, keyLength);
-    else 
+    if(!CharToBin(key, keyString, strlen(keyString))
+      || !SetKey(identifier, provider, keyName, key, keyLength))
       free(key);
   }
   fclose(file);
@@ -159,9 +159,9 @@ extern char SoftCamKey_DataEnd[] asm("_binary_SoftCam_Key_end");
 
 void ReadKeyMemory(void)
 {
-  char *line, *saveptr, keyName[8], keyString[1026];
+  char *keyData, *line, *saveptr, keyName[8], keyString[1026];
   unsigned int provider, keyLength;
-  unsigned char *keyData, *key;
+  unsigned char *key;
   char identifier;
 
   keyData = (unsigned char*)malloc(SoftCamKey_DataEnd-SoftCamKey_Data+1);
@@ -179,9 +179,8 @@ void ReadKeyMemory(void)
     key = (unsigned char*)malloc(keyLength);
     if(key == NULL) { free(keyData); return; }
     
-    if(CharToBin(key, keyString, strlen(keyString)))
-      SetKey(identifier, provider, keyName, key, keyLength);
-    else 
+    if(!CharToBin(key, keyString, strlen(keyString))
+      || !SetKey(identifier, provider, keyName, key, keyLength))
       free(key);  
     line = strtok_r(NULL, "\n", &saveptr);
   }
@@ -1514,7 +1513,7 @@ char ProcessECM(uint16_t CAID, const unsigned char *ecm, unsigned char *dw) {
   unsigned char *ecmCopy;
   uint16_t ecmLen = (((ecm[1] & 0x0f)<< 8) | ecm[2])+3;
   
-  if(ecmLen > 2048) return 1;
+  if(ecmLen > 1024) return 1;
   ecmCopy = (unsigned char*)malloc(ecmLen);
   if(ecmCopy == NULL) return 7;
   memcpy(ecmCopy, ecm, ecmLen);
