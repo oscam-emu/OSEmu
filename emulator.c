@@ -147,7 +147,7 @@ void ReadKeyFile(char *path)
     if(key == NULL)  { fclose(file); return; }
     
     if(!CharToBin(key, keyString, strlen(keyString))
-      || !SetKey(identifier, provider, keyName, key, keyLength));
+      || !SetKey(identifier, provider, keyName, key, keyLength))
       free(key);
   }
   fclose(file);
@@ -180,7 +180,7 @@ void ReadKeyMemory(void)
     if(key == NULL) { free(keyData); return; }
     
     if(!CharToBin(key, keyString, strlen(keyString))
-      || !SetKey(identifier, provider, keyName, key, keyLength));
+      || !SetKey(identifier, provider, keyName, key, keyLength))
       free(key);  
     line = strtok_r(NULL, "\n", &saveptr);
   }
