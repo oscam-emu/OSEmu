@@ -14,14 +14,14 @@ all: OSEmu
 -include $(OBJS:.o=.d)
 
 %.o: %.c
-	$(CC) -c -o $@ $< $(CFLAGS)
-	$(CC) -MM $(CFLAGS) $*.c > $*.d
+	$(CC) -Wall -c -o $@ $< $(CFLAGS)
+	$(CC) -Wall -MM $(CFLAGS) $*.c > $*.d
 
 OSEmu: $(OBJS)
 ifeq ($(UNAME),Darwin)
-	$(CC) -O2 -o $(BIN) $(OBJS) $(CFLAGS)
+	$(CC) -Wall -O2 -o $(BIN) $(OBJS) $(CFLAGS)
 else
-	$(CC) -O2 -o $(BIN) $(OBJS) $(CFLAGS) -Wl,--format=binary -Wl,SoftCam.Key -Wl,--format=default	
+	$(CC) -Wall -O2 -o $(BIN) $(OBJS) $(CFLAGS) -Wl,--format=binary -Wl,SoftCam.Key -Wl,--format=default	
 endif
 	$(STRIP) $(BIN)
 	
