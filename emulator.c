@@ -116,7 +116,7 @@ int FindKey(char identifier, unsigned int provider, char *keyName, unsigned char
 
 void ReadKeyFile(char *path)
 {
-  char line[2048], keyName[8], keyString[1026];
+  char line[1200], keyName[8], keyString[1026];
   unsigned int pathLength, provider, keyLength;
   unsigned char *key;
   char *filepath, *filename;
@@ -139,7 +139,7 @@ void ReadKeyFile(char *path)
   free(filepath);
   if(file == NULL) return;
   
-  while(fgets(line, 2048, file)) {
+  while(fgets(line, 1200, file)) {
     if(sscanf(line, "%c %8x %7s %1024s", &identifier, &provider, keyName, keyString) != 4) continue;
     
     keyLength = strlen(keyString)/2;
