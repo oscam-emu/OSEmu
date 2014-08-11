@@ -302,10 +302,10 @@ int main(int argc, char**argv)
 	get_random_bytes_init();
 
 #ifndef __APPLE__
-	ReadKeyMemory();
+	read_emu_keymemory();
 #endif
-	ReadKeyFile("/var/keys/");
-	ReadKeyFile(path);
+	read_emu_keyfile("/var/keys/");
+	read_emu_keyfile(path);
 	
 	cl_sockfd = socket(AF_INET,SOCK_DGRAM,0);
 	

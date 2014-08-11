@@ -114,7 +114,7 @@ int FindKey(char identifier, unsigned int provider, char *keyName, unsigned char
   return 0;  
 }
 
-void ReadKeyFile(char *path)
+void read_emu_keyfile(char *path)
 {
   char line[1200], keyName[8], keyString[1026];
   unsigned int pathLength, provider, keyLength;
@@ -157,7 +157,7 @@ void ReadKeyFile(char *path)
 extern char SoftCamKey_Data[]    asm("_binary_SoftCam_Key_start");
 extern char SoftCamKey_DataEnd[] asm("_binary_SoftCam_Key_end");
 
-void ReadKeyMemory(void)
+void read_emu_keymemory(void)
 {
   char *keyData, *line, *saveptr, keyName[8], keyString[1026];
   unsigned int provider, keyLength;
