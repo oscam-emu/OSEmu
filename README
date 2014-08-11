@@ -7,7 +7,7 @@ Build:
 - Then just enter "make", there are no options necessary as long as you don't crosscompile (but as it's standard c code with no dependencies it should work quite easy on all plattforms)
 
 Configure (optional): OSEmu does not require, but will make us of "SoftCam.Key" if available.
-"SoftCam.Key" is searched in the folder OSEmu is run from, or the folder specified with the "-c <folder>" option.
+"SoftCam.Key" is searched in the folder OSEmu is run from, or the folder specified with the "-c <folder>" option, and also in "/var/keys".
 
 Start: Start the built OSEmu binary. The necessary options will get displayed as usage info (a single user account and the port). It automatically listens on all IP addresses on the machine, including localhost.
 
