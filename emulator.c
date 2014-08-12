@@ -1,14 +1,9 @@
-#include <stdlib.h>
-#include <stdint.h>
-#include <string.h>
-#include <stdio.h>
-#include <ctype.h>
+#include "globals.h"
 #include "des.h"
 #include "bn.h"
 #include "idea.h"
 #include "via3surenc.h"
 #include "emulator.h"
-#include "globals.h"
 #include "helpfunctions.h"
 
 // Key DB
@@ -606,7 +601,7 @@ void CryptoworksDecryptDes(unsigned char *data, unsigned char algo, unsigned cha
 char CryptoworksECM(uint32_t CAID, unsigned char *ecm, unsigned char *cw)
 {
   unsigned int ident;
-  unsigned char keyIndex, nanoLength, newEcmLength, key[22], signature[8], nano80Mode = 0;
+  unsigned char keyIndex = 0, nanoLength, newEcmLength, key[22], signature[8], nano80Mode = 0;
   int provider = -1;
   uint16_t i, j, ecmLen = (((ecm[1] & 0x0f)<< 8) | ecm[2])+3;  
   memset(key, 0, 22);

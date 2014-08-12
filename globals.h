@@ -1,3 +1,4 @@
+#define _GNU_SOURCE //needed for PTHREAD_MUTEX_RECURSIVE on some plattforms and maybe other things; do not remove
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdarg.h>
@@ -7,6 +8,7 @@
 #include <unistd.h>
 #include <fcntl.h>
 #include <time.h>
+#include <ctype.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
 
