@@ -5,15 +5,9 @@
 extern "C" {
 #endif
 
-#define DES_IP              1
-#define DES_IP_1            2
-#define DES_RIGHT           4
-#define DES_HASH            8
-
-#define DES_ECM_CRYPT       0
-#define DES_ECM_HASH        DES_HASH
-#define DES_ECS2_DECRYPT    (DES_IP | DES_IP_1 | DES_RIGHT)
-#define DES_ECS2_CRYPT      (DES_IP | DES_IP_1)
+#if defined(WITH_SSL) || defined(WITH_LIBCRYPTO)
+#	include <openssl/des.h>
+#else
 
 #define DES_LONG            unsigned long
 #define DES_ENCRYPT	1
@@ -42,6 +36,18 @@ extern void DES_ede3_cbc_encrypt(const unsigned char *input, unsigned char *outp
 			  
 #define DES_ede2_cbc_encrypt(i,o,l,k1,k2,iv,e) \
 DES_ede3_cbc_encrypt((i),(o),(l),(k1),(k2),(k1),(iv),(e))	
+
+#endif
+
+#define DES_IP              1
+#define DES_IP_1            2
+#define DES_RIGHT           4
+#define DES_HASH            8
+
+#define DES_ECM_CRYPT       0
+#define DES_ECM_HASH        DES_HASH
+#define DES_ECS2_DECRYPT    (DES_IP | DES_IP_1 | DES_RIGHT)
+#define DES_ECS2_CRYPT      (DES_IP | DES_IP_1)
 
 	extern int des_encrypt(unsigned char *buffer, int len, unsigned char *deskey);
 	extern int des_decrypt(unsigned char *buffer, int len, unsigned char *deskey);
