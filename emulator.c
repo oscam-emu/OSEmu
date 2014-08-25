@@ -107,8 +107,8 @@ int32_t FindKey(char identifier, uint32_t provider, char *keyName, uint8_t *key,
     memcpy(key, KeyDB->EmuKeys[i].key, KeyDB->EmuKeys[i].keyLength > maxKeyLength ? maxKeyLength : KeyDB->EmuKeys[i].keyLength);
     return 1;
   }
-  
-  if(identifier != 'V' && strcmp(keyName, "D0") != 0)
+
+  if(identifier != 'V' || strcmp(keyName, "D0") != 0)
     cs_log("[Emu] Key not found: %c %X %s", identifier, provider, keyName);
   return 0;  
 }
@@ -1659,9 +1659,9 @@ int8_t ViaccessEMM(uint8_t *emm, uint32_t *keysAdded)
           memcpy(newKeyD0, keyD0, 2);
           if(!SetKey('V', ecmProvider, "D0", newKeyD0, 2)) free(newKeyD0);
           for(j=0; j<ecmKeyCount; j++) {
-          	newEcmKey = (uint8_t*)malloc(sizeof(uint8_t)*16);
-          	if(newEcmKey == NULL) return 7;
-          	memcpy(newEcmKey, ecmKeys[j], 16);
+            newEcmKey = (uint8_t*)malloc(sizeof(uint8_t)*16);
+            if(newEcmKey == NULL) return 7;
+            memcpy(newEcmKey, ecmKeys[j], 16);
             snprintf(keyName, 8, "E%X", ecmKeyIndex[j]);
             if(!SetKey('V', ecmProvider, keyName, newEcmKey, 16)) free(newEcmKey);
             (*keysAdded)++;
