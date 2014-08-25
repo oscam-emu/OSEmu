@@ -12,6 +12,7 @@ static struct sockaddr_in cl_socket;
 
 int8_t debuglog = 0;
 int8_t havelogfile = 0;
+int8_t requestau = 1;
 char*  logfile = NULL;
 int bg = 0;
 
@@ -249,11 +250,46 @@ static void camd35_process_emm(uchar *buf, int buflen, int emmlen)
 	
 	if(ProcessEMM((buf[10] << 8) | buf[11],
       (buf[12] << 24) | (buf[13] << 16) | (buf[14] << 8) | buf[15],buf+20,&keysAdded)) {
-	  cs_log_debug("EMM ok");
+	  cs_log_debug("EMM nok");
 	}
 	else {
-	  cs_log_debug("EMM nok");
+	  cs_log_debug("EMM ok");
     }	
+}
+
+static void camd35_request_emm(void)
+{
+	uchar mbuf[1024];
+
+	uint16_t au_caid = 0x0500;
+
+	memset(mbuf, 0, sizeof(mbuf));
+	mbuf[2] = mbuf[3] = 0xff;           // must not be zero
+	
+	(*(uint32_t*)&mbuf[12]) = 0x000B0300;
+
+	mbuf[0] = 5;
+	mbuf[1] = 111;
+	if(au_caid)
+	{
+		mbuf[39] = 1;                   // no. caids
+		mbuf[20] = au_caid >> 8;        // caid's (max 8)
+		mbuf[21] = au_caid & 0xff;
+
+		mbuf[47] = 0;
+
+		//we think client/server protocols should deliver all information, and only readers should discard EMM
+		mbuf[128] = 1; //EMM_GLOBAL
+		mbuf[129] = 1; //EMM_SHARED
+		mbuf[130] = 0; //EMM_UNIQUE
+	}
+	else        // disable emm
+		{ mbuf[20] = mbuf[39] = mbuf[40] = mbuf[47] = mbuf[49] = 1; }
+
+	memcpy(mbuf + 10, mbuf + 20, 2);
+	camd35_send(mbuf, 0);       // send with data-len 111 for camd3 > 3.890
+	mbuf[1]++;
+	camd35_send(mbuf, 0);       // send with data-len 112 for camd3 < 3.890
 }
 
 void show_usage(char *cmdline){
@@ -273,7 +309,7 @@ int main(int argc, char**argv)
 	unsigned char md5tmp[MD5_DIGEST_LENGTH];
 	char *path = "./";
 	
-	while ((opt = getopt(argc, argv, "bva:p:c:l:")) != -1) {
+	while ((opt = getopt(argc, argv, "bva:p:c:l:n")) != -1) {
 		switch (opt) {
 			case 'b':
 				bg = 1;
@@ -300,7 +336,10 @@ int main(int argc, char**argv)
 			case 'l':
 				logfile = strdup(optarg);
 				havelogfile = 1;
-				break;				
+				break;
+			case 'n':
+				requestau = 0;
+				break;	
 			default:
 				show_usage(argv[0]);
 				exit(0);
@@ -343,6 +382,7 @@ int main(int argc, char**argv)
 		if (camd35_recv(mbuf, n) >= 0 ){
 			if(mbuf[0] == 0 || mbuf[0] == 3) {
 				camd35_process_ecm(mbuf, n);
+				if(requestau) camd35_request_emm();
 			}
 			else if((mbuf[0] == 6 || mbuf[0] == 19) && n > 2) {
 				camd35_process_emm(mbuf, n, mbuf[1]);

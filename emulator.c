@@ -1654,17 +1654,17 @@ int8_t ViaccessEMM(uint8_t *emm, uint32_t *keysAdded)
         if(fletcher_crc32(oemm + 3, emmLen - 11) != ui1) return 4;
 
         if(haveNewD0) {
-          newKeyD0 = malloc(sizeof(uint8_t)*2);
+          newKeyD0 = (uint8_t*)malloc(sizeof(uint8_t)*2);
           if(newKeyD0 == NULL) return 7;
           memcpy(newKeyD0, keyD0, 2);
           if(!SetKey('V', ecmProvider, "D0", newKeyD0, 2)) free(newKeyD0);
           for(j=0; j<ecmKeyCount; j++) {
-          	newEcmKey = malloc(sizeof(uint8_t)*16);
+          	newEcmKey = (uint8_t*)malloc(sizeof(uint8_t)*16);
           	if(newEcmKey == NULL) return 7;
           	memcpy(newEcmKey, ecmKeys[j], 16);
             snprintf(keyName, 8, "E%X", ecmKeyIndex[j]);
             if(!SetKey('V', ecmProvider, keyName, newEcmKey, 16)) free(newEcmKey);
-            keysAdded++;
+            (*keysAdded)++;
             cs_hexdump(0, ecmKeys[j], 16, keyValue, sizeof(keyValue));
             cs_log("[Emu] Key found in EMM: V %X %s %s", ecmProvider, keyName, keyValue);
           }
