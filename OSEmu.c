@@ -237,6 +237,25 @@ static void camd35_process_ecm(uchar *buf, int buflen)
 	camd35_send(buf, 0);
 }
 
+static void camd35_process_emm(uchar *buf, int buflen, int emmlen)
+{
+	uint32_t keysAdded = 0;
+	
+	if(!buf || buflen < 20 || emmlen + 20 > buflen)
+		{ return; }
+
+	cs_log_debug("ProcessEMM CAID: %X", (buf[10] << 8) | buf[11]);
+	cs_log_hexdump("ProcessEMM: ", buf+20, emmlen);
+	
+	if(ProcessEMM((buf[10] << 8) | buf[11],
+      (buf[12] << 24) | (buf[13] << 16) | (buf[14] << 8) | buf[15],buf+20,&keysAdded)) {
+	  cs_log_debug("EMM ok");
+	}
+	else {
+	  cs_log_debug("EMM nok");
+    }	
+}
+
 void show_usage(char *cmdline){
 	cs_log("Usage: %s -a <user>:<password> -p <port> [-b -v -c <path> -l <logfile>]", cmdline);
 	cs_log("-b enables to start as a daemon (background)");
@@ -322,10 +341,14 @@ int main(int argc, char**argv)
 		n = recvfrom(cl_sockfd,mbuf,sizeof(mbuf),0,(struct sockaddr *)&cl_socket,&len);
 		
 		if (camd35_recv(mbuf, n) >= 0 ){
-		if(mbuf[0] == 0 || mbuf[0] == 3) {
-			camd35_process_ecm(mbuf, n);
-		} else {
-			cs_log("unknown/not implemented camd35 command! (%d) n=%d", mbuf[0], n);
+			if(mbuf[0] == 0 || mbuf[0] == 3) {
+				camd35_process_ecm(mbuf, n);
+			}
+			else if((mbuf[0] == 6 || mbuf[0] == 19) && n > 2) {
+				camd35_process_emm(mbuf, n, mbuf[1]);
+			} 
+			else {
+				cs_log("unknown/not implemented camd35 command! (%d) n=%d", mbuf[0], n);
 			}
 		}
 	}

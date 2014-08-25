@@ -83,7 +83,8 @@ int32_t SetKey(char identifier, uint32_t provider, char *keyName, uint8_t *key, 
 
   KeyDB->EmuKeys[KeyDB->keyCount].identifier = identifier;
   KeyDB->EmuKeys[KeyDB->keyCount].provider = provider;
-  memcpy(KeyDB->EmuKeys[KeyDB->keyCount].keyName, keyName, 8);
+  if(strlen(keyName) < 8) strncpy(KeyDB->EmuKeys[KeyDB->keyCount].keyName, keyName, 8);
+  else memcpy(KeyDB->EmuKeys[KeyDB->keyCount].keyName, keyName, 8);
   KeyDB->EmuKeys[KeyDB->keyCount].keyName[7] = 0;
   KeyDB->EmuKeys[KeyDB->keyCount].key = key;
   KeyDB->EmuKeys[KeyDB->keyCount].keyLength = keyLength;  
@@ -106,6 +107,9 @@ int32_t FindKey(char identifier, uint32_t provider, char *keyName, uint8_t *key,
     memcpy(key, KeyDB->EmuKeys[i].key, KeyDB->EmuKeys[i].keyLength > maxKeyLength ? maxKeyLength : KeyDB->EmuKeys[i].keyLength);
     return 1;
   }
+  
+  if(identifier != 'V' && strcmp(keyName, "D0") != 0)
+    cs_log("[Emu] Key not found: %c %X %s", identifier, provider, keyName);
   return 0;  
 }
 
@@ -611,7 +615,7 @@ void CryptoworksDecryptDes(uint8_t *data, uint8_t algo, uint8_t *key)
   }
 }
 
-int8_t CryptoworksECM(uint32_t CAID, uint8_t *ecm, uint8_t *cw)
+int8_t CryptoworksECM(uint32_t caid, uint8_t *ecm, uint8_t *cw)
 {
   uint32_t ident;
   uint8_t keyIndex = 0, nanoLength, newEcmLength, key[22], signature[8], nano80Mode = 0;
@@ -633,7 +637,7 @@ int8_t CryptoworksECM(uint32_t CAID, uint8_t *ecm, uint8_t *cw)
   }
   if(provider < 0) return 1;
 
-  ident = (CAID << 8) | provider; 
+  ident = (caid << 8) | provider; 
   if(!GetCwKey(key, ident, keyIndex, 16)) return 2;
   if(!GetCwKey(&key[16], ident, 6, 6)) return 2;
   
@@ -647,7 +651,7 @@ int8_t CryptoworksECM(uint32_t CAID, uint8_t *ecm, uint8_t *cw)
       ecm[i+2+5] = newEcmLength;
       ecm[i+2+6] = 0x81;
       ecm[i+2+7] = 0xFF;
-      return CryptoworksECM(CAID, ecm+i+2+3, cw);
+      return CryptoworksECM(caid, ecm+i+2+3, cw);
     }
   }
  
@@ -718,7 +722,10 @@ int8_t GetViaKey(uint8_t *buf, uint32_t ident, char keyName, uint32_t keyIndex, 
   char keyStr[8];
   snprintf(keyStr, 8, "%c%X", keyName, keyIndex);  
   if(FindKey('V', ident, keyStr, buf, keyLength))
-   return 1;    
+    return 1; 
+   
+  if(ident == 0xD00040 && FindKey('V', 0x030B00, keyStr, buf, keyLength))
+    return 1;
   
   return 0;
 }
@@ -1454,7 +1461,7 @@ int8_t Irdeto2CalculateHash(const uint8_t *okey, const uint8_t *iv, const uint8_
   return memcmp(cbuff,&data[len],8)==0;
 }
 
-int8_t Irdeto2ECM(uint16_t CAID, uint8_t *ecm, uint8_t *dw)
+int8_t Irdeto2ECM(uint16_t caid, uint8_t *ecm, uint8_t *dw)
 {
   uint8_t keyNr=0, length, end, key[16], keyM1[16], keyIV[16], tmp[16];
   uint32_t i, l, ident;
@@ -1463,7 +1470,7 @@ int8_t Irdeto2ECM(uint16_t CAID, uint8_t *ecm, uint8_t *dw)
   
   length = ecm[11]; 
   keyNr = ecm[9];
-  ident = ecm[8] | CAID << 8;
+  ident = ecm[8] | caid << 8;
     
   if(ecmLen < length+12) return 1;
   if(!GetIrdetoKey(key, ident, '0', keyNr)) return 2;
@@ -1516,7 +1523,7 @@ int8_t Irdeto2ECM(uint16_t CAID, uint8_t *ecm, uint8_t *dw)
 6  CW checksum error
 7  Out of memory
 */
-int8_t ProcessECM(uint16_t CAID, const uint8_t *ecm, uint8_t *dw) {
+int8_t ProcessECM(uint16_t caid, const uint8_t *ecm, uint8_t *dw) {
   int8_t result;
   uint8_t *ecmCopy;
   uint16_t ecmLen = (((ecm[1] & 0x0f)<< 8) | ecm[2])+3;
@@ -1527,17 +1534,175 @@ int8_t ProcessECM(uint16_t CAID, const uint8_t *ecm, uint8_t *dw) {
   memcpy(ecmCopy, ecm, ecmLen);
   result = 1;
   
-  if((CAID>>8)==0x0D)
-    result = CryptoworksECM(CAID,ecmCopy,dw);
-  else if(CAID==0x090F)
+  if((caid>>8)==0x0D)
+    result = CryptoworksECM(caid,ecmCopy,dw);
+  else if(caid==0x090F)
     result = SoftNDSECM(ecmCopy,dw);    
-  else if(CAID==0x500)
+  else if(caid==0x500)
     result = ViaccessECM(ecmCopy,dw);
-  else if(CAID==0x1801)
+  else if(caid==0x1801)
     result = Nagra2ECM(ecmCopy,dw);
-  else if(CAID==0x0604)
-    result= Irdeto2ECM(CAID,ecmCopy,dw);
+  else if(caid==0x0604)
+    result= Irdeto2ECM(caid,ecmCopy,dw);
   
   free(ecmCopy);
+  return result;
+}
+
+// Viaccess EMM EMU
+int8_t ViaccessEMM(uint8_t *emm, uint32_t *keysAdded)
+{
+  uint8_t nanoCmd = 0, *oemm = emm, *tmp, *newKeyD0, *newEcmKey;
+  uint16_t i = 0, j = 0, k = 0, emmLen = (((emm[1] & 0x0f)<< 8) | emm[2])+3;
+  uint8_t ecmKeys[6][16], keyD0[2], emmKey[16], emmXorKey[16], provName[17];
+  uint8_t ecmKeyCount = 0, emmKeyIndex = 0; 
+  int8_t nanoLen = 0, haveEmmXorKey = 0, haveNewD0 = 0;
+  uint32_t ui1, ui2, ui3, ecmKeyIndex[6], provider = 0, ecmProvider = 0;
+  char keyName[8], keyValue[36];
+  struct aes_keys aes;
+  
+  if(emmLen < 50) return 1;
+
+  memset(keyD0, 0, 2);
+  memset(ecmKeyIndex, 0, sizeof(uint32_t)*6);
+  
+  for(i=3; i<emmLen; ) {
+    nanoCmd = emm[i++];
+    nanoLen = emm[i++];
+      
+    switch(nanoCmd) {
+      case 0x90:{
+        if(nanoLen != 3) break;
+        ui1 = emm[i+2];
+        ui2 = emm[i+1];
+        ui3 = emm[i];
+        provider = (ui1 | (ui2 << 8) | (ui3 << 16));
+        if(provider == 0x00D00040) ecmProvider = 0x030B00;
+        else return 1;
+        break;
+      }
+      case 0xD2:{
+        if(nanoLen < 2) break;
+        emmKeyIndex = emm[i+1];
+        break;
+      }
+      case 0x41:{   
+        if(!GetViaKey(emmKey, provider, 'M', emmKeyIndex, 16)) return 2;
+        memset(provName, 0, 17);
+        memset(emmXorKey, 0, 16);
+        k = nanoLen < 16 ? nanoLen : 16;
+        memcpy(provName, &emm[i], k);     
+        aes_set_key(&aes, (char*)emmKey);
+        aes_decrypt(&aes, emmXorKey, 16);        
+        for(j=0;j<16;j++) provName[j] ^= emmXorKey[j];     
+        provName[k] = 0;
+                
+        if(strcmp((char*)provName, "TNTSAT") != 0 && strcmp((char*)provName, "TNTSATPRO") != 0 
+          &&strcmp((char*)provName, "CSAT V") != 0) return 1;
+        break;
+      }
+      case 0xBA:{
+        GetViaKey(keyD0, ecmProvider, 'D', 0, 2);
+        ui1 = (emm[i] << 8) | emm[i+1];
+        if( (uint32_t)((keyD0[0] << 8) | keyD0[1]) < ui1 || (keyD0[0] == 0x00 && keyD0[1] == 0x00)){
+          keyD0[0] = emm[i];
+          keyD0[1] = emm[i+1];
+          haveNewD0 = 1;
+          break;
+        }
+        return 0;
+      }
+      case 0xBC:{
+        break;
+      }
+      case 0x43:{
+        if(nanoLen != 16) break;
+        memcpy(emmXorKey, &emm[i], 16);
+        haveEmmXorKey = 1;
+        break;
+      }
+      case 0x44:{
+        if (!haveEmmXorKey) memset(emmXorKey, 0, 16);
+        tmp = (uint8_t*)malloc(((nanoLen/16)+1)*16*sizeof(uint8_t));
+        memcpy(tmp, &emm[i], nanoLen);
+        aes_set_key(&aes, (char*)emmKey);     
+        for(j=0;j<nanoLen;j+=16)  {
+         aes_decrypt(&aes, emmXorKey, 16);
+         for(k=0;k<16;k++) tmp[j+k] ^= emmXorKey[k];
+        }
+        memcpy(&emm[i-2], tmp, nanoLen);
+        free(tmp);
+        nanoLen = -2;
+        break;
+      } 
+      case 0x68:{ 
+        if(nanoLen != 23 || emm[i] != 0xD2 || emm[i+1] != 0x02 || emm[i+2] != 0x0D
+          || emm[i+4] != 0x01 || emm[i+5] != 0x11) break;
+        emmKeyIndex = emm[i+3];      
+        if(ecmKeyCount > 5) break;
+        ecmKeyIndex[ecmKeyCount] = emm[i+6];
+        memcpy(&ecmKeys[ecmKeyCount], &emm[i+7], 16);    
+        if(!GetViaKey(emmKey, provider, 'M', emmKeyIndex, 16)) return 2;
+        aes_set_key(&aes, (char*)emmKey);
+        aes_decrypt(&aes, ecmKeys[ecmKeyCount], 16);
+        ecmKeyCount++;
+        break;
+      }
+      case 0xF0:{
+        if(nanoLen != 4) break;
+        ui1 = ((emm[i+2] << 8) | (emm[i+1] << 16) | (emm[i] << 24) | emm[i+3]);
+        if(fletcher_crc32(oemm + 3, emmLen - 11) != ui1) return 4;
+
+        if(haveNewD0) {
+          newKeyD0 = malloc(sizeof(uint8_t)*2);
+          if(newKeyD0 == NULL) return 7;
+          memcpy(newKeyD0, keyD0, 2);
+          if(!SetKey('V', ecmProvider, "D0", newKeyD0, 2)) free(newKeyD0);
+          for(j=0; j<ecmKeyCount; j++) {
+          	newEcmKey = malloc(sizeof(uint8_t)*16);
+          	if(newEcmKey == NULL) return 7;
+          	memcpy(newEcmKey, ecmKeys[j], 16);
+            snprintf(keyName, 8, "E%X", ecmKeyIndex[j]);
+            if(!SetKey('V', ecmProvider, keyName, newEcmKey, 16)) free(newEcmKey);
+            keysAdded++;
+            cs_hexdump(0, ecmKeys[j], 16, keyValue, sizeof(keyValue));
+            cs_log("[Emu] Key found in EMM: V %X %s %s", ecmProvider, keyName, keyValue);
+          }
+        }
+        break;
+      }  
+      default:
+        break;
+    }
+    i += nanoLen;
+  }
+  return 0;
+}
+
+/* Error codes
+0  OK
+1  EMM not supported  
+2  Key not found
+3  Nano80 problem
+4  Corrupt data
+5  
+6  Checksum error
+7  Out of memory
+*/
+int8_t ProcessEMM(uint16_t caid, uint32_t UNUSED(provider), const uint8_t *emm, uint32_t *keysAdded) {
+  int8_t result;
+  uint8_t *emmCopy;
+  uint16_t emmLen = (((emm[1] & 0x0f)<< 8) | emm[2])+3;
+  
+  if(emmLen > 1024) return 1;
+  emmCopy = (uint8_t*)malloc(emmLen);
+  if(emmCopy == NULL) return 7;
+  memcpy(emmCopy, emm, emmLen);
+  result = 1;
+   
+  if(caid==0x500)
+    result = ViaccessEMM(emmCopy, keysAdded);
+ 
+  free(emmCopy);
   return result;
 }
