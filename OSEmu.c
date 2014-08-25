@@ -12,7 +12,7 @@ static struct sockaddr_in cl_socket;
 
 int8_t debuglog = 0;
 int8_t havelogfile = 0;
-int8_t requestau = 1;
+int8_t requestau = 0;
 char*  logfile = NULL;
 int bg = 0;
 
@@ -309,7 +309,7 @@ int main(int argc, char**argv)
 	unsigned char md5tmp[MD5_DIGEST_LENGTH];
 	char *path = "./";
 	
-	while ((opt = getopt(argc, argv, "bva:p:c:l:n")) != -1) {
+	while ((opt = getopt(argc, argv, "bva:p:c:l:e")) != -1) {
 		switch (opt) {
 			case 'b':
 				bg = 1;
@@ -337,8 +337,8 @@ int main(int argc, char**argv)
 				logfile = strdup(optarg);
 				havelogfile = 1;
 				break;
-			case 'n':
-				requestau = 0;
+			case 'e':
+				requestau = 1;
 				break;	
 			default:
 				show_usage(argv[0]);
