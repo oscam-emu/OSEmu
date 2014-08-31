@@ -62,7 +62,7 @@ int32_t SetKey(char identifier, uint32_t provider, char *keyName, uint8_t *key, 
     if(KeyDB->EmuKeys[i].provider != provider) continue;  
     if(strcmp(KeyDB->EmuKeys[i].keyName, keyName)) continue;
   
-  free(KeyDB->EmuKeys[i].key);
+    free(KeyDB->EmuKeys[i].key);
     KeyDB->EmuKeys[i].key = key;
     KeyDB->EmuKeys[i].keyLength = keyLength;
     return 1;
@@ -92,7 +92,7 @@ int32_t SetKey(char identifier, uint32_t provider, char *keyName, uint8_t *key, 
   return 1;
 }
 
-int32_t FindKey(char identifier, uint32_t provider, char *keyName, uint8_t *key, uint32_t maxKeyLength)
+int32_t FindKey(char identifier, uint32_t provider, char *keyName, uint8_t *key, uint32_t maxKeyLength, uint8_t isCriticalKey)
 {
   uint32_t i;
   KeyDataContainer *KeyDB;
@@ -107,8 +107,8 @@ int32_t FindKey(char identifier, uint32_t provider, char *keyName, uint8_t *key,
     memcpy(key, KeyDB->EmuKeys[i].key, KeyDB->EmuKeys[i].keyLength > maxKeyLength ? maxKeyLength : KeyDB->EmuKeys[i].keyLength);
     return 1;
   }
-
-  if(identifier != 'V' || strcmp(keyName, "D0") != 0)
+  
+  if(isCriticalKey)
     cs_log("[Emu] Key not found: %c %X %s", identifier, provider, keyName);
   return 0;  
 }
@@ -256,7 +256,7 @@ int32_t EmuRSA(uint8_t *out, const uint8_t *in, int32_t n, BIGNUM *exp, BIGNUM *
 }
 
 // Cryptoworks EMU
-int8_t GetCwKey(uint8_t *buf,uint32_t ident, uint8_t keyIndex, uint32_t keyLength) {
+int8_t GetCwKey(uint8_t *buf,uint32_t ident, uint8_t keyIndex, uint32_t keyLength, uint8_t isCriticalKey) {
   
   char keyName[8];
   uint32_t tmp;
@@ -267,7 +267,7 @@ int8_t GetCwKey(uint8_t *buf,uint32_t ident, uint8_t keyIndex, uint32_t keyLengt
   
   tmp = keyIndex;
   snprintf(keyName, 8, "%.2X", tmp);
-  if(FindKey('W', ident, keyName, buf, keyLength))
+  if(FindKey('W', ident, keyName, buf, keyLength, isCriticalKey))
    return 1;  
 
   return 0;
@@ -535,7 +535,7 @@ uint8_t CryptoworksProcessNano80(uint8_t *data, int32_t provider, uint8_t *opKey
 {
   int32_t i, j;
   uint8_t key[16], desKey[16], t[8], dat1[8], dat2[8], k0D00C000[16];
-  if(provider != 0xA0 && !GetCwKey(k0D00C000, 0x0D00C0, 0, 16)) return 2;
+  if(provider != 0xA0 && !GetCwKey(k0D00C000, 0x0D00C0, 0, 16, 1)) return 2;
   memset(t, 0, 8);
 
   memcpy(dat1, data, 8);
@@ -638,8 +638,8 @@ int8_t CryptoworksECM(uint32_t caid, uint8_t *ecm, uint8_t *cw)
   if(provider < 0) return 1;
 
   ident = (caid << 8) | provider; 
-  if(!GetCwKey(key, ident, keyIndex, 16)) return 2;
-  if(!GetCwKey(&key[16], ident, 6, 6)) return 2;
+  if(!GetCwKey(key, ident, keyIndex, 16, 1)) return 2;
+  if(!GetCwKey(&key[16], ident, 6, 6, 1)) return 2;
   
   for(i = 8; i < ecmLen; i += ecm[i+1] + 2) {
     if(ecm[i] == 0x80 && (provider == 0xA0 || provider == 0xC0 || provider == 0xC4 || provider == 0xC8)) {
@@ -717,14 +717,14 @@ int8_t SoftNDSECM(uint8_t *ecm, uint8_t *dw)
 }
 
 // Viaccess EMU
-int8_t GetViaKey(uint8_t *buf, uint32_t ident, char keyName, uint32_t keyIndex, uint32_t keyLength) {
+int8_t GetViaKey(uint8_t *buf, uint32_t ident, char keyName, uint32_t keyIndex, uint32_t keyLength, uint8_t isCriticalKey) {
   
   char keyStr[8];
   snprintf(keyStr, 8, "%c%X", keyName, keyIndex);  
-  if(FindKey('V', ident, keyStr, buf, keyLength))
+  if(FindKey('V', ident, keyStr, buf, keyLength, isCriticalKey))
     return 1; 
    
-  if(ident == 0xD00040 && FindKey('V', 0x030B00, keyStr, buf, keyLength))
+  if(ident == 0xD00040 && FindKey('V', 0x030B00, keyStr, buf, keyLength, isCriticalKey))
     return 1;
   
   return 0;
@@ -787,7 +787,7 @@ int8_t Via1Decrypt(uint8_t* source, uint8_t* dw, uint32_t ident, uint8_t desKeyI
 
     if (ident == 0) return 4;
     memset(work_key, 0, 16);
-    if(!GetViaKey(work_key, ident, '0', desKeyIndex, 8)) return 2;
+    if(!GetViaKey(work_key, ident, '0', desKeyIndex, 8, 1)) return 2;
 
     data = source+9;
     len = source[2]-6;
@@ -869,11 +869,11 @@ int8_t Via26ProcessDw(uint8_t *indata, uint32_t ident, uint8_t desKeyIndex)
   uint8_t pv1,pv2, i;
   uint8_t Tmp[8], tmpKey[16], T1Key[300], P1Key[8], KeyDes1[16], KeyDes2[16], XorKey[8];
   
-  if(!GetViaKey(T1Key, ident, 'T', 1, 300)) return 2;
-  if(!GetViaKey(P1Key, ident, 'P', 1, 8)) return 2;
-  if(!GetViaKey(KeyDes1, ident, 'D', 1, 16)) return 2;
-  if(!GetViaKey(KeyDes2, ident, '0', desKeyIndex, 16)) return 2;  
-  if(!GetViaKey(XorKey, ident, 'X', 1, 8)) return 2;
+  if(!GetViaKey(T1Key, ident, 'T', 1, 300, 1)) return 2;
+  if(!GetViaKey(P1Key, ident, 'P', 1, 8, 1)) return 2;
+  if(!GetViaKey(KeyDes1, ident, 'D', 1, 16, 1)) return 2;
+  if(!GetViaKey(KeyDes2, ident, '0', desKeyIndex, 16, 1)) return 2;  
+  if(!GetViaKey(XorKey, ident, 'X', 1, 8, 1)) return 2;
 
   for (i=0;i<8;i++){
     pv1 = indata[i];
@@ -919,7 +919,7 @@ int8_t Via26Decrypt(uint8_t* source, uint8_t* dw, uint32_t ident, uint8_t desKey
   int32_t i,j;
   
   if (ident == 0) return 4;
-  if(!GetViaKey(C1, ident, 'C', 1, 8)) return 2;
+  if(!GetViaKey(C1, ident, 'C', 1, 8, 1)) return 2;
         
   for (i=0; i<2; i++)
   {
@@ -1041,10 +1041,10 @@ int8_t Via3ProcessDw(uint8_t *data, uint32_t ident, uint8_t desKeyIndex)
   uint8_t i;
   uint8_t tmp[8], tmpKey[16], T1Key[300], P1Key[8], KeyDes[16], XorKey[8];
 
-  if(!GetViaKey(T1Key, ident, 'T', 1, 300)) return 2;
-  if(!GetViaKey(P1Key, ident, 'P', 1, 8)) return 2;
-  if(!GetViaKey(KeyDes, ident, '0', desKeyIndex, 16)) return 2;  
-  if(!GetViaKey(XorKey, ident, 'X', 1, 8)) return 2;
+  if(!GetViaKey(T1Key, ident, 'T', 1, 300, 1)) return 2;
+  if(!GetViaKey(P1Key, ident, 'P', 1, 8, 1)) return 2;
+  if(!GetViaKey(KeyDes, ident, '0', desKeyIndex, 16, 1)) return 2;  
+  if(!GetViaKey(XorKey, ident, 'X', 1, 8, 1)) return 2;
 
   for (i=0; i<4; i++) tmp[i] = data[i+4];
   Via3Fct1(tmp, ident, XorKey, T1Key);
@@ -1105,8 +1105,8 @@ int8_t Via3Decrypt(uint8_t* source, uint8_t* dw, uint32_t ident, uint8_t desKeyI
   int32_t i, j;
     
   if(ident == 0) return 4;
-  if(!GetViaKey(C1, ident, 'C', 1, 8)) return 2;    
-  if(needsAES && !GetViaKey((uint8_t*)aesKey, ident, 'E', aesKeyIndex, 16)) return 2;
+  if(!GetViaKey(C1, ident, 'C', 1, 8, 1)) return 2;    
+  if(needsAES && !GetViaKey((uint8_t*)aesKey, ident, 'E', aesKeyIndex, 16, 1)) return 2;
   if(aesMode==0x0D || aesMode==0x11 || aesMode==0x15) aesAfterCore = 1;
 
   if(needsAES && !aesAfterCore) {
@@ -1234,11 +1234,11 @@ int8_t ViaccessECM(uint8_t *ecm, uint8_t *dw)
 }
 
 // Nagra EMU
-int8_t GetNagraKey(uint8_t *buf, uint32_t ident, char keyName, uint32_t keyIndex)
+int8_t GetNagraKey(uint8_t *buf, uint32_t ident, char keyName, uint32_t keyIndex, uint8_t isCriticalKey)
 {
   char keyStr[8];
   snprintf(keyStr, 8, "%c%X", keyName, keyIndex);  
-  if(FindKey('N', ident, keyStr, buf, keyName == 'M' ? 64 : 16))
+  if(FindKey('N', ident, keyStr, buf, keyName == 'M' ? 64 : 16, isCriticalKey))
    return 1;    
 
   return 0;
@@ -1322,9 +1322,9 @@ int8_t Nagra2ECM(uint8_t *ecm, uint8_t *dw)
   if(ident == 1283 || ident == 1285 || ident == 1297) ident = 1281;
   if(cmdLen <= 63 || ecmLen < cmdLen + 10) return 1;
   
-  if(!GetNagraKey(ideaKey, ident, '0', ideaKeyNr)) return 2;    
-  if(GetNagraKey(vKey, ident, 'V', 0)) { useVerifyKey = 1; }
-  if(!GetNagraKey(m1Key, ident, 'M', 1)) return 2;    
+  if(!GetNagraKey(ideaKey, ident, '0', ideaKeyNr, 1)) return 2;    
+  if(GetNagraKey(vKey, ident, 'V', 0, 0)) { useVerifyKey = 1; }
+  if(!GetNagraKey(m1Key, ident, 'M', 1, 1)) return 2;    
   ReverseMem(m1Key, 64);
   
   if(!DecryptNagra2ECM(ecm+9, dec, ideaKey, cmdLen, useVerifyKey?vKey:0, m1Key)) return 1;    
@@ -1365,11 +1365,11 @@ int8_t Nagra2ECM(uint8_t *ecm, uint8_t *dw)
 }
 
 // Irdeto EMU
-int8_t GetIrdetoKey(uint8_t *buf, uint32_t ident, char keyName, uint32_t keyIndex)
+int8_t GetIrdetoKey(uint8_t *buf, uint32_t ident, char keyName, uint32_t keyIndex, uint8_t isCriticalKey)
 {
   char keyStr[8];
   snprintf(keyStr, 8, "%c%X", keyName, keyIndex);  
-  if(FindKey('I', ident, keyStr, buf, 16))
+  if(FindKey('I', ident, keyStr, buf, 16, isCriticalKey))
    return 1;
 
   return 0;
@@ -1473,9 +1473,9 @@ int8_t Irdeto2ECM(uint16_t caid, uint8_t *ecm, uint8_t *dw)
   ident = ecm[8] | caid << 8;
     
   if(ecmLen < length+12) return 1;
-  if(!GetIrdetoKey(key, ident, '0', keyNr)) return 2;
-  if(!GetIrdetoKey(keyM1, ident, 'M', 1)) return 2;
-  if(!GetIrdetoKey(keyIV, ident, 'M', 2)) return 2;
+  if(!GetIrdetoKey(key, ident, '0', keyNr, 1)) return 2;
+  if(!GetIrdetoKey(keyM1, ident, 'M', 1, 1)) return 2;
+  if(!GetIrdetoKey(keyIV, ident, 'M', 2, 1)) return 2;
     
   memset(tmp, 0, 16);
   Irdeto2Encrypt(keyM1, tmp, key, 16);
@@ -1524,7 +1524,7 @@ int8_t Irdeto2ECM(uint16_t caid, uint8_t *ecm, uint8_t *dw)
 7  Out of memory
 */
 int8_t ProcessECM(uint16_t caid, const uint8_t *ecm, uint8_t *dw) {
-  int8_t result;
+  int8_t result, i;
   uint8_t *ecmCopy;
   uint16_t ecmLen = (((ecm[1] & 0x0f)<< 8) | ecm[2])+3;
   
@@ -1546,6 +1546,14 @@ int8_t ProcessECM(uint16_t caid, const uint8_t *ecm, uint8_t *dw) {
     result= Irdeto2ECM(caid,ecmCopy,dw);
   
   free(ecmCopy);
+  
+  // fix dcw checksum
+  if(result == 0) {
+    for(i = 0; i < 16; i += 4) {
+      dw[i + 3] = ((dw[i] + dw[i + 1] + dw[i + 2]) & 0xff);
+    }
+  } 
+  
   return result;
 }
 
@@ -1587,7 +1595,7 @@ int8_t ViaccessEMM(uint8_t *emm, uint32_t *keysAdded)
         break;
       }
       case 0x41:{   
-        if(!GetViaKey(emmKey, provider, 'M', emmKeyIndex, 16)) return 2;
+        if(!GetViaKey(emmKey, provider, 'M', emmKeyIndex, 16, 1)) return 2;
         memset(provName, 0, 17);
         memset(emmXorKey, 0, 16);
         k = nanoLen < 16 ? nanoLen : 16;
@@ -1602,7 +1610,7 @@ int8_t ViaccessEMM(uint8_t *emm, uint32_t *keysAdded)
         break;
       }
       case 0xBA:{
-        GetViaKey(keyD0, ecmProvider, 'D', 0, 2);
+        GetViaKey(keyD0, ecmProvider, 'D', 0, 2, 0);
         ui1 = (emm[i] << 8) | emm[i+1];
         if( (uint32_t)((keyD0[0] << 8) | keyD0[1]) < ui1 || (keyD0[0] == 0x00 && keyD0[1] == 0x00)){
           keyD0[0] = emm[i];
@@ -1624,6 +1632,7 @@ int8_t ViaccessEMM(uint8_t *emm, uint32_t *keysAdded)
       case 0x44:{
         if (!haveEmmXorKey) memset(emmXorKey, 0, 16);
         tmp = (uint8_t*)malloc(((nanoLen/16)+1)*16*sizeof(uint8_t));
+        if(tmp == NULL) return 7;
         memcpy(tmp, &emm[i], nanoLen);
         aes_set_key(&aes, (char*)emmKey);     
         for(j=0;j<nanoLen;j+=16)  {
@@ -1642,7 +1651,7 @@ int8_t ViaccessEMM(uint8_t *emm, uint32_t *keysAdded)
         if(ecmKeyCount > 5) break;
         ecmKeyIndex[ecmKeyCount] = emm[i+6];
         memcpy(&ecmKeys[ecmKeyCount], &emm[i+7], 16);    
-        if(!GetViaKey(emmKey, provider, 'M', emmKeyIndex, 16)) return 2;
+        if(!GetViaKey(emmKey, provider, 'M', emmKeyIndex, 16, 1)) return 2;
         aes_set_key(&aes, (char*)emmKey);
         aes_decrypt(&aes, ecmKeys[ecmKeyCount], 16);
         ecmKeyCount++;

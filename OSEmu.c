@@ -18,7 +18,7 @@ int bg = 0;
 
 #define REQ_SIZE	584		// 512 + 20 + 0x34
 
-#define suppresscmd08 0
+#define suppresscmd08 1
 
 static int32_t do_daemon(int32_t nochdir, int32_t noclose)
 {
