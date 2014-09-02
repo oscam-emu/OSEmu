@@ -1,30 +1,42 @@
 #include "globals.h"
 
 void cs_log(const char* format, ... ){
+	
   FILE *fp = NULL;
-  if(havelogfile) fp = fopen(logfile, "a");
-  va_list arglist;
-  va_start(arglist, format);
-  if(!bg) vfprintf(stderr, format, arglist);  
-  if(fp != NULL) vfprintf(fp, format, arglist);  
-  va_end(arglist);
-  if(!bg) fprintf(stderr, "\n");
-  if(fp != NULL) fprintf(fp, "\n");
-  if(fp != NULL) fclose(fp);
-}
+  if(havelogfile) { fp = fopen(logfile, "a"); }
+  	
+  va_list ap, ap2;
+  va_start(ap, format);
+  va_copy(ap2, ap);
   
+  if(!bg) { vfprintf(stderr, format, ap); }
+  va_end(ap);
+   
+  if(fp) { vfprintf(fp, format, ap2); } 
+  va_end(ap2);
+  
+  if(!bg) { fprintf(stderr, "\n"); }
+  if(fp)  { fprintf(fp, "\n"); fclose(fp); }
+}
+
 void cs_log_debug(const char* format, ... ){
+	
   if(debuglog){
-    FILE *fp = NULL;
-    if(havelogfile) fp = fopen(logfile, "a");
-    va_list arglist;
-    va_start(arglist, format);
-    if(!bg) vfprintf(stderr, format, arglist);  
-    if(fp != NULL) vfprintf(fp, format, arglist);  
-    va_end(arglist);
-    if(!bg) fprintf(stderr, "\n");
-    if(fp != NULL) fprintf(fp, "\n");
-    if(fp != NULL) fclose(fp);
+  	FILE *fp = NULL;
+  	if(havelogfile) { fp = fopen(logfile, "a"); }
+  		
+  	va_list ap, ap2;
+  	va_start(ap, format);
+  	va_copy(ap2, ap);
+  	
+  	if(!bg) { vfprintf(stderr, format, ap); }
+  	va_end(ap);
+  	 
+  	if(fp) { vfprintf(fp, format, ap2); } 
+  	va_end(ap2);
+  	
+  	if(!bg) { fprintf(stderr, "\n"); }
+  	if(fp)  { fprintf(fp, "\n"); fclose(fp); }
   }
 }
 
