@@ -1,46 +1,58 @@
-Here is a working sample for such a simple (micro) emu.
-It includes the basic needed Camd35 UDP functionality and is really very simple and compact.
+OSEmu
+======
+
+Here is a working sample for a simple (micro) emu.
+It includes the basic needed cs357x (camd35 UDP) functionality, and is very simple and compact.
+
 
 Build: 
-- Put a SoftCam.Key file into the source code directory (for example from skystar.org)
+======
+
+- Put a SoftCam.Key file into the source code directory (for example from skystar.org).
   Note: This does not apply for Mac OSX, SoftCam.Key cannot be integrated on this system at the moment. 
-- Then just enter "make", there are no options necessary as long as you don't crosscompile (but as it's standard c code with no dependencies it should work quite easy on all plattforms)
+  
+- Run `make` to compile OSEmu.
 
-Configure (optional): OSEmu does not require, but will make use of "SoftCam.Key" if available.
-"SoftCam.Key" is searched in the folder OSEmu is run from, or the folder specified with the "-c <folder>" option, and also in "/var/keys".
+  Info: If you want to cross-compile OSEmu search for the "simpleemu" script by gorgone.
 
-Start: Start the built OSEmu binary. The necessary options will get displayed as usage info (a single user account and the port). It automatically listens on all IP addresses on the machine, including localhost.
 
-Use in OSCam: Create a camd35 reader with caid/ident defined accordingly to what you emulate and maybe also services if you want. Use the user/password/port that you specified on start of OSEmu and it should start to get decoded.
+Run:
+====
+
+- (optional) OSEmu does not require, but will make use of "SoftCam.Key" if available. 
+             "SoftCam.Key" is searched in:
+              - /var/keys
+              - The folder specified with the "-c <folder>" option.
+              
 
-Credits go to "Admin" for this…
+- You use the program with the following options:
 
-svn checkout https://github.com/oscam-emu/OSEmu/trunk OSEmu
+  -a <username>:<password> (set the cs357x username and password) [REQUIRED]
+  -p <portnumber> (set the cs357x port) [REQUIRED]
+  -c <folder> (set the folder where SoftCam.Key is searched)
+  -b (start OSEmu in background/daemon mode)
+  -v (log debug information)
+  -l <logfile> (write logs to this file)
+  -e (enable emm au) 
+      - Currently only for Viaccess3. 
+      - Needs M0 key.
+      - Will not work with oscam clients, because oscam does not forward global viaccess emms.
 
-You use the program with the following options:
- - -a user:password 
- - -p portnumber
- - -c folder where SoftCam.key is placed
- - -b (start in background/daemon mode)
- - -v show some debugging info
- - -l logfile 
- - -e enable emm au
-An example would be:
- - /usr/bin/OSEmu -a server:passwd -p 12345 -b
-To specify the path of SoftCam.Key:
- - /usr/bin/OSEmu -a server:passwd -p 12345 -b -c /usr/keys -l /var/log/osemu.log
+  Examples:
+    - /usr/bin/OSEmu -a user:password -p 11000 -b
+    - /usr/bin/OSEmu -a user:password -p 11000 -b -c /usr/keys -l /var/log/osemu.log -e
 
-And the corresponding oscam reader entry:
+
+OSCam reader config for OSEmu
+=============================
 
 [reader]
 label                         = OSEmu
-protocol                      = camd35
-device                        = 127.0.0.1,12345
-user                          = server
-password                      = passwd
+protocol                      = cs357x
+device                        = 127.0.0.1,11000
+user                          = username
+password                      = password
 caid                          = 0D00,0D02,0D03,0D05,090F,0500,1801,0604
 ident                         = 0D00:000000,000004,000010,000014,000020,0000C0,0000C4,0000CC;0D02:000000,00008C,0000A0,0000A4,0000A8;0D03:000000,000004,000008,000024,000028;0D05:000000,000004,000010;090F:000000;0500:000000,030B00,023800,021110,007400,007800;1801:000000;0604:000000
 group                         = 1
 
-About emm au:
-- Currently only for Viaccess3 and cannot be used with normal oscam versions, because oscam does not forward global viaccess emms. Needs M0 key.
