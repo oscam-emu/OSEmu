@@ -25,7 +25,7 @@ Run:
               - The folder specified with the "-c <folder>" option.
               
 
-- You use the program with the following options:
+- You may use the program with the following options:
 
   -a <username>:<password> (set the cs357x username and password) [REQUIRED]
   -p <portnumber> (set the cs357x port) [REQUIRED]
@@ -36,11 +36,11 @@ Run:
   -e (enable emm au) 
       - Currently only for Viaccess3. 
       - Needs M0 key.
-      - Will not work with oscam clients, because oscam does not forward global viaccess emms.
+      - Does not work with oscam clients (global viaccess emms are ignored).
 
   Examples:
-    - /usr/bin/OSEmu -a user:password -p 11000 -b
-    - /usr/bin/OSEmu -a user:password -p 11000 -b -c /usr/keys -l /var/log/osemu.log -e
+    /usr/bin/OSEmu -a user:password -p 11000 -b
+    /usr/bin/OSEmu -a user:password -p 11000 -b -c /usr/keys -l /var/log/osemu.log -e
 
 
 OSCam reader config for OSEmu
