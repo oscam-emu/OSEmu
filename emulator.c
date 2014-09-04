@@ -1280,20 +1280,17 @@ int8_t DecryptNagra2ECM(uint8_t *in, uint8_t *out, const uint8_t *key, int32_t l
   out[63]|=sign;
   if(len>64) memcpy(out+64,in+65,len-64);
 
+  memset(iv,0,sizeof(iv));
   if(in[0]&0x04) {
-    uint8_t tmp[8];
-    DES_key_schedule ks1, ks2;
-    ReverseMemInOut(tmp,&key[0],8);
-    DES_key_sched((DES_cblock *)tmp,&ks1);
-    ReverseMemInOut(tmp,&key[8],8);
-    DES_key_sched((DES_cblock *)tmp,&ks2);
-    memset(tmp,0,sizeof(tmp));
+    uint8_t key1[8], key2[8];
+    ReverseMemInOut(key1,&key[0],8);
+    ReverseMemInOut(key2,&key[8],8);
+    
     for(i=7; i>=0; i--) ReverseMem(out+8*i,8);
-    DES_ede2_cbc_encrypt(out,out,len,&ks1,&ks2,(DES_cblock *)tmp,DES_DECRYPT);
+    des_ede2_cbc_decrypt(out, iv, key1, key2, len);	
     for(i=7; i>=0; i--) ReverseMem(out+8*i,8);
   }
-  else  {
-    memset(iv,0,sizeof(iv));        
+  else  {         
     IDEA_KEY_SCHEDULE ek;
     idea_set_encrypt_key(key, &ek);
     idea_cbc_encrypt(out, out, len&~7, &ek, iv, IDEA_DECRYPT);
