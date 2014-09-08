@@ -618,9 +618,9 @@ void CryptoworksDecryptDes(uint8_t *data, uint8_t algo, uint8_t *key)
 int8_t CryptoworksECM(uint32_t caid, uint8_t *ecm, uint8_t *cw)
 {
   uint32_t ident;
-  uint8_t keyIndex = 0, nanoLength, newEcmLength, key[22], signature[8], nano80Mode = 0;
+  uint8_t keyIndex = 0, nanoLength, newEcmLength, key[22], signature[8];
   int32_t provider = -1;
-  uint16_t i, j, ecmLen = (((ecm[1] & 0x0f)<< 8) | ecm[2])+3;  
+  uint16_t i, j, ecmLen = (((ecm[1] & 0x0f)<< 8) | ecm[2])+3;
   memset(key, 0, 22);
   
   if(ecm[7] != ecmLen - 8) return 1;
@@ -631,19 +631,24 @@ int8_t CryptoworksECM(uint32_t caid, uint8_t *ecm, uint8_t *cw)
       keyIndex = ecm[i+2] & 3;
       keyIndex = keyIndex ? 1 : 0;
     }
-    else if(ecm[i] == 0x84) {
-      nano80Mode = ecm[i+3]; 
+  }
+  
+  if(provider < 0) {
+    switch(caid) {
+      case 0x0D00: provider = 0xC0; break;
+      case 0x0D02: provider = 0xA0; break;
+      case 0x0D03: provider = 0x04; break;
+      case 0x0D05: provider = 0x04; break;
+      default: return 1;
     }
   }
-  if(provider < 0) return 1;
-
+    
   ident = (caid << 8) | provider; 
   if(!GetCwKey(key, ident, keyIndex, 16, 1)) return 2;
   if(!GetCwKey(&key[16], ident, 6, 6, 1)) return 2;
   
   for(i = 8; i < ecmLen; i += ecm[i+1] + 2) {
     if(ecm[i] == 0x80 && (provider == 0xA0 || provider == 0xC0 || provider == 0xC4 || provider == 0xC8)) {
-      if(nano80Mode != 0x01) return 3; 
       nanoLength = ecm[i+1];
       newEcmLength = CryptoworksProcessNano80(ecm+i+2, provider, key, nanoLength);
       ecm[i+2+3] = 0x81;
@@ -681,7 +686,7 @@ int8_t CryptoworksECM(uint32_t caid, uint8_t *ecm, uint8_t *cw)
       }
     }  
     
-  return 5; 
+  return 5;
 }
 
 // SoftNDS EMU
