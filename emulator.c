@@ -6,6 +6,8 @@
 #include "emulator.h"
 #include "helpfunctions.h"
 
+#define MAX_CHAR_KEYNAME 8
+
 // Key DB
 int32_t CharToBin(uint8_t *out, char *in, uint32_t inLen)
 {
@@ -20,7 +22,7 @@ int32_t CharToBin(uint8_t *out, char *in, uint32_t inLen)
 typedef struct {
   char identifier;
   uint32_t provider;
-  char keyName[8];
+  char keyName[MAX_CHAR_KEYNAME];
   uint8_t *key;
   uint32_t keyLength;
 } KeyData;
@@ -45,16 +47,15 @@ KeyDataContainer *GetKeyContainer(char identifier)
     case 'I': return &IrdetoKeys;    
     default:  return NULL;
   }
-  return NULL;
 }
 
 int32_t SetKey(char identifier, uint32_t provider, char *keyName, uint8_t *key, uint32_t keyLength) 
 {
   uint32_t i;
   KeyDataContainer *KeyDB;
+  KeyData *tmpKeyData;
   identifier = (char)toupper((int)identifier);
   
-  KeyDB = NULL;
   KeyDB = GetKeyContainer(identifier);
   if(KeyDB == NULL) return 0;
 
@@ -75,17 +76,18 @@ int32_t SetKey(char identifier, uint32_t provider, char *keyName, uint8_t *key, 
      KeyDB->keyMax+=64;
    }
    else {
-     KeyDB->EmuKeys = (KeyData*)realloc(KeyDB->EmuKeys, sizeof(KeyData)*(KeyDB->keyMax+16));
-     if(KeyDB->EmuKeys == NULL) return 0;
+     tmpKeyData = (KeyData*)realloc(KeyDB->EmuKeys, sizeof(KeyData)*(KeyDB->keyMax+16));
+     if(tmpKeyData == NULL) return 0;
+     KeyDB->EmuKeys = tmpKeyData;
      KeyDB->keyMax+=16;
    }
   }
 
   KeyDB->EmuKeys[KeyDB->keyCount].identifier = identifier;
   KeyDB->EmuKeys[KeyDB->keyCount].provider = provider;
-  if(strlen(keyName) < 8) strncpy(KeyDB->EmuKeys[KeyDB->keyCount].keyName, keyName, 8);
-  else memcpy(KeyDB->EmuKeys[KeyDB->keyCount].keyName, keyName, 8);
-  KeyDB->EmuKeys[KeyDB->keyCount].keyName[7] = 0;
+  if(strlen(keyName) < MAX_CHAR_KEYNAME) strncpy(KeyDB->EmuKeys[KeyDB->keyCount].keyName, keyName, MAX_CHAR_KEYNAME);
+  else memcpy(KeyDB->EmuKeys[KeyDB->keyCount].keyName, keyName, MAX_CHAR_KEYNAME);
+  KeyDB->EmuKeys[KeyDB->keyCount].keyName[MAX_CHAR_KEYNAME-1] = 0;
   KeyDB->EmuKeys[KeyDB->keyCount].key = key;
   KeyDB->EmuKeys[KeyDB->keyCount].keyLength = keyLength;  
   KeyDB->keyCount++;
@@ -188,6 +190,11 @@ void read_emu_keymemory(void)
 #endif
 
 // Shared functions
+
+inline uint16_t GetEcmLen(const uint8_t *ecm) {
+  return (((ecm[1] & 0x0f)<< 8) | ecm[2]) +3;
+}
+
 void ReverseMem(uint8_t *in, int32_t len) 
 {
   uint8_t temp;
@@ -209,22 +216,30 @@ void ReverseMemInOut(uint8_t *out, const uint8_t *in, int32_t n)
 
 int8_t EmuRSAInput(BIGNUM *d, const uint8_t *in, int32_t n, int8_t le)
 {
+  int8_t result = 0;
+  
   if(le) {
-    uint8_t tmp[256];
+    uint8_t *tmp = (uint8_t *)malloc(sizeof(uint8_t)*n);
+    if(tmp == NULL) return 0;
     ReverseMemInOut(tmp,in,n);
-    return BN_bin2bn(tmp,n,d)!=0;
+    result = BN_bin2bn(tmp,n,d)!=0;
+    free(tmp);
   }
-  else
-    return BN_bin2bn(in,n,d)!=0;
+  else {
+    result = BN_bin2bn(in,n,d)!=0;
+  }
+  return result;
 }
 
 int32_t EmuRSAOutput(uint8_t *out, int32_t n, BIGNUM *r, int8_t le)
 {
-  int32_t s=BN_num_bytes(r);
+  int32_t s = BN_num_bytes(r);
   if(s>n) {
-    uint8_t buff[256];
+    uint8_t *buff = (uint8_t *)malloc(sizeof(uint8_t)*s);
+    if(buff == NULL) return 0;
     BN_bn2bin(r,buff);
     memcpy(out,buff+s-n,n);
+    free(buff);
   }
   else if(s<n) {
     int32_t l=n-s;
@@ -246,8 +261,9 @@ int32_t EmuRSA(uint8_t *out, const uint8_t *in, int32_t n, BIGNUM *exp, BIGNUM *
   r = BN_new();
   d = BN_new();
   
-  if(EmuRSAInput(d,in,n,le) && BN_mod_exp(r,d,exp,mod,ctx)) 
+  if(EmuRSAInput(d,in,n,le) && BN_mod_exp(r,d,exp,mod,ctx)) { 
     result = EmuRSAOutput(out,n,r,le);
+  }
   
   BN_free(d);
   BN_free(r);
@@ -258,7 +274,7 @@ int32_t EmuRSA(uint8_t *out, const uint8_t *in, int32_t n, BIGNUM *exp, BIGNUM *
 // Cryptoworks EMU
 int8_t GetCwKey(uint8_t *buf,uint32_t ident, uint8_t keyIndex, uint32_t keyLength, uint8_t isCriticalKey) {
   
-  char keyName[8];
+  char keyName[MAX_CHAR_KEYNAME];
   uint32_t tmp;
   
   if((ident>>4)== 0xD02A) keyIndex &=0xFE; // map to even number key indexes
@@ -266,7 +282,7 @@ int8_t GetCwKey(uint8_t *buf,uint32_t ident, uint8_t keyIndex, uint32_t keyLengt
   else if(keyIndex==6 && ((ident>>8) == 0x0D05)) ident = 0x0D0504; // always use provider 04 system key
   
   tmp = keyIndex;
-  snprintf(keyName, 8, "%.2X", tmp);
+  snprintf(keyName, MAX_CHAR_KEYNAME, "%.2X", tmp);
   if(FindKey('W', ident, keyName, buf, keyLength, isCriticalKey))
    return 1;  
 
@@ -322,60 +338,73 @@ void CW_SWAP_DATA(uint8_t *k)
     memcpy(k, d, 4);
 }
 
-void CW_DES_ROUND(uint8_t *d,uint8_t *k)
+void CW_DES_ROUND(uint8_t *d, uint8_t *k)
 {
-    uint8_t aa[44] = {1,0,3,1,2,2,3,2,1,3,1,1,3,0,1,2,3,1,3,2,2,0,7
-    ,6,5,4,7,6,5,7,6,5,6,7,5,7,5,7,6,6,7,5,4,4},
-    bb[44] = {0x80,0x08,0x10,0x02,0x08,0x40,0x01,0x20,0x40,0x80,0x04,0x10,0x04,
-        0x01,0x01,0x02,0x20,0x20,0x02,0x01,
-        0x80,0x04,0x02,0x02,0x08,0x02,0x10,0x80,0x01,0x20,0x08,0x80,0x01
-    ,0x08,0x40,0x01,0x02,0x80,0x10,0x40,0x40,0x10,0x08,0x01},
-    ff[4] = {0x02,0x10,0x04,0x04},
-    l[24] = {0,2,4,6,7,5,3,1,4,5,6,7,7,6,5,4,7,4,5,6,4,7,6,5};
-    uint8_t des_td[8], i, o, n, c = 1, m = 0, r = 0, *a = aa,*b = bb, *f = ff, *p1 = l,*p2 = l+8,*p3 = l+16;
-    for (m = 0; m < 2; m++)
-    for(i = 0; i < 4; i++)
-    des_td[*p1++] = (m) ? ((d[*p2++]*2) & 0x3F) | ((d[*p3++] & 0x80) ? 0x01 : 0x00):
-    (d[*p2++]/2) | ((d[*p3++] & 0x01) ? 0x80 : 0x00);
-    for (i = 0; i < 8; i++)
-    {
-        c = (c) ? 0 : 1; r = (c) ? 6 : 7; n = (i) ? i-1 : 1;
+    uint8_t aa[44] = {1,0,3,1,2,2,3,2,1,3,1,1,3,0,1,2,3,1,3,2,2,0,7,6,5,4,7,6,5,7,6,5,6,7,5,7,5,7,6,6,7,5,4,4};
+    uint8_t bb[44] = {0x80,0x08,0x10,0x02,0x08,0x40,0x01,0x20,0x40,0x80,0x04,0x10,0x04,0x01,0x01,0x02,0x20,0x20,0x02,0x01,
+                      0x80,0x04,0x02,0x02,0x08,0x02,0x10,0x80,0x01,0x20,0x08,0x80,0x01,0x08,0x40,0x01,0x02,0x80,0x10,0x40,0x40,0x10,0x08,0x01};
+    uint8_t ff[4] = {0x02,0x10,0x04,0x04};
+    uint8_t l[24] = {0,2,4,6,7,5,3,1,4,5,6,7,7,6,5,4,7,4,5,6,4,7,6,5};
+  
+    uint8_t des_td[8], i, o, n, c = 1, m = 0, r = 0, *a = aa, *b = bb, *f = ff, *p1 = l, *p2 = l+8, *p3 = l+16;
+    
+    for (m = 0; m < 2; m++) {
+      for(i = 0; i < 4; i++) {
+        des_td[*p1++] = 
+          (m) ? ((d[*p2++]*2) & 0x3F) | ((d[*p3++] & 0x80) ? 0x01 : 0x00): (d[*p2++]/2) | ((d[*p3++] & 0x01) ? 0x80 : 0x00);
+      }
+    }
+    
+    for (i = 0; i < 8; i++) {
+        c = (c) ? 0 : 1; 
+        r = (c) ? 6 : 7;
+        n = (i) ? i-1 : 1;
         o = (c) ? ((k[n] & *f++) ? 1 : 0) : des_td[n];
-        for (m = 1; m < r; m++)
-        o = (c) ? (o*2) | ((k[*a++] & *b++) ? 0x01 : 0x00) :
-        (o/2) | ((k[*a++] & *b++) ? 0x80 : 0x00);
+        for (m = 1; m < r; m++) {
+          o = (c) ? (o*2) | ((k[*a++] & *b++) ? 0x01 : 0x00) : (o/2) | ((k[*a++] & *b++) ? 0x80 : 0x00);
+        }
         n = (i) ? n+1 : 0;
         des_td[n] = (c) ? des_td[n] ^ o : (o ^ des_td[n] )/4;
     }
-    for( i = 0; i < 8; i++)
-    {
+    
+    for( i = 0; i < 8; i++) {
         d[0] ^= (AND_bit1[i] & cw_sbox1[des_td[i]]);
         d[1] ^= (AND_bit2[i] & cw_sbox2[des_td[i]]);
         d[2] ^= (AND_bit3[i] & cw_sbox3[des_td[i]]);
         d[3] ^= (AND_bit4[i] & cw_sbox4[des_td[i]]);
     }
+    
     CW_SWAP_DATA(d);
 }
 
 void CW_48_Key(uint8_t *inkey, uint8_t *outkey, uint8_t algotype)
 {
-    uint8_t Round_Counter ,i = 8,*key128 = inkey, *key48 = inkey + 0x10;
+    uint8_t Round_Counter, i = 8, *key128 = inkey, *key48 = inkey + 0x10;
     Round_Counter = 7 - (algotype & 7);
-    memset (outkey, 0, 16);
+    
+    memset(outkey, 0, 16);
     memcpy(outkey, key48, 6);
-    for( ; i > Round_Counter;i--)
-    if (i > 1)
-    outkey[i-2] = key128[i];
+    
+    for( ; i > Round_Counter; i--) {
+      if (i > 1) {
+        outkey[i-2] = key128[i];
+      }
+    }
 }
 
 void CW_LS_DES_KEY(uint8_t *key,uint8_t Rotate_Counter)
 {
-    uint8_t round[] = {1,2,2,2,2,2,2,1,2,2,2,2,2,2,1,1}, i, n;
+    uint8_t round[] = {1,2,2,2,2,2,2,1,2,2,2,2,2,2,1,1};
+    uint8_t i, n;
     uint16_t k[8];
+    
     n = round[Rotate_Counter];
-    for (i = 0; i < 8; i++) k[i] = key[i];
-    for (i = 1; i < n + 1; i++)
-    {
+    
+    for (i = 0; i < 8; i++) {
+      k[i] = key[i];
+    }
+    
+    for (i = 1; i < n + 1; i++) {
         k[7] = (k[7]*2) | ((k[4] & 0x008) ? 1 : 0);
         k[6] = (k[6]*2) | ((k[7] & 0xF00) ? 1 : 0); k[7] &=0xff;
         k[5] = (k[5]*2) | ((k[6] & 0xF00) ? 1 : 0); k[6] &=0xff;
@@ -385,14 +414,15 @@ void CW_LS_DES_KEY(uint8_t *key,uint8_t Rotate_Counter)
         k[1] = (k[1]*2) | ((k[2] & 0xF00) ? 1 : 0); k[2] &= 0xff;
         k[0] = ((k[0]*2) | ((k[1] & 0xF00) ? 1 : 0)) & 0xFF; k[1] &= 0xff;
     }
-    for (i = 0; i < 8; i++) key[i] = (uint8_t) k[i];
+    for (i = 0; i < 8; i++)  {
+    	key[i] = (uint8_t) k[i];
+    }
 }
 
 void CW_RS_DES_KEY(uint8_t *k, uint8_t Rotate_Counter)
 {
     uint8_t i,c;
-    for (i = 1; i < Rotate_Counter+1; i++)
-    {
+    for (i = 1; i < Rotate_Counter+1; i++) {
         c = (k[3] & 0x10) ? 0x80 : 0;
         k[3] /= 2; if (k[2] & 1) k[3] |= 0x80;
         k[2] /= 2; if (k[1] & 1) k[2] |= 0x80;
@@ -531,28 +561,30 @@ void Cryptoworks3DES(uint8_t *data, uint8_t *key) {
   des(key, DES_ECS2_DECRYPT, data);
 }
 
-uint8_t CryptoworksProcessNano80(uint8_t *data, int32_t provider, uint8_t *opKey, uint8_t nanoLength) 
+uint8_t CryptoworksProcessNano80(uint8_t *data, uint32_t caid, int32_t provider, uint8_t *opKey, uint8_t nanoLength, uint8_t nano80Algo, uint8_t nano80KeyIndex) 
 {
   int32_t i, j;
   uint8_t key[16], desKey[16], t[8], dat1[8], dat2[8], k0D00C000[16];
-  if(provider != 0xA0 && !GetCwKey(k0D00C000, 0x0D00C0, 0, 16, 1)) return 2;
+  if(nanoLength < 11) return 0;
+  if(caid == 0x0D00 && provider != 0xA0 && !GetCwKey(k0D00C000, 0x0D00C0, 0, 16, 1)) return 2;
+  
   memset(t, 0, 8);
-
   memcpy(dat1, data, 8);
-  if(provider == 0xA0) memcpy(key, opKey, 16);
-  else memcpy(key, k0D00C000, 16);
+  
+  if(caid == 0x0D00 && provider != 0xA0) { memcpy(key, k0D00C000, 16); }
+  else { memcpy(key, opKey, 16); }
   Cryptoworks3DES(data, key);
   memcpy(desKey, data, 8);  
   
-  memcpy(data, dat1, 8);  
-  if(provider == 0xA0){
-    memcpy(key, &opKey[8], 8);
-    memcpy(&key[8], opKey, 8);
-  }
-  else{
+  memcpy(data, dat1, 8);
+  if(caid == 0x0D00 && provider != 0xA0) {
     memcpy(key, &k0D00C000[8], 8);
     memcpy(&key[8], k0D00C000, 8);
   }
+  else {
+    memcpy(key, &opKey[8], 8);
+    memcpy(&key[8], opKey, 8);
+  }  	
   Cryptoworks3DES(data, key);
   memcpy(&desKey[8], data, 8);
   
@@ -564,7 +596,8 @@ uint8_t CryptoworksProcessNano80(uint8_t *data, int32_t provider, uint8_t *opKey
     for(j=0; j<8; j++) dat1[j] ^= t[j];      
     memcpy(&data[i], dat1, 8);
     memcpy(t, dat2, 8);
-  }   
+  }
+ 
   return data[10] + 5;
 } 
 
@@ -618,18 +651,26 @@ void CryptoworksDecryptDes(uint8_t *data, uint8_t algo, uint8_t *key)
 int8_t CryptoworksECM(uint32_t caid, uint8_t *ecm, uint8_t *cw)
 {
   uint32_t ident;
-  uint8_t keyIndex = 0, nanoLength, newEcmLength, key[22], signature[8];
-  int32_t provider = -1;
-  uint16_t i, j, ecmLen = (((ecm[1] & 0x0f)<< 8) | ecm[2])+3;
+  uint8_t keyIndex = 0, nanoLength, newEcmLength, key[22], signature[8], nano80KeyIndex = 0, nano80Algo = 0;
+  int32_t provider = -1, nano80Provider = -1;
+  uint16_t i, j, ecmLen = GetEcmLen(ecm);
+  
+  if(ecmLen < 8) return 1;
+  if(ecm[7] != ecmLen - 8) return 1;
+  
   memset(key, 0, 22);
   
-  if(ecm[7] != ecmLen - 8) return 1;
-
-  for(i = 8; i < ecmLen; i += ecm[i+1] + 2) {
-    if(ecm[i] == 0x83) {
+  for(i = 8; i+1 < ecmLen; i += ecm[i+1] + 2) {
+    if(ecm[i] == 0x83 && i+2 < ecmLen) {
       provider = ecm[i+2] & 0xFC;
       keyIndex = ecm[i+2] & 3;
       keyIndex = keyIndex ? 1 : 0;
+    }
+    else if(ecm[i] == 0x84 && i+3 < ecmLen) {
+      nano80Provider = ecm[i+2] & 0xFC;
+      nano80KeyIndex = ecm[i+2] & 3;
+      nano80KeyIndex = nano80KeyIndex ? 1 : 0;
+      nano80Algo = ecm[i+3]; 
     }
   }
   
@@ -642,15 +683,21 @@ int8_t CryptoworksECM(uint32_t caid, uint8_t *ecm, uint8_t *cw)
       default: return 1;
     }
   }
+  
+  if(nano80Provider < 0) {
+  	nano80Provider = provider;
+  }
     
   ident = (caid << 8) | provider; 
   if(!GetCwKey(key, ident, keyIndex, 16, 1)) return 2;
   if(!GetCwKey(&key[16], ident, 6, 6, 1)) return 2;
   
-  for(i = 8; i < ecmLen; i += ecm[i+1] + 2) {
-    if(ecm[i] == 0x80 && (provider == 0xA0 || provider == 0xC0 || provider == 0xC4 || provider == 0xC8)) {
+  for(i = 8; i+1 < ecmLen; i += ecm[i+1] + 2) {
+    if(ecm[i] == 0x80 && i+2+7 < ecmLen && i+2+ecm[i+1] < ecmLen
+    	&& (provider == 0xA0 || provider == 0xC0 || provider == 0xC4 || provider == 0xC8)) {
       nanoLength = ecm[i+1];
-      newEcmLength = CryptoworksProcessNano80(ecm+i+2, provider, key, nanoLength);
+      newEcmLength = CryptoworksProcessNano80(ecm+i+2, caid, nano80Provider, key, nanoLength, nano80Algo, nano80KeyIndex);
+      if(newEcmLength > ecmLen-(i+2+3)) return 1;
       ecm[i+2+3] = 0x81;
       ecm[i+2+4] = 0x70;
       ecm[i+2+5] = newEcmLength;
@@ -659,15 +706,19 @@ int8_t CryptoworksECM(uint32_t caid, uint8_t *ecm, uint8_t *cw)
       return CryptoworksECM(caid, ecm+i+2+3, cw);
     }
   }
- 
+  
+  if(ecmLen - 15 < 1) return 1;
   CryptoworksSignature(ecm + 5, ecmLen - 15, key, signature);
-   for(i=8; i<ecmLen; i+=ecm[i+1]+2) {
+   for(i = 8; i+1 < ecmLen; i += ecm[i+1]+2) {
      switch(ecm[i]) {
        case 0xDA: case 0xDB: case 0xDC:
-         for(j=0; j<ecm[i+1]; j+=8)
+       	 if(i+2+ecm[i+1] >= ecmLen) break;
+         for(j=0; j+7<ecm[i+1]; j+=8) {
            CryptoworksDecryptDes(&ecm[i+2+j], ecm[5], key);
+         }
          break;
        case 0xDF:
+       	 if(i+2+8 >= ecmLen) break;
          if(memcmp(&ecm[i+2], signature, 8)) {
            return 6;
          }
@@ -675,13 +726,13 @@ int8_t CryptoworksECM(uint32_t caid, uint8_t *ecm, uint8_t *cw)
       }
    }
   
-  for(i=8; i<ecmLen; i+=ecm[i+1]+2) {
+  for(i = 8; i+1 < ecmLen; i += ecm[i+1]+2) {
     switch(ecm[i]) {
       case 0xDB:
-        if(ecm[i+1]==16) {
+        if(i+2+ecm[i+1] < ecmLen && ecm[i+1]==16) {
           memcpy(cw, &ecm[i+2], 16);
           return 0;
-          }
+        }
         break;
       }
     }  
@@ -706,6 +757,8 @@ int8_t SoftNDSECM(uint8_t *ecm, uint8_t *dw)
   uint8_t *tDW;
   uint8_t digest[16];
   MD5_CTX mdContext;
+  uint16_t ecmLen = GetEcmLen(ecm);
+  if(ecmLen < 36) return 1;
   memset(dw,0,16);
   tDW = &dw[ecm[0]==0x81 ? 8 : 0];
   if (ecm[6]!=0x21) return 1;
@@ -724,8 +777,8 @@ int8_t SoftNDSECM(uint8_t *ecm, uint8_t *dw)
 // Viaccess EMU
 int8_t GetViaKey(uint8_t *buf, uint32_t ident, char keyName, uint32_t keyIndex, uint32_t keyLength, uint8_t isCriticalKey) {
   
-  char keyStr[8];
-  snprintf(keyStr, 8, "%c%X", keyName, keyIndex);  
+  char keyStr[MAX_CHAR_KEYNAME];
+  snprintf(keyStr, MAX_CHAR_KEYNAME, "%c%X", keyName, keyIndex);  
   if(FindKey('V', ident, keyStr, buf, keyLength, isCriticalKey))
     return 1; 
    
@@ -780,22 +833,33 @@ void Via1Hash(uint8_t *data, uint8_t *key)
   Via1Mod(key+8, data);
 }
 
-int8_t Via1Decrypt(uint8_t* source, uint8_t* dw, uint32_t ident, uint8_t desKeyIndex)
+inline void Via1DoHash(uint8_t *hashbuffer, uint8_t *pH, uint8_t data, uint8_t *hashkey)
+{
+   hashbuffer[*pH] ^= data;
+   (*pH)++; 
+   
+   if(*pH == 8) { 
+     Via1Hash(hashbuffer, hashkey); 
+     *pH = 0;
+   }	
+}
+
+int8_t Via1Decrypt(uint8_t* ecm, uint8_t* dw, uint32_t ident, uint8_t desKeyIndex)
 {
     uint8_t work_key[16];
     uint8_t *data, *des_data1, *des_data2;
-    int32_t len;
+    uint16_t ecmLen = GetEcmLen(ecm);
     int32_t msg_pos;
     int32_t encStart = 0, hash_start, i;
-    uint8_t signature[8];
-    uint8_t hashbuffer[8], prepared_key[16], tmp, k, hashkey[16], pH;
+    uint8_t signature[8], hashbuffer[8], prepared_key[16], hashkey[16];
+    uint8_t tmp, k, pH, foundData = 0;
 
     if (ident == 0) return 4;
     memset(work_key, 0, 16);
     if(!GetViaKey(work_key, ident, '0', desKeyIndex, 8, 1)) return 2;
 
-    data = source+9;
-    len = source[2]-6;
+    if(ecmLen < 11)  return 1;
+    data = ecm+9;    
     des_data1 = dw;
     des_data2 = dw+8;
  
@@ -804,31 +868,47 @@ int8_t Via1Decrypt(uint8_t* source, uint8_t* dw, uint32_t ident, uint8_t desKeyI
     memcpy(hashkey, work_key, sizeof(hashkey));
     memset(signature, 0, 8);
     
-    while (msg_pos<len) {
+    while(9+msg_pos+2 < ecmLen) {
         switch (data[msg_pos]) {
         case 0xea:
-            encStart = msg_pos + 2;
-            memcpy(des_data1,&data[msg_pos+2],8);
-            memcpy(des_data2,&data[msg_pos+2+8],8);
+        	if(9+msg_pos+2+16 < ecmLen) {
+              encStart = msg_pos + 2;
+              memcpy(des_data1, &data[msg_pos+2], 8);
+              memcpy(des_data2, &data[msg_pos+2+8], 8);
+              foundData |= 1;
+            }
             break;
         case 0xf0:
-            memcpy(signature,&data[msg_pos+2],8);
+            if(9+msg_pos+2+8 < ecmLen) {
+              memcpy(signature, &data[msg_pos+2], 8);
+              foundData |= 2;
+            }
             break;
         }
         msg_pos += data[msg_pos+1]+2;
     }
+    
+    if(foundData != 3) return 1;
+    
     pH=i=0;
-    if (data[0] == 0x9f) {
-        { hashbuffer[pH] ^= data[i++]; pH++; if(pH == 8) { Via1Hash(hashbuffer, hashkey); pH = 0; } }
-        { hashbuffer[pH] ^= data[i++]; pH++; if(pH == 8) { Via1Hash(hashbuffer, hashkey); pH = 0; } }
-        for (hash_start=0; hash_start < data[1];hash_start++) 
-          { hashbuffer[pH] ^= data[i++]; pH++; if(pH == 8) { Via1Hash(hashbuffer, hashkey); pH = 0; } }
-        while (pH != 0) { hashbuffer[pH] ^= (uint8_t) 0; pH++; if(pH == 8) 
-         { Via1Hash(hashbuffer, hashkey); pH = 0; } }
-    }   
+    
+    if(data[0] == 0x9f && 10+data[1] < ecmLen) {
+    	Via1DoHash(hashbuffer, &pH, data[i++], hashkey);
+        Via1DoHash(hashbuffer, &pH, data[i++], hashkey);
+            
+        for (hash_start=0; hash_start < data[1]; hash_start++) { 
+          Via1DoHash(hashbuffer, &pH, data[i++], hashkey);
+        }
+          	
+        while (pH != 0) { 
+          Via1DoHash(hashbuffer, &pH, 0, hashkey); 
+        }
+    }
+    
     if (work_key[7] == 0) {
-        for (; i < encStart + 16; i++) 
-          { hashbuffer[pH] ^= data[i]; pH++; if(pH == 8) { Via1Hash(hashbuffer, hashkey); pH = 0; } }
+        for (; i < encStart + 16; i++) { 
+          Via1DoHash(hashbuffer, &pH, data[i], hashkey);
+        }          
         memcpy(prepared_key, work_key, 8);
     }
     else {
@@ -840,26 +920,30 @@ int8_t Via1Decrypt(uint8_t* source, uint8_t* dw, uint32_t ident, uint8_t desKeyI
         prepared_key[5] = work_key[0];
         prepared_key[6] = work_key[1];
         prepared_key[7] = work_key[7];
-        memcpy(prepared_key+8,work_key+8,8);
+        memcpy(prepared_key+8, work_key+8, 8);
 
         if (work_key[7] & 1) {
-            for (; i < encStart; i++) 
-              { hashbuffer[pH] ^= data[i]; pH++; if(pH == 8) { Via1Hash(hashbuffer, hashkey); pH = 0; } }
+            for (; i < encStart; i++) {
+              Via1DoHash(hashbuffer, &pH, data[i], hashkey);
+            }
+            
             k = ((work_key[7] & 0xf0) == 0) ? 0x5a : 0xa5;
+            
             for (i=0; i<8; i++) {
                 tmp = des_data1[i];
                 des_data1[i] = (k & hashbuffer[pH] ) ^ tmp;
-                { hashbuffer[pH] ^= tmp; pH++; if(pH == 8) { Via1Hash(hashbuffer, hashkey); pH = 0; } };
+                Via1DoHash(hashbuffer, &pH, tmp, hashkey);
             }
+            
             for (i = 0; i < 8; i++) {
                 tmp = des_data2[i];
                 des_data2[i] = (k & hashbuffer[pH] ) ^ tmp;
-                { hashbuffer[pH] ^= tmp; pH++; if(pH == 8) { Via1Hash(hashbuffer, hashkey); pH = 0; } };
+                Via1DoHash(hashbuffer, &pH, tmp, hashkey);
             }
         }
         else {
             for (; i < encStart + 16; i++)
-              { hashbuffer[pH] ^= data[i]; pH++; if(pH == 8) { Via1Hash(hashbuffer, hashkey); pH = 0; } };
+              Via1DoHash(hashbuffer, &pH, data[i], hashkey);
         }
     }
     Via1Decode(des_data1, prepared_key);
@@ -1169,16 +1253,17 @@ int8_t Via3Decrypt(uint8_t* source, uint8_t* dw, uint32_t ident, uint8_t desKeyI
 
 int8_t ViaccessECM(uint8_t *ecm, uint8_t *dw)
 {
-  uint32_t currentIdent = 0;
+  uint32_t currentIdent = 0, tmp = 0;
   uint8_t nanoCmd = 0, nanoLen = 0, version = 0, providerKeyLen = 0, desKeyIndex = 0, aesMode = 0, aesKeyIndex = 0xFF;
-  int8_t doFinalMix = 0;
-  uint16_t i = 0, keySelectPos = 0, ecmLen = (((ecm[1] & 0x0f)<< 8) | ecm[2])+3;
+  int8_t doFinalMix = 0, result = 1;
+  uint16_t i = 0, keySelectPos = 0, ecmLen = GetEcmLen(ecm);
   
-  for (i=4; i<ecmLen; )
+  for (i=4; i+2<ecmLen; )
   {
     nanoCmd = ecm[i++];
     nanoLen = ecm[i++];
-      
+    if(i+nanoLen >= ecmLen) return 1;
+   
     switch (nanoCmd) {
       case 0x40:
         if (nanoLen < 0x03) break;
@@ -1217,9 +1302,16 @@ int8_t ViaccessECM(uint8_t *ecm, uint8_t *dw)
         break;
       case 0xEA:
         if (nanoLen < 0x10) break;
-        if (version < 2) return Via1Decrypt(ecm, dw, currentIdent, desKeyIndex); else
-        if (version == 2) return Via26Decrypt(ecm + i, dw, currentIdent, desKeyIndex); else
-        if (version == 3) {
+        
+        if (version < 2) {
+          return Via1Decrypt(ecm, dw, currentIdent, desKeyIndex);
+        }
+        else if (version == 2) {
+          if(!Via26Decrypt(ecm + i, dw, currentIdent, desKeyIndex) && result) {
+            result = 0;
+          }
+        }
+        else if (version == 3) {
           doFinalMix = 0;
           if (currentIdent == 0x030B00 && providerKeyLen>3) {
             if (ecm[keySelectPos]==0x05 && ecm[keySelectPos+1]==0x67 && (ecm[keySelectPos+2]==0x00 || ecm[keySelectPos+2]==0x01)) {
@@ -1227,22 +1319,29 @@ int8_t ViaccessECM(uint8_t *ecm, uint8_t *dw)
             }
             else break;
           }
-          return Via3Decrypt(ecm + i, dw, currentIdent, desKeyIndex, aesKeyIndex, aesMode, doFinalMix);
+          if(!Via3Decrypt(ecm + i, dw, currentIdent, desKeyIndex, aesKeyIndex, aesMode, doFinalMix) && result) {
+            result = 0;
+          }
         }
         break;
+      case 0xF0:
+        if(nanoLen != 4) break;
+        tmp = ((ecm[i+2] << 8) | (ecm[i+1] << 16) | (ecm[i] << 24) | ecm[i+3]);
+        if(ecmLen-10 > 0 && fletcher_crc32(ecm + 4, ecmLen - 10) != tmp) return 4;
+      	break;
       default:
         break;
     }
     i += nanoLen;
   }
-  return 5;
+  return result;
 }
 
 // Nagra EMU
 int8_t GetNagraKey(uint8_t *buf, uint32_t ident, char keyName, uint32_t keyIndex, uint8_t isCriticalKey)
 {
-  char keyStr[8];
-  snprintf(keyStr, 8, "%c%X", keyName, keyIndex);  
+  char keyStr[MAX_CHAR_KEYNAME];
+  snprintf(keyStr, MAX_CHAR_KEYNAME, "%c%X", keyName, keyIndex);  
   if(FindKey('N', ident, keyStr, buf, keyName == 'M' ? 64 : 16, isCriticalKey))
    return 1;    
 
@@ -1256,7 +1355,7 @@ int8_t Nagra2Signature(const uint8_t *vkey, const uint8_t *sig, const uint8_t *m
   int32_t i,j;
   
   memcpy(buff,vkey,sizeof(buff));
-  for(i=0; i<len; i+=8) {
+  for(i=0; i+7<len; i+=8) {
     IDEA_KEY_SCHEDULE ek;
     idea_set_encrypt_key(buff, &ek);
     memcpy(buff,buff+8,8);  
@@ -1312,11 +1411,12 @@ int8_t DecryptNagra2ECM(uint8_t *in, uint8_t *out, const uint8_t *key, int32_t l
 int8_t Nagra2ECM(uint8_t *ecm, uint8_t *dw)
 {
   uint32_t ident, identMask, tmp1, tmp2, tmp3;
-  uint8_t cmdLen, ideaKeyNr, dec[256], ideaKey[16], vKey[16], m1Key[64], mecmAlgo = 0;
+  uint8_t cmdLen, ideaKeyNr, *dec, ideaKey[16], vKey[16], m1Key[64], mecmAlgo = 0;
   int8_t useVerifyKey = 0;
   int32_t l=0, s;
-  uint16_t i = 0, ecmLen = (((ecm[1] & 0x0f)<< 8) | ecm[2])+3;
+  uint16_t i = 0, ecmLen = GetEcmLen(ecm);
   
+  if(ecmLen < 8) return 1;
   cmdLen = ecm[4] - 5;  
   ident = (ecm[5] << 8) + ecm[6];  
   ideaKeyNr = (ecm[7]&0x10)>>4;
@@ -1329,26 +1429,39 @@ int8_t Nagra2ECM(uint8_t *ecm, uint8_t *dw)
   if(!GetNagraKey(m1Key, ident, 'M', 1, 1)) return 2;    
   ReverseMem(m1Key, 64);
   
-  if(!DecryptNagra2ECM(ecm+9, dec, ideaKey, cmdLen, useVerifyKey?vKey:0, m1Key)) return 1;    
-
-  for(i=(dec[14]&0x10)?16:20; i<cmdLen-10 && l!=3; ) {
+  dec = (uint8_t*)malloc(sizeof(uint8_t)*cmdLen);
+  if(dec == NULL) return 7;
+  if(!DecryptNagra2ECM(ecm+9, dec, ideaKey, cmdLen, useVerifyKey?vKey:0, m1Key)) {
+  	free(dec);
+  	return 1;    
+  }
+  
+  for(i=(dec[14]&0x10)?16:20; i<cmdLen && l!=3; ) {
     switch(dec[i]) {
       case 0x10: case 0x11:
-        if(dec[i+1]==0x09) {
+        if(i+10 < cmdLen && dec[i+1]==0x09) {
           s = (~dec[i])&1;
           mecmAlgo = dec[i+2]&0x60;
           memcpy(dw+(s<<3),&dec[i+3],8);
           i+=11; l|=(s+1);
-        } else i++;
+        } 
+        else {
+          i++;
+        }
         break;
       case 0x00: 
-        i+=2; break;
+        i+=2; 
+        break;
       case 0x30: case 0x31: case 0x32: case 0x33: case 0x34: case 0x35: case 0x36: case 0xB0:
-        i+=dec[i+1]+2; break;
+        if(i+1 < cmdLen) { i+=dec[i+1]+2; }
+        else { i++; }
+        break;
       default:
         i++; continue;
     }
   }
+  
+  free(dec);
   
   if(l!=3) return 1;
   if(mecmAlgo>0) return 1;
@@ -1369,8 +1482,8 @@ int8_t Nagra2ECM(uint8_t *ecm, uint8_t *dw)
 // Irdeto EMU
 int8_t GetIrdetoKey(uint8_t *buf, uint32_t ident, char keyName, uint32_t keyIndex, uint8_t isCriticalKey)
 {
-  char keyStr[8];
-  snprintf(keyStr, 8, "%c%X", keyName, keyIndex);  
+  char keyStr[MAX_CHAR_KEYNAME];
+  snprintf(keyStr, MAX_CHAR_KEYNAME, "%c%X", keyName, keyIndex);  
   if(FindKey('I', ident, keyStr, buf, 16, isCriticalKey))
    return 1;
 
@@ -1405,7 +1518,7 @@ void Irdeto2Encrypt(uint8_t *data, const uint8_t *seed, const uint8_t *okey, int
   doPC1(&key[8]);
   len&=~7;
    
-  for(i=0; i<len; i+=8) {
+  for(i=0; i+7<len; i+=8) {
     xxor(&data[i],8,&data[i],tmp); 
     tmp=&data[i];
     des(key,DES_ECS2_CRYPT,&data[i]);
@@ -1426,7 +1539,7 @@ void Irdeto2Decrypt(uint8_t *data, const uint8_t *seed, const uint8_t *okey, int
   len&=~7;
 
   memcpy(buf[n],seed,8);
-  for(i=0; i<len; i+=8,data+=8,n^=1) {
+  for(i=0; i+7<len; i+=8,data+=8,n^=1) {
     memcpy(buf[1-n],data,8);
     des(key,DES_ECS2_DECRYPT,data);
     des(&key[8],DES_ECS2_CRYPT,data);
@@ -1468,7 +1581,8 @@ int8_t Irdeto2ECM(uint16_t caid, uint8_t *ecm, uint8_t *dw)
   uint8_t keyNr=0, length, end, key[16], keyM1[16], keyIV[16], tmp[16];
   uint32_t i, l, ident;
 
-  uint16_t ecmLen = (((ecm[1] & 0x0f)<< 8) | ecm[2])+3;
+  uint16_t ecmLen = GetEcmLen(ecm);
+  if(ecmLen < 12) return 1;
   
   length = ecm[11]; 
   keyNr = ecm[9];
@@ -1505,8 +1619,10 @@ int8_t Irdeto2ECM(uint16_t caid, uint8_t *ecm, uint8_t *dw)
       l = ecm[i+1] ? (ecm[i+1]&0x3F)+2 : 1;
       switch(ecm[i]) {
         case 0x78:
-          memcpy(dw, &ecm[i+4], 16);
-          return 0;
+          if(l==0x14 && i<=length-8-l) {
+            memcpy(dw, &ecm[i+4], 16);
+            return 0;
+          }
       }
       i+=l;
     }
@@ -1514,6 +1630,19 @@ int8_t Irdeto2ECM(uint16_t caid, uint8_t *ecm, uint8_t *dw)
   return 1;
 }
 
+char* GetProcessECMErrorReason(int8_t result) {
+  switch(result) {
+  	case 0: return "No error";
+    case 1: return "ECM not supported";
+  	case 2: return "Key not found";
+    case 3: return "Nano80 problem";
+  	case 4: return "Corrupt data";
+    case 5: return "CW not found";
+  	case 6: return "CW checksum error";
+    case 7: return "Out of memory";    	    	    	
+  	default: return "Unknown";
+  }	
+}
 
 /* Error codes
 0  OK
@@ -1528,7 +1657,7 @@ int8_t Irdeto2ECM(uint16_t caid, uint8_t *ecm, uint8_t *dw)
 int8_t ProcessECM(uint16_t caid, const uint8_t *ecm, uint8_t *dw) {
   int8_t result, i;
   uint8_t *ecmCopy;
-  uint16_t ecmLen = (((ecm[1] & 0x0f)<< 8) | ecm[2])+3;
+  uint16_t ecmLen = GetEcmLen(ecm);
   
   if(ecmLen > 1024) return 1;
   ecmCopy = (uint8_t*)malloc(ecmLen);
@@ -1556,14 +1685,18 @@ int8_t ProcessECM(uint16_t caid, const uint8_t *ecm, uint8_t *dw) {
     }
   } 
   
+  if(result != 0 && result != 2) {
+  	cs_log("[Emu] ECM failed: %s", GetProcessECMErrorReason(result));
+  }
+  
   return result;
 }
 
 // Viaccess EMM EMU
 int8_t ViaccessEMM(uint8_t *emm, uint32_t *keysAdded)
 {
-  uint8_t nanoCmd = 0, *oemm = emm, *tmp, *newKeyD0, *newEcmKey;
-  uint16_t i = 0, j = 0, k = 0, emmLen = (((emm[1] & 0x0f)<< 8) | emm[2])+3;
+  uint8_t nanoCmd = 0, *tmp, *newKeyD0, *newEcmKey;
+  uint16_t i = 0, j = 0, k = 0, emmLen = GetEcmLen(emm);
   uint8_t ecmKeys[6][16], keyD0[2], emmKey[16], emmXorKey[16], provName[17];
   uint8_t ecmKeyCount = 0, emmKeyIndex = 0; 
   int8_t nanoLen = 0, haveEmmXorKey = 0, haveNewD0 = 0;
@@ -1571,18 +1704,17 @@ int8_t ViaccessEMM(uint8_t *emm, uint32_t *keysAdded)
   char keyName[8], keyValue[36];
   struct aes_keys aes;
   
-  if(emmLen < 50) return 1;
-
   memset(keyD0, 0, 2);
   memset(ecmKeyIndex, 0, sizeof(uint32_t)*6);
   
-  for(i=3; i<emmLen; ) {
+  for(i=3; i+2<emmLen; ) {
     nanoCmd = emm[i++];
-    nanoLen = emm[i++];
-      
+    nanoLen = emm[i++];   
+    if(i+nanoLen >= emmLen) return 1;
+    
     switch(nanoCmd) {
       case 0x90:{
-        if(nanoLen != 3) break;
+        if(nanoLen < 3) break;
         ui1 = emm[i+2];
         ui2 = emm[i+1];
         ui3 = emm[i];
@@ -1612,6 +1744,7 @@ int8_t ViaccessEMM(uint8_t *emm, uint32_t *keysAdded)
         break;
       }
       case 0xBA:{
+      	if(nanoLen < 2) break;
         GetViaKey(keyD0, ecmProvider, 'D', 0, 2, 0);
         ui1 = (emm[i] << 8) | emm[i+1];
         if( (uint32_t)((keyD0[0] << 8) | keyD0[1]) < ui1 || (keyD0[0] == 0x00 && keyD0[1] == 0x00)){
@@ -1626,7 +1759,7 @@ int8_t ViaccessEMM(uint8_t *emm, uint32_t *keysAdded)
         break;
       }
       case 0x43:{
-        if(nanoLen != 16) break;
+        if(nanoLen < 16) break;
         memcpy(emmXorKey, &emm[i], 16);
         haveEmmXorKey = 1;
         break;
@@ -1662,7 +1795,7 @@ int8_t ViaccessEMM(uint8_t *emm, uint32_t *keysAdded)
       case 0xF0:{
         if(nanoLen != 4) break;
         ui1 = ((emm[i+2] << 8) | (emm[i+1] << 16) | (emm[i] << 24) | emm[i+3]);
-        if(fletcher_crc32(oemm + 3, emmLen - 11) != ui1) return 4;
+        if(fletcher_crc32(emm + 3, emmLen - 11) != ui1) return 4;
 
         if(haveNewD0) {
           newKeyD0 = (uint8_t*)malloc(sizeof(uint8_t)*2);
@@ -1690,6 +1823,21 @@ int8_t ViaccessEMM(uint8_t *emm, uint32_t *keysAdded)
   return 0;
 }
 
+
+char* GetProcessEMMErrorReason(int8_t result) {
+  switch(result) {
+  	case 0: return "No error";
+    case 1: return "EMM not supported";
+  	case 2: return "Key not found";
+    case 3: return "Nano80 problem";
+  	case 4: return "Corrupt data";
+    case 5: return "Unknown";
+  	case 6: return "Checksum error";
+    case 7: return "Out of memory";    	    	    	
+  	default: return "Unknown";
+  }	
+}
+
 /* Error codes
 0  OK
 1  EMM not supported  
@@ -1703,7 +1851,7 @@ int8_t ViaccessEMM(uint8_t *emm, uint32_t *keysAdded)
 int8_t ProcessEMM(uint16_t caid, uint32_t UNUSED(provider), const uint8_t *emm, uint32_t *keysAdded) {
   int8_t result;
   uint8_t *emmCopy;
-  uint16_t emmLen = (((emm[1] & 0x0f)<< 8) | emm[2])+3;
+  uint16_t emmLen = GetEcmLen(emm);
   
   if(emmLen > 1024) return 1;
   emmCopy = (uint8_t*)malloc(emmLen);
@@ -1715,5 +1863,10 @@ int8_t ProcessEMM(uint16_t caid, uint32_t UNUSED(provider), const uint8_t *emm, 
     result = ViaccessEMM(emmCopy, keysAdded);
  
   free(emmCopy);
+  
+  if(result != 0 && result != 2) {
+  	cs_log("[Emu] EMM failed: %s", GetProcessEMMErrorReason(result));
+  }
+  
   return result;
 }
