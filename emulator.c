@@ -712,13 +712,13 @@ int8_t CryptoworksECM(uint32_t caid, uint8_t *ecm, uint8_t *cw)
    for(i = 8; i+1 < ecmLen; i += ecm[i+1]+2) {
      switch(ecm[i]) {
        case 0xDA: case 0xDB: case 0xDC:
-       	 if(i+2+ecm[i+1] >= ecmLen) break;
+       	 if(i+2+ecm[i+1] > ecmLen) break;
          for(j=0; j+7<ecm[i+1]; j+=8) {
            CryptoworksDecryptDes(&ecm[i+2+j], ecm[5], key);
          }
          break;
        case 0xDF:
-       	 if(i+2+8 >= ecmLen) break;
+       	 if(i+2+8 > ecmLen) break;
          if(memcmp(&ecm[i+2], signature, 8)) {
            return 6;
          }
@@ -729,7 +729,7 @@ int8_t CryptoworksECM(uint32_t caid, uint8_t *ecm, uint8_t *cw)
   for(i = 8; i+1 < ecmLen; i += ecm[i+1]+2) {
     switch(ecm[i]) {
       case 0xDB:
-        if(i+2+ecm[i+1] < ecmLen && ecm[i+1]==16) {
+        if(i+2+ecm[i+1] <= ecmLen && ecm[i+1]==16) {
           memcpy(cw, &ecm[i+2], 16);
           return 0;
         }
@@ -871,7 +871,7 @@ int8_t Via1Decrypt(uint8_t* ecm, uint8_t* dw, uint32_t ident, uint8_t desKeyInde
     while(9+msg_pos+2 < ecmLen) {
         switch (data[msg_pos]) {
         case 0xea:
-        	if(9+msg_pos+2+16 < ecmLen) {
+        	if(9+msg_pos+2+15 < ecmLen) {
               encStart = msg_pos + 2;
               memcpy(des_data1, &data[msg_pos+2], 8);
               memcpy(des_data2, &data[msg_pos+2+8], 8);
@@ -879,7 +879,7 @@ int8_t Via1Decrypt(uint8_t* ecm, uint8_t* dw, uint32_t ident, uint8_t desKeyInde
             }
             break;
         case 0xf0:
-            if(9+msg_pos+2+8 < ecmLen) {
+            if(9+msg_pos+2+7 < ecmLen) {
               memcpy(signature, &data[msg_pos+2], 8);
               foundData |= 2;
             }
@@ -892,7 +892,7 @@ int8_t Via1Decrypt(uint8_t* ecm, uint8_t* dw, uint32_t ident, uint8_t desKeyInde
     
     pH=i=0;
     
-    if(data[0] == 0x9f && 10+data[1] < ecmLen) {
+    if(data[0] == 0x9f && 10+data[1] <= ecmLen) {
     	Via1DoHash(hashbuffer, &pH, data[i++], hashkey);
         Via1DoHash(hashbuffer, &pH, data[i++], hashkey);
             
@@ -1262,7 +1262,7 @@ int8_t ViaccessECM(uint8_t *ecm, uint8_t *dw)
   {
     nanoCmd = ecm[i++];
     nanoLen = ecm[i++];
-    if(i+nanoLen >= ecmLen) return 1;
+    if(i+nanoLen > ecmLen) return 11;
    
     switch (nanoCmd) {
       case 0x40:
@@ -1325,9 +1325,13 @@ int8_t ViaccessECM(uint8_t *ecm, uint8_t *dw)
         }
         break;
       case 0xF0:
-        if(nanoLen != 4) break;
-        tmp = ((ecm[i+2] << 8) | (ecm[i+1] << 16) | (ecm[i] << 24) | ecm[i+3]);
-        if(ecmLen-10 > 0 && fletcher_crc32(ecm + 4, ecmLen - 10) != tmp) return 4;
+        if(nanoLen == 4) {
+          tmp = ((ecm[i+2] << 8) | (ecm[i+1] << 16) | (ecm[i] << 24) | ecm[i+3]);
+          if(ecmLen-10 > 0 && fletcher_crc32(ecm + 4, ecmLen - 10) != tmp) return 4;
+        }
+        else if(nanoLen == 8) {
+        	
+        }
       	break;
       default:
         break;
@@ -1710,7 +1714,7 @@ int8_t ViaccessEMM(uint8_t *emm, uint32_t *keysAdded)
   for(i=3; i+2<emmLen; ) {
     nanoCmd = emm[i++];
     nanoLen = emm[i++];   
-    if(i+nanoLen >= emmLen) return 1;
+    if(i+nanoLen > emmLen) return 1;
     
     switch(nanoCmd) {
       case 0x90:{
