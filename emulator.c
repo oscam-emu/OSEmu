@@ -561,12 +561,14 @@ void Cryptoworks3DES(uint8_t *data, uint8_t *key) {
   des(key, DES_ECS2_DECRYPT, data);
 }
 
-uint8_t CryptoworksProcessNano80(uint8_t *data, uint32_t caid, int32_t provider, uint8_t *opKey, uint8_t nanoLength, uint8_t nano80Algo, uint8_t nano80KeyIndex) 
+uint8_t CryptoworksProcessNano80(uint8_t *data, uint32_t caid, int32_t provider, uint8_t *opKey, uint8_t nanoLength, uint8_t nano80Algo) 
 {
   int32_t i, j;
   uint8_t key[16], desKey[16], t[8], dat1[8], dat2[8], k0D00C000[16];
   if(nanoLength < 11) return 0;
-  if(caid == 0x0D00 && provider != 0xA0 && !GetCwKey(k0D00C000, 0x0D00C0, 0, 16, 1)) return 2;
+  if(caid == 0x0D00 && provider != 0xA0 && !GetCwKey(k0D00C000, 0x0D00C0, 0, 16, 1)) return 0;
+  
+  if(nano80Algo > 1) return 0;
   
   memset(t, 0, 8);
   memcpy(dat1, data, 8);
@@ -587,6 +589,7 @@ uint8_t CryptoworksProcessNano80(uint8_t *data, uint32_t caid, int32_t provider,
   }  	
   Cryptoworks3DES(data, key);
   memcpy(&desKey[8], data, 8);
+  
   
   for(i=8; i+7<nanoLength; i+=8) {
     memcpy(dat1, &data[i], 8);
@@ -651,8 +654,8 @@ void CryptoworksDecryptDes(uint8_t *data, uint8_t algo, uint8_t *key)
 int8_t CryptoworksECM(uint32_t caid, uint8_t *ecm, uint8_t *cw)
 {
   uint32_t ident;
-  uint8_t keyIndex = 0, nanoLength, newEcmLength, key[22], signature[8], nano80KeyIndex = 0, nano80Algo = 0;
-  int32_t provider = -1, nano80Provider = -1;
+  uint8_t keyIndex = 0, nanoLength, newEcmLength, key[22], signature[8], nano80Algo = 1;
+  int32_t provider = -1;
   uint16_t i, j, ecmLen = GetEcmLen(ecm);
   
   if(ecmLen < 8) return 1;
@@ -667,9 +670,9 @@ int8_t CryptoworksECM(uint32_t caid, uint8_t *ecm, uint8_t *cw)
       keyIndex = keyIndex ? 1 : 0;
     }
     else if(ecm[i] == 0x84 && i+3 < ecmLen) {
-      nano80Provider = ecm[i+2] & 0xFC;
-      nano80KeyIndex = ecm[i+2] & 3;
-      nano80KeyIndex = nano80KeyIndex ? 1 : 0;
+      //nano80Provider = ecm[i+2] & 0xFC;
+      //nano80KeyIndex = ecm[i+2] & 3;
+      //nano80KeyIndex = nano80KeyIndex ? 1 : 0;
       nano80Algo = ecm[i+3]; 
     }
   }
@@ -683,21 +686,17 @@ int8_t CryptoworksECM(uint32_t caid, uint8_t *ecm, uint8_t *cw)
       default: return 1;
     }
   }
-  
-  if(nano80Provider < 0) {
-  	nano80Provider = provider;
-  }
-    
+      
   ident = (caid << 8) | provider; 
   if(!GetCwKey(key, ident, keyIndex, 16, 1)) return 2;
   if(!GetCwKey(&key[16], ident, 6, 6, 1)) return 2;
   
   for(i = 8; i+1 < ecmLen; i += ecm[i+1] + 2) {
-    if(ecm[i] == 0x80 && i+2+7 < ecmLen && i+2+ecm[i+1] < ecmLen
+    if(ecm[i] == 0x80 && i+2+7 < ecmLen && i+2+ecm[i+1] <= ecmLen
     	&& (provider == 0xA0 || provider == 0xC0 || provider == 0xC4 || provider == 0xC8)) {
       nanoLength = ecm[i+1];
-      newEcmLength = CryptoworksProcessNano80(ecm+i+2, caid, nano80Provider, key, nanoLength, nano80Algo, nano80KeyIndex);
-      if(newEcmLength > ecmLen-(i+2+3)) return 1;
+      newEcmLength = CryptoworksProcessNano80(ecm+i+2, caid, provider, key, nanoLength, nano80Algo);
+      if(newEcmLength == 0 || newEcmLength > ecmLen-(i+2+3)) return 1;
       ecm[i+2+3] = 0x81;
       ecm[i+2+4] = 0x70;
       ecm[i+2+5] = newEcmLength;
@@ -1253,7 +1252,7 @@ int8_t Via3Decrypt(uint8_t* source, uint8_t* dw, uint32_t ident, uint8_t desKeyI
 
 int8_t ViaccessECM(uint8_t *ecm, uint8_t *dw)
 {
-  uint32_t currentIdent = 0, tmp = 0;
+  uint32_t currentIdent = 0;
   uint8_t nanoCmd = 0, nanoLen = 0, version = 0, providerKeyLen = 0, desKeyIndex = 0, aesMode = 0, aesKeyIndex = 0xFF;
   int8_t doFinalMix = 0, result = 1;
   uint16_t i = 0, keySelectPos = 0, ecmLen = GetEcmLen(ecm);
@@ -1262,7 +1261,7 @@ int8_t ViaccessECM(uint8_t *ecm, uint8_t *dw)
   {
     nanoCmd = ecm[i++];
     nanoLen = ecm[i++];
-    if(i+nanoLen > ecmLen) return 11;
+    if(i+nanoLen > ecmLen) return 1;
    
     switch (nanoCmd) {
       case 0x40:
@@ -1307,9 +1306,7 @@ int8_t ViaccessECM(uint8_t *ecm, uint8_t *dw)
           return Via1Decrypt(ecm, dw, currentIdent, desKeyIndex);
         }
         else if (version == 2) {
-          if(!Via26Decrypt(ecm + i, dw, currentIdent, desKeyIndex) && result) {
-            result = 0;
-          }
+          return Via26Decrypt(ecm + i, dw, currentIdent, desKeyIndex);
         }
         else if (version == 3) {
           doFinalMix = 0;
@@ -1319,20 +1316,9 @@ int8_t ViaccessECM(uint8_t *ecm, uint8_t *dw)
             }
             else break;
           }
-          if(!Via3Decrypt(ecm + i, dw, currentIdent, desKeyIndex, aesKeyIndex, aesMode, doFinalMix) && result) {
-            result = 0;
-          }
+          return Via3Decrypt(ecm + i, dw, currentIdent, desKeyIndex, aesKeyIndex, aesMode, doFinalMix);
         }
         break;
-      case 0xF0:
-        if(nanoLen == 4) {
-          tmp = ((ecm[i+2] << 8) | (ecm[i+1] << 16) | (ecm[i] << 24) | ecm[i+3]);
-          if(ecmLen-10 > 0 && fletcher_crc32(ecm + 4, ecmLen - 10) != tmp) return 4;
-        }
-        else if(nanoLen == 8) {
-        	
-        }
-      	break;
       default:
         break;
     }
@@ -1345,7 +1331,7 @@ int8_t ViaccessECM(uint8_t *ecm, uint8_t *dw)
 int8_t GetNagraKey(uint8_t *buf, uint32_t ident, char keyName, uint32_t keyIndex, uint8_t isCriticalKey)
 {
   char keyStr[MAX_CHAR_KEYNAME];
-  snprintf(keyStr, MAX_CHAR_KEYNAME, "%c%X", keyName, keyIndex);  
+  snprintf(keyStr, MAX_CHAR_KEYNAME, "%c%X", keyName, keyIndex);
   if(FindKey('N', ident, keyStr, buf, keyName == 'M' ? 64 : 16, isCriticalKey))
    return 1;    
 
