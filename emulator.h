@@ -4,3 +4,4 @@ void read_emu_keyfile(char *path);
 #ifndef __APPLE__
 void read_emu_keymemory(void);
 #endif
+uint32_t GetOSemuVersion(void);

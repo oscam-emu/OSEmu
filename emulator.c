@@ -8,6 +8,14 @@
 
 #define MAX_CHAR_KEYNAME 8
 
+// Version info
+uint32_t GetOSemuVersion(void)
+{
+	// this should be increased
+	// after every major code change
+	return 101;	
+}
+
 // Key DB
 int32_t CharToBin(uint8_t *out, char *in, uint32_t inLen)
 {
@@ -39,6 +47,7 @@ KeyDataContainer CwKeys = { .EmuKeys=NULL, .keyCount=0, .keyMax=0 };
 KeyDataContainer ViKeys = { .EmuKeys=NULL, .keyCount=0, .keyMax=0 };
 KeyDataContainer NagraKeys = { .EmuKeys=NULL, .keyCount=0, .keyMax=0 };
 KeyDataContainer IrdetoKeys = { .EmuKeys=NULL, .keyCount=0, .keyMax=0 };
+KeyDataContainer NDSKeys = { .EmuKeys=NULL, .keyCount=0, .keyMax=0 };
 
 KeyDataContainer *GetKeyContainer(char identifier)
 {
@@ -51,6 +60,8 @@ KeyDataContainer *GetKeyContainer(char identifier)
 		return &NagraKeys;
 	case 'I':
 		return &IrdetoKeys;
+	case 'S':
+		return &NDSKeys;
 	default:
 		return NULL;
 	}
@@ -187,9 +198,9 @@ void read_emu_keyfile(char *path)
 			fclose(file);
 			return;
 		}
-
-		if(!CharToBin(key, keyString, strlen(keyString))
-				|| !SetKey(identifier, provider, keyName, key, keyLength)) {
+		
+		CharToBin(key, keyString, strlen(keyString));
+		if(!SetKey(identifier, provider, keyName, key, keyLength)) {
 			free(key);
 		}
 	}
@@ -226,9 +237,9 @@ void read_emu_keymemory(void)
 			free(keyData);
 			return;
 		}
-
-		if(!CharToBin(key, keyString, strlen(keyString))
-				|| !SetKey(identifier, provider, keyName, key, keyLength)) {
+		
+		CharToBin(key, keyString, strlen(keyString));
+		if(!SetKey(identifier, provider, keyName, key, keyLength)) {
 			free(key);
 		}
 		line = strtok_r(NULL, "\n", &saveptr);
@@ -892,36 +903,70 @@ const uint8_t viasat_const[]= {
 	0xD9,0x1E,0x41,0x14,0xFE,0x15,0xAF,0xC3,0x18,0xC5,0xF8,0xA7,0xA8,0x01,0x00,0x01,
 };
 
-int8_t SoftNDSECM(uint8_t *ecm, uint8_t *dw)
+int8_t SoftNDSECM(uint16_t caid, uint8_t *ecm, uint8_t *dw)
 {
 	int32_t i;
-	uint8_t *tDW;
-	uint8_t digest[16];
+	uint8_t *tDW, irdEcmLen, offsetCw = 0, offsetP2 = 0;
+	uint8_t digest[16], md5_const[64];
 	MD5_CTX mdContext;
 	uint16_t ecmLen = GetEcmLen(ecm);
-	if(ecmLen < 36) {
+	
+	if(ecmLen < 7) {
 		return 1;
 	}
+		
+	if(ecm[3] != 0x00 || ecm[4] != 0x00 || ecm[5] != 0x01) {
+		return 1;
+	}
+	
+	irdEcmLen = ecm[6];	
+	if(irdEcmLen < (10+3+8+4) || irdEcmLen+6 >= ecmLen) {
+		return 1;
+	}
+	
+	for(i=0; 10+i+2 < irdEcmLen; i++) {
+		if(ecm[17+i] == 0x0F && ecm[17+i+1] == 0x40 && ecm[17+i+2] == 0x00) {
+			offsetCw = 17+i+3;
+			offsetP2 = offsetCw+9;
+		}
+	}
+	
+	if(offsetCw == 0 || offsetP2 == 0) {
+		return 1;	
+	}
+	
+	if(offsetP2-7+4 > irdEcmLen) {
+		return 1;	
+	}
+
+	if(caid == 0x090F || caid == 0x093E) {
+		memcpy(md5_const, viasat_const, 64);
+	}
+	else if(!FindKey('S', caid, "00", md5_const, 64, 1)) {
+		return 2;
+	}
+
 	memset(dw,0,16);
 	tDW = &dw[ecm[0]==0x81 ? 8 : 0];
-	if (ecm[6]!=0x21) {
-		return 1;
-	}
-	MD5_Init (&mdContext);
-	MD5_Update (&mdContext, ecm+7, 10);
-	MD5_Update (&mdContext, ecm+0x20, 4);
-	MD5_Update (&mdContext, viasat_const, 0x40);
-	MD5_Update (&mdContext, nds_const, 0x10);
-	MD5_Final (digest, &mdContext);
+	
+	MD5_Init(&mdContext);
+	MD5_Update(&mdContext, ecm+7, 10);
+	MD5_Update(&mdContext, ecm+offsetP2, 4);
+	MD5_Update(&mdContext, md5_const, 64);
+	MD5_Update(&mdContext, nds_const, 16);
+	MD5_Final(digest, &mdContext);
+	
 	for (i=0; i<8; i++) {
-		tDW[i] = digest[i+8] ^ ecm[0x17+i];
+		tDW[i] = digest[i+8] ^ ecm[offsetCw+i];
 	}
+
 	if(((tDW[0]+tDW[1]+tDW[2])&0xFF)-tDW[3]) {
 		return 6;
 	}
 	if(((tDW[4]+tDW[5]+tDW[6])&0xFF)-tDW[7]) {
 		return 6;
 	}
+	
 	return 0;
 }
 
@@ -2005,16 +2050,16 @@ int8_t ProcessECM(uint16_t caid, const uint8_t *ecm, uint8_t *dw)
 	if((caid>>8)==0x0D) {
 		result = CryptoworksECM(caid,ecmCopy,dw);
 	}
-	else if(caid==0x090F) {
-		result = SoftNDSECM(ecmCopy,dw);
+	else if((caid>>8)==0x09) {
+		result = SoftNDSECM(caid,ecmCopy,dw);
 	}
-	else if(caid==0x500) {
+	else if(caid==0x0500) {
 		result = ViaccessECM(ecmCopy,dw);
 	}
-	else if(caid==0x1801) {
+	else if((caid>>8)==0x18) {
 		result = Nagra2ECM(ecmCopy,dw);
 	}
-	else if(caid==0x0604) {
+	else if((caid>>8)==0x06) {
 		result= Irdeto2ECM(caid,ecmCopy,dw);
 	}
 
@@ -2259,7 +2304,7 @@ int8_t ProcessEMM(uint16_t caid, uint32_t UNUSED(provider), const uint8_t *emm, 
 	}
 	memcpy(emmCopy, emm, emmLen);
 
-	if(caid==0x500) {
+	if(caid==0x0500) {
 		result = ViaccessEMM(emmCopy, keysAdded);
 	}
 
