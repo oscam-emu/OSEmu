@@ -308,6 +308,8 @@ int main(int argc, char**argv)
 	unsigned char mbuf[1000];
 	unsigned char md5tmp[MD5_DIGEST_LENGTH];
 	char *path = "./";
+
+	cs_log("OSEmu version %d", GetOSemuVersion());
 	
 	while ((opt = getopt(argc, argv, "bva:p:c:l:e")) != -1) {
 		switch (opt) {
