@@ -13,7 +13,7 @@ uint32_t GetOSemuVersion(void)
 {
 	// this should be increased
 	// after every major code change
-	return 101;	
+	return 102;	
 }
 
 // Key DB
