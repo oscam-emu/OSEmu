@@ -352,10 +352,9 @@ int main(int argc, char**argv)
 		exit(0);
 	}
 
- 
 	if (bg && do_daemon(1, 0))
 	{
-		cs_log("Couldn't start as a daemon");	
+		cs_log("Could not start as a daemon.");	
 		exit(0);
 	}
 	
@@ -368,12 +367,19 @@ int main(int argc, char**argv)
 	read_emu_keyfile(path);
 	
 	cl_sockfd = socket(AF_INET,SOCK_DGRAM,0);
-	
+	if(cl_sockfd == -1) {
+		cs_log("Could not create socket.");	
+		exit(0);		
+	}
+		
 	bzero(&servaddr,sizeof(servaddr));
 	servaddr.sin_family = AF_INET;
 	servaddr.sin_addr.s_addr = htonl(INADDR_ANY);
 	servaddr.sin_port = htons(port);
-	bind(cl_sockfd,(struct sockaddr *)&servaddr,sizeof(servaddr));
+	if(bind(cl_sockfd,(struct sockaddr *)&servaddr,sizeof(servaddr)) == -1) {
+		cs_log("Could not bind to socket.");	
+		exit(0);			
+	}
 	
 	aes_set_key(&cl_aes_keys, (char *) MD5(cl_passwd, strlen((char *)cl_passwd), md5tmp));
 	
