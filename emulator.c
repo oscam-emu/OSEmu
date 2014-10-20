@@ -13,7 +13,7 @@ uint32_t GetOSemuVersion(void)
 {
 	// this should be increased
 	// after every major code change
-	return 102;	
+	return 103;	
 }
 
 // Key DB
@@ -48,6 +48,7 @@ KeyDataContainer ViKeys = { .EmuKeys=NULL, .keyCount=0, .keyMax=0 };
 KeyDataContainer NagraKeys = { .EmuKeys=NULL, .keyCount=0, .keyMax=0 };
 KeyDataContainer IrdetoKeys = { .EmuKeys=NULL, .keyCount=0, .keyMax=0 };
 KeyDataContainer NDSKeys = { .EmuKeys=NULL, .keyCount=0, .keyMax=0 };
+KeyDataContainer BissKeys = { .EmuKeys=NULL, .keyCount=0, .keyMax=0 };
 
 KeyDataContainer *GetKeyContainer(char identifier)
 {
@@ -62,6 +63,8 @@ KeyDataContainer *GetKeyContainer(char identifier)
 		return &IrdetoKeys;
 	case 'S':
 		return &NDSKeys;
+	case 'F':
+		return &BissKeys;
 	default:
 		return NULL;
 	}
@@ -136,7 +139,7 @@ int32_t FindKey(char identifier, uint32_t provider, char *keyName, uint8_t *key,
 	if(KeyDB == NULL) {
 		return 0;
 	}
-
+	
 	for(i=0; i<KeyDB->keyCount; i++) {
 		if(KeyDB->EmuKeys[i].provider != provider) {
 			continue;
@@ -156,7 +159,7 @@ int32_t FindKey(char identifier, uint32_t provider, char *keyName, uint8_t *key,
 
 void read_emu_keyfile(char *path)
 {
-	char line[1200], keyName[8], keyString[1026];
+	char line[1200], keyName[MAX_CHAR_KEYNAME], keyString[1026];
 	uint32_t pathLength, provider, keyLength;
 	uint8_t *key;
 	char *filepath, *filename;
@@ -213,7 +216,7 @@ extern uint8_t SoftCamKey_DataEnd[] asm("_binary_SoftCam_Key_end");
 
 void read_emu_keymemory(void)
 {
-	char *keyData, *line, *saveptr, keyName[8], keyString[1026];
+	char *keyData, *line, *saveptr, keyName[MAX_CHAR_KEYNAME], keyString[1026];
 	uint32_t provider, keyLength;
 	uint8_t *key;
 	char identifier;
@@ -894,9 +897,9 @@ int8_t CryptoworksECM(uint32_t caid, uint8_t *ecm, uint8_t *cw)
 }
 
 // SoftNDS EMU
-const uint8_t nds_const[]= {0x0F,0x1E,0x2D,0x3C,0x4B,0x5A,0x69,0x78,0x87,0x96,0xA5,0xB4,0xC3,0xD2,0xE1,0xF0};
+static const uint8_t nds_const[]= {0x0F,0x1E,0x2D,0x3C,0x4B,0x5A,0x69,0x78,0x87,0x96,0xA5,0xB4,0xC3,0xD2,0xE1,0xF0};
 
-const uint8_t viasat_const[]= {
+static uint8_t viasat_const[]= {
 	0x15,0x85,0xC5,0xE4,0xB8,0x52,0xEC,0xF7,0xC3,0xD9,0x08,0xBA,0x22,0x4A,0x66,0xF2,
 	0x82,0x15,0x4F,0xB2,0x18,0x48,0x63,0x97,0xDC,0x19,0xD8,0x51,0x9A,0x39,0xFC,0xCA,
 	0x1C,0x24,0xD0,0x65,0xA9,0x66,0x2D,0xD6,0x53,0x3B,0x86,0xBA,0x40,0xEA,0x4C,0x6D,
@@ -1998,6 +2001,43 @@ int8_t Irdeto2ECM(uint16_t caid, uint8_t *ecm, uint8_t *dw)
 	return 1;
 }
 
+int8_t BissECM(uint16_t caid, uint8_t *ecm, uint8_t *dw)
+{
+	uint8_t haveKey1 = 0, haveKey2 = 0;
+	uint16_t sid = 0, pid = 0;
+	uint32_t i;
+	
+	// oscam fake ecm for biss: [sid] ([pid1] [pid2] ... [pidx])
+	uint16_t ecmLen = GetEcmLen(ecm);
+	if(ecmLen < 5) {
+		return 1;
+	}
+	
+	sid = b2i(2, ecm+3);
+	if(ecmLen < 7) {
+		haveKey1 = FindKey('F', sid<<16, "00", dw, 8, 0);
+		haveKey2 = FindKey('F', sid<<16, "01", &dw[8], 8, 0);
+		
+		if(haveKey1 && haveKey2) {return 0;}
+		else if(haveKey1 && !haveKey2) {memcpy(&dw[8], dw, 8); return 0;}
+		else if(!haveKey1 && haveKey2) {memcpy(dw, &dw[8], 8); return 0;}		
+		else {return 2;}
+	}
+	else {
+		for(i=5; i+1<ecmLen; i+=2) {
+			pid = b2i(2, ecm+i);
+			haveKey1 = FindKey('F', (sid<<16)|pid, "00", dw, 8, 0);
+			haveKey2 = FindKey('F', (sid<<16)|pid, "01", &dw[8], 8, 0);
+		
+			if(haveKey1 && haveKey2) {return 0;}
+			else if(haveKey1 && !haveKey2) {memcpy(&dw[8], dw, 8); return 0;}
+			else if(!haveKey1 && haveKey2) {memcpy(dw, &dw[8], 8); return 0;}				
+		}
+	}
+	
+	return 2;
+}
+
 char* GetProcessECMErrorReason(int8_t result)
 {
 	switch(result) {
@@ -2035,15 +2075,11 @@ char* GetProcessECMErrorReason(int8_t result)
 int8_t ProcessECM(uint16_t caid, const uint8_t *ecm, uint8_t *dw)
 {
 	int8_t result = 1, i;
-	uint8_t *ecmCopy;
+	uint8_t ecmCopy[1024];
 	uint16_t ecmLen = GetEcmLen(ecm);
 
 	if(ecmLen > 1024) {
 		return 1;
-	}
-	ecmCopy = (uint8_t*)malloc(ecmLen);
-	if(ecmCopy == NULL) {
-		return 7;
 	}
 	memcpy(ecmCopy, ecm, ecmLen);
 
@@ -2060,10 +2096,11 @@ int8_t ProcessECM(uint16_t caid, const uint8_t *ecm, uint8_t *dw)
 		result = Nagra2ECM(ecmCopy,dw);
 	}
 	else if((caid>>8)==0x06) {
-		result= Irdeto2ECM(caid,ecmCopy,dw);
+		result = Irdeto2ECM(caid,ecmCopy,dw);
 	}
-
-	free(ecmCopy);
+	else if((caid>>8)==0x26 || caid == 0xFFFF) {
+		result = BissECM(caid,ecmCopy,dw);
+	}
 
 	// fix dcw checksum
 	if(result == 0) {
@@ -2072,7 +2109,7 @@ int8_t ProcessECM(uint16_t caid, const uint8_t *ecm, uint8_t *dw)
 		}
 	}
 
-	if(result != 0 && result != 2) {
+	if(result != 0) {
 		cs_log("[Emu] ECM failed: %s", GetProcessECMErrorReason(result));
 	}
 
@@ -2086,7 +2123,7 @@ int8_t ViaccessEMM(uint8_t *emm, uint32_t *keysAdded)
 	uint16_t i = 0, j = 0, k = 0, emmLen = GetEcmLen(emm);
 	uint8_t ecmKeys[6][16], keyD0[2], emmKey[16], emmXorKey[16], provName[17];
 	uint8_t ecmKeyCount = 0, emmKeyIndex = 0;
-	int8_t nanoLen = 0, haveEmmXorKey = 0, haveNewD0 = 0;
+	uint8_t nanoLen = 0, haveEmmXorKey = 0, haveNewD0 = 0;
 	uint32_t ui1, ui2, ui3, ecmKeyIndex[6], provider = 0, ecmProvider = 0;
 	char keyName[8], keyValue[36];
 	struct aes_keys aes;
@@ -2100,7 +2137,7 @@ int8_t ViaccessEMM(uint8_t *emm, uint32_t *keysAdded)
 		if(i+nanoLen > emmLen) {
 			return 1;
 		}
-
+		
 		switch(nanoCmd) {
 		case 0x90: {
 			if(nanoLen < 3) {
@@ -2126,6 +2163,9 @@ int8_t ViaccessEMM(uint8_t *emm, uint32_t *keysAdded)
 			break;
 		}
 		case 0x41: {
+			if(nanoLen < 1) {
+				break;
+			}
 			if(!GetViaKey(emmKey, provider, 'M', emmKeyIndex, 16, 1)) {
 				return 2;
 			}
@@ -2172,6 +2212,9 @@ int8_t ViaccessEMM(uint8_t *emm, uint32_t *keysAdded)
 			break;
 		}
 		case 0x44: {
+			if(nanoLen < 3) {
+				break;
+			}
 			if (!haveEmmXorKey) {
 				memset(emmXorKey, 0, 16);
 			}
@@ -2189,7 +2232,8 @@ int8_t ViaccessEMM(uint8_t *emm, uint32_t *keysAdded)
 			}
 			memcpy(&emm[i-2], tmp, nanoLen);
 			free(tmp);
-			nanoLen = -2;
+			nanoLen = 0;
+			i -= 2;
 			break;
 		}
 		case 0x68: {
@@ -2254,7 +2298,6 @@ int8_t ViaccessEMM(uint8_t *emm, uint32_t *keysAdded)
 	return 0;
 }
 
-
 char* GetProcessEMMErrorReason(int8_t result)
 {
 	switch(result) {
@@ -2292,15 +2335,11 @@ char* GetProcessEMMErrorReason(int8_t result)
 int8_t ProcessEMM(uint16_t caid, uint32_t UNUSED(provider), const uint8_t *emm, uint32_t *keysAdded)
 {
 	int8_t result = 1;
-	uint8_t *emmCopy;
+	uint8_t emmCopy[1024];
 	uint16_t emmLen = GetEcmLen(emm);
 
 	if(emmLen > 1024) {
 		return 1;
-	}
-	emmCopy = (uint8_t*)malloc(emmLen);
-	if(emmCopy == NULL) {
-		return 7;
 	}
 	memcpy(emmCopy, emm, emmLen);
 
@@ -2308,9 +2347,7 @@ int8_t ProcessEMM(uint16_t caid, uint32_t UNUSED(provider), const uint8_t *emm, 
 		result = ViaccessEMM(emmCopy, keysAdded);
 	}
 
-	free(emmCopy);
-
-	if(result != 0 && result != 2) {
+	if(result != 0) {
 		cs_log("[Emu] EMM failed: %s", GetProcessEMMErrorReason(result));
 	}
 
