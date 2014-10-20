@@ -13,7 +13,7 @@ uint32_t GetOSemuVersion(void)
 {
 	// this should be increased
 	// after every major code change
-	return 103;	
+	return 104;	
 }
 
 // Key DB
@@ -2001,7 +2001,7 @@ int8_t Irdeto2ECM(uint16_t caid, uint8_t *ecm, uint8_t *dw)
 	return 1;
 }
 
-int8_t BissECM(uint16_t caid, uint8_t *ecm, uint8_t *dw)
+int8_t BissECM(uint16_t UNUSED(caid), uint8_t *ecm, uint8_t *dw)
 {
 	uint8_t haveKey1 = 0, haveKey2 = 0;
 	uint16_t sid = 0, pid = 0;
@@ -2020,8 +2020,7 @@ int8_t BissECM(uint16_t caid, uint8_t *ecm, uint8_t *dw)
 		
 		if(haveKey1 && haveKey2) {return 0;}
 		else if(haveKey1 && !haveKey2) {memcpy(&dw[8], dw, 8); return 0;}
-		else if(!haveKey1 && haveKey2) {memcpy(dw, &dw[8], 8); return 0;}		
-		else {return 2;}
+		else if(!haveKey1 && haveKey2) {memcpy(dw, &dw[8], 8); return 0;}
 	}
 	else {
 		for(i=5; i+1<ecmLen; i+=2) {
@@ -2035,6 +2034,13 @@ int8_t BissECM(uint16_t caid, uint8_t *ecm, uint8_t *dw)
 		}
 	}
 	
+	haveKey1 = FindKey('F', (sid<<16)|0x1FFF, "00", dw, 8, 0);
+	haveKey2 = FindKey('F', (sid<<16)|0x1FFF, "01", &dw[8], 8, 0);
+	
+	if(haveKey1 && haveKey2) {return 0;}
+	else if(haveKey1 && !haveKey2) {memcpy(&dw[8], dw, 8); return 0;}
+	else if(!haveKey1 && haveKey2) {memcpy(dw, &dw[8], 8); return 0;}
+		
 	return 2;
 }
 
