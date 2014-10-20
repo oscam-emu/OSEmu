@@ -173,11 +173,15 @@ out:
 static void camd35_process_ecm(uchar *buf, int buflen)
 {
 	ECM_REQUEST er;
+	uint16_t ecmlen = 0;
+	
 	if(!buf || buflen < 23)
 		{ return; }
-	uint16_t ecmlen = (((buf[21] & 0x0f) << 8) | buf[22]) + 3;
+	
+	ecmlen = (((buf[21] & 0x0f) << 8) | buf[22]) + 3;
 	if(ecmlen + 20 > buflen)
 		{ return; }
+	
 	memset(&er, 0, sizeof(ECM_REQUEST));
     er.rc = E_UNHANDLED;
 	er.ecmlen = ecmlen;
@@ -238,13 +242,18 @@ static void camd35_process_ecm(uchar *buf, int buflen)
 	camd35_send(buf, 0);
 }
 
-static void camd35_process_emm(uchar *buf, int buflen, int emmlen)
+static void camd35_process_emm(uchar *buf, int buflen)
 {
 	uint32_t keysAdded = 0;
+	uint16_t emmlen = 0;
 	
-	if(!buf || buflen < 20 || emmlen + 20 > buflen)
+	if(!buf || buflen < 23)
 		{ return; }
-
+		
+	emmlen = (((buf[21] & 0x0f) << 8) | buf[22]) + 3;
+	if(emmlen + 20 > buflen)
+		{ return; }
+		
 	cs_log_debug("ProcessEMM CAID: %X", (buf[10] << 8) | buf[11]);
 	cs_log_hexdump("ProcessEMM: ", buf+20, emmlen);
 	
@@ -278,9 +287,8 @@ static void camd35_request_emm(void)
 
 		mbuf[47] = 0;
 
-		//we think client/server protocols should deliver all information, and only readers should discard EMM
 		mbuf[128] = 1; //EMM_GLOBAL
-		mbuf[129] = 1; //EMM_SHARED
+		mbuf[129] = 0; //EMM_SHARED
 		mbuf[130] = 0; //EMM_UNIQUE
 	}
 	else        // disable emm
@@ -305,7 +313,7 @@ int main(int argc, char**argv)
 	int n, opt, port = 0, accountok = 0;
 	struct sockaddr_in servaddr;
 	socklen_t len;
-	unsigned char mbuf[1000];
+	unsigned char mbuf[20+1024];
 	unsigned char md5tmp[MD5_DIGEST_LENGTH];
 	char *path = "./";
 
@@ -392,8 +400,8 @@ int main(int argc, char**argv)
 				camd35_process_ecm(mbuf, n);
 				if(requestau) camd35_request_emm();
 			}
-			else if((mbuf[0] == 6 || mbuf[0] == 19) && n > 2) {
-				camd35_process_emm(mbuf, n, mbuf[1]);
+			else if((mbuf[0] == 6 || mbuf[0] == 19)) {
+				camd35_process_emm(mbuf, n);
 			} 
 			else {
 				cs_log("unknown/not implemented camd35 command! (%d) n=%d", mbuf[0], n);
