@@ -13,7 +13,7 @@ uint32_t GetOSemuVersion(void)
 {
 	// this should be increased
 	// after every major code change
-	return 104;	
+	return 705;	
 }
 
 // Key DB
@@ -2125,11 +2125,11 @@ int8_t ProcessECM(uint16_t caid, const uint8_t *ecm, uint8_t *dw)
 // Viaccess EMM EMU
 int8_t ViaccessEMM(uint8_t *emm, uint32_t *keysAdded)
 {
-	uint8_t nanoCmd = 0, *tmp, *newKeyD0, *newEcmKey;
+	uint8_t nanoCmd = 0, subNanoCmd = 0, *tmp, *newKeyD0, *newEcmKey;
 	uint16_t i = 0, j = 0, k = 0, emmLen = GetEcmLen(emm);
 	uint8_t ecmKeys[6][16], keyD0[2], emmKey[16], emmXorKey[16], provName[17];
-	uint8_t ecmKeyCount = 0, emmKeyIndex = 0;
-	uint8_t nanoLen = 0, haveEmmXorKey = 0, haveNewD0 = 0;
+	uint8_t ecmKeyCount = 0, emmKeyIndex = 0, aesMode = 0x0D;
+	uint8_t nanoLen = 0, subNanoLen = 0, haveEmmXorKey = 0, haveNewD0 = 0;
 	uint32_t ui1, ui2, ui3, ecmKeyIndex[6], provider = 0, ecmProvider = 0;
 	char keyName[8], keyValue[36];
 	struct aes_keys aes;
@@ -2243,22 +2243,58 @@ int8_t ViaccessEMM(uint8_t *emm, uint32_t *keysAdded)
 			break;
 		}
 		case 0x68: {
-			if(nanoLen != 23 || emm[i] != 0xD2 || emm[i+1] != 0x02 || emm[i+2] != 0x0D
-					|| emm[i+4] != 0x01 || emm[i+5] != 0x11) {
-				break;
-			}
-			emmKeyIndex = emm[i+3];
 			if(ecmKeyCount > 5) {
 				break;
+			}		
+			for(j=i; j+2<i+nanoLen; ) {
+				subNanoCmd = emm[j++];
+				subNanoLen = emm[j++];
+				if(j+subNanoLen > i+nanoLen) {
+					break;
+				}
+				switch(subNanoCmd) {
+					case 0xD2: {
+						if(nanoLen < 2) {
+							break;
+						}
+						aesMode = emm[j];
+						emmKeyIndex = emm[j+1];
+						break;
+					}
+					case 0x01: {
+						if(nanoLen < 17) {
+							break;
+						}
+						ecmKeyIndex[ecmKeyCount] = emm[j];
+						memcpy(&ecmKeys[ecmKeyCount], &emm[j+1], 16);
+						if(!GetViaKey(emmKey, provider, 'M', emmKeyIndex, 16, 1)) {
+							break;
+						}
+
+						if(aesMode == 0x0F || aesMode == 0x11) {
+							hdSurEncPhase1_D2_0F_11(ecmKeys[ecmKeyCount]);
+							hdSurEncPhase2_D2_0F_11(ecmKeys[ecmKeyCount]);
+						}
+						else if(aesMode == 0x13 || aesMode == 0x15) {
+							hdSurEncPhase1_D2_13_15(ecmKeys[ecmKeyCount]);
+						}						
+						aes_set_key(&aes, (char*)emmKey);
+						aes_decrypt(&aes, ecmKeys[ecmKeyCount], 16);
+						if(aesMode == 0x0F || aesMode == 0x11) {
+							hdSurEncPhase1_D2_0F_11(ecmKeys[ecmKeyCount]);
+						}
+						else if(aesMode == 0x13 || aesMode == 0x15) {
+							hdSurEncPhase2_D2_13_15(ecmKeys[ecmKeyCount]);
+						}
+								
+						ecmKeyCount++;						
+						break;
+					}
+					default:
+						break;
+				}
+				j += subNanoLen;
 			}
-			ecmKeyIndex[ecmKeyCount] = emm[i+6];
-			memcpy(&ecmKeys[ecmKeyCount], &emm[i+7], 16);
-			if(!GetViaKey(emmKey, provider, 'M', emmKeyIndex, 16, 1)) {
-				return 2;
-			}
-			aes_set_key(&aes, (char*)emmKey);
-			aes_decrypt(&aes, ecmKeys[ecmKeyCount], 16);
-			ecmKeyCount++;
 			break;
 		}
 		case 0xF0: {
