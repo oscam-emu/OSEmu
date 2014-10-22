@@ -13,7 +13,7 @@ uint32_t GetOSemuVersion(void)
 {
 	// this should be increased
 	// after every major code change
-	return 705;	
+	return 706;	
 }
 
 // Key DB
@@ -1431,15 +1431,15 @@ int8_t Via3ProcessDw(uint8_t *data, uint32_t ident, uint8_t desKeyIndex)
 
 void Via3FinalMix(uint8_t *dw)
 {
-	uint32_t tmp;
+	uint8_t tmp[4];
 
-	tmp = *(uint32_t *)dw;
-	*(uint32_t *)dw = *(uint32_t *)(dw + 4);
-	*(uint32_t *)(dw + 4) = tmp;
+	memcpy(tmp, dw, 4);
+	memcpy(dw, dw + 4, 4);
+	memcpy(dw + 4, tmp, 4);
 
-	tmp = *(uint32_t *)(dw + 8);
-	*(uint32_t *)(dw + 8) = *(uint32_t *)(dw + 12);
-	*(uint32_t *)(dw + 12) = tmp;
+	memcpy(tmp, dw + 8, 4);
+	memcpy(dw + 8, dw + 12, 4);
+	memcpy(dw + 12, tmp, 4);
 }
 
 int8_t Via3HasValidCRC(uint8_t *dw)
@@ -1818,14 +1818,14 @@ int8_t Nagra2ECM(uint8_t *ecm, uint8_t *dw)
 	}
 
 	identMask = ident & 0xFF00;
-	if (identMask == 0x1100 || identMask == 0x500 || identMask == 0x3100) {
-		tmp1 = *(uint32_t*)dw;
-		tmp2 = *(uint32_t*)(dw + 4);
-		tmp3 = *(uint32_t*)(dw + 12);
-		*(uint32_t*)dw = *(uint32_t*)(dw + 8);
-		*(uint32_t*)(dw + 4) = tmp3;
-		*(uint32_t*)(dw + 8) = tmp1;
-		*(uint32_t*)(dw + 12) = tmp2;
+	if (identMask == 0x1100 || identMask == 0x500 || identMask == 0x3100) {		
+		memcpy(&tmp1, dw, 4);
+		memcpy(&tmp2, dw + 4, 4);
+		memcpy(&tmp3, dw + 12, 4);
+		memcpy(dw, dw + 8, 4);
+		memcpy(dw + 4, &tmp3, 4);
+		memcpy(dw + 8, &tmp1, 4);
+		memcpy(dw + 12, &tmp2, 4);
 	}
 	return 0;
 }
@@ -1844,19 +1844,27 @@ int8_t GetIrdetoKey(uint8_t *buf, uint32_t ident, char keyName, uint32_t keyInde
 
 static inline void xxor(uint8_t *data, int32_t len, const uint8_t *v1, const uint8_t *v2)
 {
-	switch(len) {
+	uint32_t i;
+	switch(len)
+	{
 	case 16:
-		*((uint32_t *)data+3) = *((uint32_t *)v1+3) ^ *((uint32_t *)v2+3);
-		*((uint32_t *)data+2) = *((uint32_t *)v1+2) ^ *((uint32_t *)v2+2);
+		for(i = 8; i < 16; ++i)
+		{
+			data[i] = v1[i] ^ v2[i];
+		}
 	case 8:
-		*((uint32_t *)data+1) = *((uint32_t *)v1+1) ^ *((uint32_t *)v2+1);
+		for(i = 4; i < 8; ++i)
+		{
+			data[i] = v1[i] ^ v2[i];
+		}
 	case 4:
-		*((uint32_t *)data+0) = *((uint32_t *)v1+0) ^ *((uint32_t *)v2+0);
+		for(i = 0; i < 4; ++i)
+		{
+			data[i] = v1[i] ^ v2[i];
+		}
 		break;
 	default:
-		while(len--) {
-			*data++ = *v1++ ^ *v2++;
-		}
+		while(len--) { *data++ = *v1++ ^ *v2++; }
 		break;
 	}
 }
