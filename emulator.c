@@ -1616,6 +1616,9 @@ int8_t ViaccessECM(uint8_t *ecm, uint8_t *dw)
 			else if (version == 3) {
 				doFinalMix = 0;
 				if (currentIdent == 0x030B00 && providerKeyLen>3) {
+					if(keySelectPos+2 >= ecmLen) {
+						break;
+					}
 					if (ecm[keySelectPos]==0x05 && ecm[keySelectPos+1]==0x67 && (ecm[keySelectPos+2]==0x00 || ecm[keySelectPos+2]==0x01)) {
 						if(ecm[keySelectPos+2]==0x01) {
 							doFinalMix = 1;

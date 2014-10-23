@@ -11,7 +11,7 @@ unsigned char *MD5(const unsigned char *input, unsigned long len, unsigned char 
 typedef struct MD5Context {
 	uint32_t buf[4];
 	uint32_t bits[2];
-	unsigned char in[64];
+	uint32_t in[16];
 } MD5_CTX;
 
 void MD5_Init(MD5_CTX *ctx);
