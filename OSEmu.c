@@ -275,7 +275,7 @@ static void camd35_request_emm(void)
 	memset(mbuf, 0, sizeof(mbuf));
 	mbuf[2] = mbuf[3] = 0xff;           // must not be zero
 	
-	i2b_buf(4, 0x000B0300, &mbuf[12]);
+	i2b_buf(4, 0x00030B00, &mbuf[12]);
 
 	mbuf[0] = 5;
 	mbuf[1] = 111;
