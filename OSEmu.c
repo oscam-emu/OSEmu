@@ -368,7 +368,7 @@ int main(int argc, char**argv)
 	
 	get_random_bytes_init();
 
-#ifndef __APPLE__
+#if !defined(__APPLE__) && !defined(__ANDROID__)
 	read_emu_keymemory();
 #endif
 	read_emu_keyfile("/var/keys/");
