@@ -20,6 +20,10 @@ all: OSEmu
 OSEmu: $(OBJS)
 ifeq ($(UNAME),Darwin)
 	$(CC) -Wall -O2 -o $(BIN) $(OBJS) $(CFLAGS)
+else ifdef ANDROID_NDK
+	$(CC) -Wall -O2 -o $(BIN) $(OBJS) $(CFLAGS)
+else ifdef ANDROID_STANDALONE_TOOLCHAIN
+	$(CC) -Wall -O2 -o $(BIN) $(OBJS) $(CFLAGS)
 else
 	touch SoftCam.Key
 	$(CC) -Wall -O2 -o $(BIN) $(OBJS) $(CFLAGS) -Wl,--format=binary -Wl,SoftCam.Key -Wl,--format=default	
