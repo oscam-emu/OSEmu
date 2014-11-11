@@ -371,8 +371,10 @@ int main(int argc, char**argv)
 #if !defined(__APPLE__) && !defined(__ANDROID__)
 	read_emu_keymemory();
 #endif
-	read_emu_keyfile("/var/keys/");
-	read_emu_keyfile(path);
+
+	if(!read_emu_keyfile(path)) {
+		read_emu_keyfile("/var/keys/");
+	}
 	
 	cl_sockfd = socket(AF_INET,SOCK_DGRAM,0);
 	if(cl_sockfd == -1) {
