@@ -75,6 +75,11 @@ static int32_t SetKey(char identifier, uint32_t provider, char *keyName, uint8_t
 	KeyData *tmpKeyData, *newKeyData;
 	identifier = (char)toupper((int)identifier);
 
+	// fix patched mgcamd format for Irdeto
+	if(identifier == 'I' && provider < 0xFFFF) {
+		provider = provider<<8;
+	}
+
 	KeyDB = GetKeyContainer(identifier);
 	if(KeyDB == NULL) {
 		return 0;
@@ -91,6 +96,16 @@ static int32_t SetKey(char identifier, uint32_t provider, char *keyName, uint8_t
 		// allow multiple keys for Irdeto
 		if(identifier == 'I' && oldKey == NULL)
 		{
+			// reject duplicates
+			tmpKeyData = &KeyDB->EmuKeys[i];
+			do {
+				if(memcmp(tmpKeyData->key, key, keyLength) == 0) {
+					return 0;
+				}
+				tmpKeyData = (KeyData*)tmpKeyData->nextKey;
+			} while(tmpKeyData != NULL);
+
+			// add new key
 			newKeyData = (KeyData*)malloc(sizeof(KeyData));
 			if(newKeyData == NULL) {
 				return 0;
