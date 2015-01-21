@@ -2368,7 +2368,7 @@ int8_t ProcessECM(uint16_t caid, uint32_t UNUSED(provider), const uint8_t *ecm, 
 	else if((caid>>8)==0x06) {
 		result = Irdeto2ECM(caid,ecmCopy,dw);
 	}
-	else if((caid>>8)==0x26 || caid == 0xFFFF) {
+	else if((caid>>8)==0x26 || caid == 0xFFFE || caid == 0xFFFF) {
 		result = BissECM(caid,ecmCopy,dw);
 	}
 	
