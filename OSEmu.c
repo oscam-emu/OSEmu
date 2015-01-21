@@ -170,10 +170,64 @@ out:
 	return (rc);
 }
 
+static void camd35_request_emm(uint16_t caid, uint32_t provider, uint8_t* hexserial,
+								uint8_t emm_global, uint8_t emm_shared, uint8_t emm_unique)
+{
+	uchar mbuf[1024];
+	uint8_t prid[4];
+
+	memset(mbuf, 0, sizeof(mbuf));
+	mbuf[2] = mbuf[3] = 0xff;           // must not be zero
+	
+	i2b_buf(4, provider, &mbuf[12]);
+
+	mbuf[0] = 5;
+	mbuf[1] = 111;
+	if(caid)
+	{
+		mbuf[39] = 1;                // no. caids
+		mbuf[20] = caid >> 8;        // caid's (max 8)
+		mbuf[21] = caid & 0xff;
+
+		memcpy(mbuf + 40, hexserial, 6); 
+		mbuf[47] = 1;
+
+		prid[0] = provider >> 24;
+		prid[1] = provider >> 16;
+		prid[2] = provider >> 8;
+		prid[3] = provider & 0xFF;	
+
+		if((caid >= 0x1700 && caid <= 0x1799)  ||  // Betacrypt
+				(caid >= 0x0600 && caid <= 0x0699))    // Irdeto (don't know if this is correct, cause I don't own a IRDETO-Card)
+		{
+			mbuf[48 + (0 * 5)] = prid[0];
+			memcpy(&mbuf[50 + (0 * 5)], &prid[1], 3);
+		}
+		else
+		{
+			mbuf[48 + (0 * 5)] = prid[2];
+			mbuf[49 + (0 * 5)] = prid[3];
+		}
+
+		mbuf[127] = 0; //EMM_UNKNOWN
+		mbuf[128] = emm_global; //EMM_GLOBAL
+		mbuf[129] = emm_shared; //EMM_SHARED
+		mbuf[130] = emm_unique; //EMM_UNIQUE
+	}
+	else        // disable emm
+		{ mbuf[20] = mbuf[39] = mbuf[40] = mbuf[47] = mbuf[49] = 1; }
+
+	memcpy(mbuf + 10, mbuf + 20, 2);
+	camd35_send(mbuf, 0);       // send with data-len 111 for camd3 > 3.890
+	mbuf[1]++;
+	camd35_send(mbuf, 0);       // send with data-len 112 for camd3 < 3.890
+}
+
 static void camd35_process_ecm(uchar *buf, int buflen)
 {
 	ECM_REQUEST er;
 	uint16_t ecmlen = 0;
+	uint8_t hexserial[6];
 	
 	if(!buf || buflen < 23)
 		{ return; }
@@ -192,7 +246,7 @@ static void camd35_process_ecm(uchar *buf, int buflen)
 	cs_log_debug("ProcessECM CAID: %X", er.caid);
 	cs_log_hexdump("ProcessECM: ", buf+20, ecmlen);
 	
-	if(ProcessECM(er.caid,buf+20,er.cw)) {
+	if(ProcessECM(er.caid,er.prid,buf+20,er.cw)) {
 	  er.rc = E_NOTFOUND;
 	  cs_log_debug("CW not found");
 	}
@@ -240,6 +294,17 @@ static void camd35_process_ecm(uchar *buf, int buflen)
 		}
 	}
 	camd35_send(buf, 0);
+	
+	if(requestau) {
+		memset(hexserial, 0, 6);
+		
+		if(er.caid == 0x0500) {
+			camd35_request_emm(er.caid, 0x030B00, hexserial, 1, 0, 0);	
+		}
+		else if(er.caid == 0x0604 && GetIrdeto2Hexserial(er.caid, hexserial)) {
+			camd35_request_emm(er.caid, 0x010200, hexserial, 1, 1, 1);
+		}
+	}
 }
 
 static void camd35_process_emm(uchar *buf, int buflen)
@@ -264,40 +329,6 @@ static void camd35_process_emm(uchar *buf, int buflen)
 	else {
 	  cs_log_debug("EMM ok");
     }	
-}
-
-static void camd35_request_emm(void)
-{
-	uchar mbuf[1024];
-
-	uint16_t au_caid = 0x0500;
-
-	memset(mbuf, 0, sizeof(mbuf));
-	mbuf[2] = mbuf[3] = 0xff;           // must not be zero
-	
-	i2b_buf(4, 0x00030B00, &mbuf[12]);
-
-	mbuf[0] = 5;
-	mbuf[1] = 111;
-	if(au_caid)
-	{
-		mbuf[39] = 1;                   // no. caids
-		mbuf[20] = au_caid >> 8;        // caid's (max 8)
-		mbuf[21] = au_caid & 0xff;
-
-		mbuf[47] = 0;
-
-		mbuf[128] = 1; //EMM_GLOBAL
-		mbuf[129] = 0; //EMM_SHARED
-		mbuf[130] = 0; //EMM_UNIQUE
-	}
-	else        // disable emm
-		{ mbuf[20] = mbuf[39] = mbuf[40] = mbuf[47] = mbuf[49] = 1; }
-
-	memcpy(mbuf + 10, mbuf + 20, 2);
-	camd35_send(mbuf, 0);       // send with data-len 111 for camd3 > 3.890
-	mbuf[1]++;
-	camd35_send(mbuf, 0);       // send with data-len 112 for camd3 < 3.890
 }
 
 void show_usage(char *cmdline){
@@ -401,7 +432,6 @@ int main(int argc, char**argv)
 		if (camd35_recv(mbuf, n) >= 0 ){
 			if(mbuf[0] == 0 || mbuf[0] == 3) {
 				camd35_process_ecm(mbuf, n);
-				if(requestau) camd35_request_emm();
 			}
 			else if((mbuf[0] == 6 || mbuf[0] == 19)) {
 				camd35_process_emm(mbuf, n);
