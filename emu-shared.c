@@ -171,7 +171,7 @@ static int32_t SetKey(char identifier, uint32_t provider, char *keyName, uint8_t
 						uint32_t keyLength, uint8_t writeKey)
 {
 	uint32_t i;
-	uint8_t *tmpKey = NULL, *orgKey;
+	uint8_t *tmpKey = NULL, *orgKey = NULL;
 	KeyDataContainer *KeyDB;
 	KeyData *tmpKeyData, *newKeyData;
 	identifier = (char)toupper((int)identifier);
