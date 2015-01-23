@@ -34,9 +34,8 @@ Run:
   -v (log debug information)
   -l <logfile> (write logs to this file)
   -e (enable emm au) 
-      - Currently only for Viaccess3. 
-      - Needs M0 key.
-      - Oscam clients must be version r9843 or newer, and the OSEmu reader must have set "via_emm_global = 1".
+      - Viaccess3: Needs M0 key; oscam clients must be version r9843 or newer, and the OSEmu reader must have set "via_emm_global = 1".
+      - Irdeto2: Needs M0 and M3/4/5/6 key
 
   Examples:
     /usr/bin/OSEmu -a user:password -p 11000 -b
