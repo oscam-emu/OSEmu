@@ -366,7 +366,7 @@ static int32_t FindKey(char identifier, uint32_t provider, char *keyName, uint8_
 		if(j == keyRef) {
 			memcpy(key, tmpKeyData->key, tmpKeyData->keyLength > maxKeyLength ? maxKeyLength : tmpKeyData->keyLength);
 			if(tmpKeyData->keyLength < maxKeyLength) {
-				memset(key+tmpKeyData->keyLength, 0, tmpKeyData->keyLength - tmpKeyData->keyLength);
+				memset(key+tmpKeyData->keyLength, 0, maxKeyLength - tmpKeyData->keyLength);
 			}
 			return 1;
 		}
