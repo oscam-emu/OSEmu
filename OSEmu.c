@@ -296,12 +296,13 @@ static void camd35_process_ecm(uchar *buf, int buflen)
 	camd35_send(buf, 0);
 	
 	if(requestau) {
-		memset(hexserial, 0, 6);
-		
 		if(er.caid == 0x0500) {
+			memset(hexserial, 0, 6);
 			camd35_request_emm(er.caid, 0x030B00, hexserial, 1, 0, 0);	
 		}
-		else if(er.caid == 0x0604 && GetIrdeto2Hexserial(er.caid, hexserial)) {
+		else if(er.caid == 0x0604) {
+			memset(hexserial, 0, 6);
+			GetIrdeto2Hexserial(er.caid, hexserial);
 			camd35_request_emm(er.caid, 0x010200, hexserial, 1, 1, 1);
 		}
 	}
