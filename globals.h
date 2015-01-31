@@ -60,5 +60,6 @@ typedef struct ecm_request_t {
 	uint16_t		caid;
 	uint16_t		srvid;
 	uint32_t		prid;
+	uint16_t        pid;
 	int8_t			rc;
 } ECM_REQUEST;

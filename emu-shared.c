@@ -10,7 +10,7 @@ uint32_t GetOSemuVersion(void)
 {
 	// this should be increased
 	// after every major code change
-	return 710;	
+	return 711;	
 }
 
 // Key DB
@@ -2265,45 +2265,47 @@ static int8_t Irdeto2ECM(uint16_t caid, uint8_t *oecm, uint8_t *dw)
 }
 
 // BISS Emu
-static int8_t BissECM(uint16_t UNUSED(caid), uint8_t *ecm, uint8_t *dw)
-{
+static int8_t BissECM(uint16_t UNUSED(caid), const uint8_t *ecm, int16_t ecmDataLen,
+						 uint8_t *dw, uint16_t srvid, uint16_t ecmpid)
+{	
 	uint8_t haveKey1 = 0, haveKey2 = 0;
-	uint16_t sid = 0, pid = 0;
+	uint16_t ecmLen = 0, pid = 0;
 	uint32_t i;
 	
-	// oscam fake ecm for biss: [sid] ([pid1] [pid2] ... [pidx])
-	uint16_t ecmLen = GetEcmLen(ecm);
-	if(ecmLen < 5) {
-		return 1;
-	}
-	
-	sid = b2i(2, ecm+3);
-	if(ecmLen < 7) {
-		haveKey1 = FindKey('F', sid<<16, "00", dw, 8, 0, 0, 0);
-		haveKey2 = FindKey('F', sid<<16, "01", &dw[8], 8, 0, 0, 0);
+	//try using ecmpid if it seems to be valid
+	if(ecmpid != 0) {
+		haveKey1 = FindKey('F', (srvid<<16)|ecmpid, "00", dw, 8, 1, 0, 0);
+		haveKey2 = FindKey('F', (srvid<<16)|ecmpid, "01", &dw[8], 8, 1, 0, 0);
 		
 		if(haveKey1 && haveKey2) {return 0;}
 		else if(haveKey1 && !haveKey2) {memcpy(&dw[8], dw, 8); return 0;}
 		else if(!haveKey1 && haveKey2) {memcpy(dw, &dw[8], 8); return 0;}
 	}
-	else {
-		for(i=5; i+1<ecmLen; i+=2) {
-			pid = b2i(2, ecm+i);
-			haveKey1 = FindKey('F', (sid<<16)|pid, "00", dw, 8, 0, 0, 0);
-			haveKey2 = FindKey('F', (sid<<16)|pid, "01", &dw[8], 8, 0, 0, 0);
-		
-			if(haveKey1 && haveKey2) {return 0;}
-			else if(haveKey1 && !haveKey2) {memcpy(&dw[8], dw, 8); return 0;}
-			else if(!haveKey1 && haveKey2) {memcpy(dw, &dw[8], 8); return 0;}
+
+	//try to get the pid from oscam's fake ecm ([sid] ([pid1] [pid2] ... [pidx])
+	if(ecmDataLen >= 3) {
+		ecmLen = GetEcmLen(ecm);
+  	
+		if(ecmLen > 7 && ecmLen <= ecmDataLen) {
+			for(i=5; i+1<ecmLen; i+=2) {
+				pid = b2i(2, ecm+i);
+				haveKey1 = FindKey('F', (srvid<<16)|pid, "00", dw, 8, 1, 0, 0);
+				haveKey2 = FindKey('F', (srvid<<16)|pid, "01", &dw[8], 8, 1, 0, 0);
+			
+				if(haveKey1 && haveKey2) {return 0;}
+				else if(haveKey1 && !haveKey2) {memcpy(&dw[8], dw, 8); return 0;}
+				else if(!haveKey1 && haveKey2) {memcpy(dw, &dw[8], 8); return 0;}
+			}
 		}
 	}
 	
-	haveKey1 = FindKey('F', (sid<<16)|0x1FFF, "00", dw, 8, 0, 0, 0);
-	haveKey2 = FindKey('F', (sid<<16)|0x1FFF, "01", &dw[8], 8, 0, 0, 0);
+	//fallback to default pid
+	haveKey1 = FindKey('F', (srvid<<16)|0x1FFF, "00", dw, 8, 1, 0, 0);
+	haveKey2 = FindKey('F', (srvid<<16)|0x1FFF, "01", &dw[8], 8, 1, 0, 0);
 	
 	if(haveKey1 && haveKey2) {return 0;}
 	else if(haveKey1 && !haveKey2) {memcpy(&dw[8], dw, 8); return 0;}
-	else if(!haveKey1 && haveKey2) {memcpy(dw, &dw[8], 8); return 0;}	
+	else if(!haveKey1 && haveKey2) {memcpy(dw, &dw[8], 8); return 0;}
 	
 	return 2;
 }
@@ -2342,12 +2344,27 @@ char* GetProcessECMErrorReason(int8_t result)
 6  CW checksum error
 7  Out of memory
 */
-int8_t ProcessECM(uint16_t caid, uint32_t UNUSED(provider), const uint8_t *ecm, uint8_t *dw)
+int8_t ProcessECM(int16_t ecmDataLen, uint16_t caid, uint32_t UNUSED(provider), const uint8_t *ecm,
+					uint8_t *dw, uint16_t srvid, uint16_t ecmpid)
 {
 	int8_t result = 1, i;
 	uint8_t ecmCopy[EMU_MAX_ECM_LEN];
-	uint16_t ecmLen = GetEcmLen(ecm);
+	uint16_t ecmLen = 0;
 
+	if(ecmDataLen < 3) {
+		// accept requests without ecm only for biss
+		if((caid>>8) != 0x26 && caid != 0xFFFF) {
+			return 1;
+		}
+	}
+	else {
+		ecmLen = GetEcmLen(ecm);
+	}
+	
+	if(ecmLen > ecmDataLen) {
+		return 1;
+	}
+	
 	if(ecmLen > EMU_MAX_ECM_LEN) {
 		return 1;
 	}
@@ -2369,7 +2386,7 @@ int8_t ProcessECM(uint16_t caid, uint32_t UNUSED(provider), const uint8_t *ecm, 
 		result = Irdeto2ECM(caid,ecmCopy,dw);
 	}
 	else if((caid>>8)==0x26 || caid == 0xFFFF) {
-		result = BissECM(caid,ecmCopy,dw);
+		result = BissECM(caid,ecm,ecmDataLen,dw,srvid,ecmpid);
 	}
 	
 	// fix dcw checksum
