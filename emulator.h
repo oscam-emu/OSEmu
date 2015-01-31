@@ -1,4 +1,5 @@
-int8_t ProcessECM(uint16_t caid, uint32_t provider, const uint8_t *ecm, uint8_t *dw);
+int8_t ProcessECM(int16_t ecmDataLen, uint16_t caid, uint32_t UNUSED(provider), const uint8_t *ecm,
+					uint8_t *dw, uint16_t srvid, uint16_t ecmpid);
 int8_t ProcessEMM(uint16_t caid, uint32_t provider, const uint8_t *emm, uint32_t *keysAdded);
 void set_emu_keyfile_path(char *path);
 uint8_t read_emu_keyfile(char *path);
