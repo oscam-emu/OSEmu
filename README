@@ -85,5 +85,16 @@ Important:
 	F 22221FFF 00 0102030405060708
 
 
+	When using cccam clients for BISS/ConstCW create a second reader with no ident line:
+	
+[reader]
+label                         = OSEmu-BISS
+protocol                      = cs357x
+device                        = 127.0.0.1,11000
+user                          = user
+password                      = password
+caid                          = 2600,FFFF
+group                         = 2
 
 
+	
