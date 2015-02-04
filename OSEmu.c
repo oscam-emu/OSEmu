@@ -242,10 +242,6 @@ static void camd35_process_ecm(uchar *buf, int buflen)
 	er.srvid = b2i(2, buf + 8);
 	er.caid = b2i(2, buf + 10);
 	er.prid = b2i(4, buf + 12);
-	er.pid = b2i(2, buf + 18);
-	
-	if(er.pid == 0xffff)
-		{ er.pid = 0; }
 	
 	cs_log_debug("ProcessECM CAID: %X", er.caid);
 	cs_log_hexdump("ProcessECM: ", buf+20, ecmlen);
