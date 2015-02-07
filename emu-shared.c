@@ -10,7 +10,7 @@ uint32_t GetOSemuVersion(void)
 {
 	// this should be increased
 	// after every major code change
-	return 711;	
+	return 712;	
 }
 
 // Key DB
@@ -475,8 +475,8 @@ uint8_t read_emu_keyfile(char *opath)
 }
 
 #if !defined(__APPLE__) && !defined(__ANDROID__)
-extern uint8_t SoftCamKey_Data[]    asm("_binary_SoftCam_Key_start");
-extern uint8_t SoftCamKey_DataEnd[] asm("_binary_SoftCam_Key_end");
+extern uint8_t SoftCamKey_Data[]    __asm__("_binary_SoftCam_Key_start");
+extern uint8_t SoftCamKey_DataEnd[] __asm__("_binary_SoftCam_Key_end");
 
 void read_emu_keymemory(void)
 {
