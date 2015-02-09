@@ -333,17 +333,18 @@ static void camd35_process_emm(uchar *buf, int buflen)
 }
 
 void show_usage(char *cmdline){
-	cs_log("Usage: %s -a <user>:<password> -p <port> [-b -v -e -c <path> -l <logfile>]", cmdline);
+	cs_log("Usage: %s -a <user>:<password> -p <port> [-b -v -e -c <path> -l <logfile> -L]", cmdline);
 	cs_log("-b enables to start as a daemon (background)");
 	cs_log("-v enables a more verbose output (debug output)");
 	cs_log("-e enables emm au");
 	cs_log("-c sets path of SoftCam.Key");
 	cs_log("-l sets log file");
+	cs_log("-L only allow local connections");
 }
 
 int main(int argc, char**argv)
 {
-	int n, opt, port = 0, accountok = 0;
+	int n, opt, port = 0, accountok = 0, local = 0;
 	struct sockaddr_in servaddr;
 	socklen_t len;
 	unsigned char mbuf[20+1024];
@@ -352,7 +353,7 @@ int main(int argc, char**argv)
 
 	cs_log("OSEmu version %d", GetOSemuVersion());
 	
-	while ((opt = getopt(argc, argv, "bva:p:c:l:e")) != -1) {
+	while ((opt = getopt(argc, argv, "bva:p:c:l:eL")) != -1) {
 		switch (opt) {
 			case 'b':
 				bg = 1;
@@ -383,6 +384,9 @@ int main(int argc, char**argv)
 			case 'e':
 				requestau = 1;
 				break;	
+			case 'L':
+				local = 1;
+				break;
 			default:
 				show_usage(argv[0]);
 				exit(0);
@@ -417,7 +421,7 @@ int main(int argc, char**argv)
 		
 	bzero(&servaddr,sizeof(servaddr));
 	servaddr.sin_family = AF_INET;
-	servaddr.sin_addr.s_addr = htonl(INADDR_ANY);
+	servaddr.sin_addr.s_addr = htonl(local ? INADDR_LOOPBACK : INADDR_ANY);
 	servaddr.sin_port = htons(port);
 	if(bind(cl_sockfd,(struct sockaddr *)&servaddr,sizeof(servaddr)) == -1) {
 		cs_log("Could not bind to socket.");	

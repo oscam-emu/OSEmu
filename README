@@ -29,6 +29,7 @@ Run:
 
   -a <user>:<password> (set the cs357x user and password) [REQUIRED]
   -p <portnumber> (set the cs357x port) [REQUIRED]
+  -L (only allow local connections)
   -c <folder> (set the folder where SoftCam.Key is searched)
   -b (start OSEmu in background/daemon mode)
   -v (log debug information)
