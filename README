@@ -29,7 +29,6 @@ Run:
 
   -a <user>:<password> (set the cs357x user and password) [REQUIRED]
   -p <portnumber> (set the cs357x port) [REQUIRED]
-  -L (only allow local connections)
   -c <folder> (set the folder where SoftCam.Key is searched)
   -b (start OSEmu in background/daemon mode)
   -v (log debug information)
@@ -37,7 +36,9 @@ Run:
   -e (enable emm au) 
       - Viaccess3: Needs M0 key; oscam clients must be version r9843 or newer, and the OSEmu reader must have set "via_emm_global = 1".
       - Irdeto2: Needs M0 and M3/4/5/6 key
-
+  -L (only allow local connections from localhost)
+  -i (show OSEmu version info and exit)
+  
   Examples:
     /usr/bin/OSEmu -a user:password -p 11000 -b
     /usr/bin/OSEmu -a user:password -p 11000 -b -c /usr/keys -l /var/log/osemu.log -e
