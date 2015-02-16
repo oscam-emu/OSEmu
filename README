@@ -36,8 +36,8 @@ Run:
   -e (enable emm au) 
       - Viaccess3: Needs M0 key; oscam clients must be version r9843 or newer, and the OSEmu reader must have set "via_emm_global = 1".
       - Irdeto2: Needs M0 and M3/4/5/6 key
-  -L only allow local connections (from localhost)
-  -i show OSEmu version info and exit
+  -L (only allow local connections from localhost)
+  -i (show OSEmu version info and exit)
   
   Examples:
     /usr/bin/OSEmu -a user:password -p 11000 -b
