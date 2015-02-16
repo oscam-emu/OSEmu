@@ -339,6 +339,7 @@ void show_usage(char *cmdline){
 	cs_log("-e enables emm au");
 	cs_log("-c sets path of SoftCam.Key");
 	cs_log("-l sets log file");
+	cs_log("-i show version info and exit");	
 }
 
 int main(int argc, char**argv)
@@ -382,7 +383,10 @@ int main(int argc, char**argv)
 				break;
 			case 'e':
 				requestau = 1;
-				break;	
+				break;
+			case 'i':
+				printf("\nOSEmu version: %d\n\n", GetOSemuVersion());
+				exit(0);				
 			default:
 				show_usage(argv[0]);
 				exit(0);
