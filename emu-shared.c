@@ -8,9 +8,7 @@
 // Version info
 uint32_t GetOSemuVersion(void)
 {
-	// this should be increased
-	// after every major code change
-	return 712;	
+	return atoi("$Version: 713 $"+10);
 }
 
 // Key DB
