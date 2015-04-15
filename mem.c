@@ -85,9 +85,9 @@ static void (*free_func)(void *)            = free;
 #ifdef CRYPTO_MDEBUG
 /* use default functions from mem_dbg.c */
 static void (*malloc_debug_func)(void *, int, const char *, int, int)
-= CRYPTO_dbg_malloc;
+	= CRYPTO_dbg_malloc;
 static void (*realloc_debug_func)(void *, void *, int, const char *, int, int)
-= CRYPTO_dbg_realloc;
+	= CRYPTO_dbg_realloc;
 static void (*free_debug_func)(void *, int) = CRYPTO_dbg_free;
 static void (*set_debug_options_func)(long) = CRYPTO_dbg_set_options;
 static long(*get_debug_options_func)(void) = CRYPTO_dbg_get_options;
@@ -96,7 +96,7 @@ static long(*get_debug_options_func)(void) = CRYPTO_dbg_get_options;
  * at run-time */
 static void (*malloc_debug_func)(void *, int, const char *, int, int) = NULL;
 static void (*realloc_debug_func)(void *, void *, int, const char *, int, int)
-= NULL;
+	= NULL;
 static void (*free_debug_func)(void *, int) = NULL;
 static void (*set_debug_options_func)(long) = NULL;
 static long(*get_debug_options_func)(void) = NULL;
@@ -107,9 +107,9 @@ int CRYPTO_set_mem_functions(void *(*m)(size_t), void *(*r)(void *, size_t),
 							 void (*f)(void *))
 {
 	if(!allow_customize)
-		{ return 0; }
+	{ return 0; }
 	if((m == NULL) || (r == NULL) || (f == NULL))
-		{ return 0; }
+	{ return 0; }
 	malloc_func = m;
 	realloc_func = r;
 	free_func = f;
@@ -121,9 +121,9 @@ int CRYPTO_set_mem_functions(void *(*m)(size_t), void *(*r)(void *, size_t),
 int CRYPTO_set_locked_mem_functions(void *(*m)(size_t), void (*f)(void *))
 {
 	if(!allow_customize)
-		{ return 0; }
+	{ return 0; }
 	if((m == NULL) || (f == NULL))
-		{ return 0; }
+	{ return 0; }
 	malloc_locked_func = m;
 	free_locked_func = f;
 	return 1;
@@ -136,7 +136,7 @@ int CRYPTO_set_mem_debug_functions(void (*m)(void *, int, const char *, int, int
 								   long(*go)(void))
 {
 	if(!allow_customize_debug)
-		{ return 0; }
+	{ return 0; }
 	malloc_debug_func = m;
 	realloc_debug_func = r;
 	free_debug_func = f;
@@ -188,7 +188,7 @@ void *CRYPTO_malloc_locked(int num, const char *file, int line)
 	fprintf(stderr, "LEVITTE_DEBUG:         > 0x%p (%d)\n", ret, num);
 #endif
 	if(malloc_debug_func != NULL)
-		{ malloc_debug_func(ret, num, file, line, 1); }
+	{ malloc_debug_func(ret, num, file, line, 1); }
 
 	return ret;
 }
@@ -196,13 +196,13 @@ void *CRYPTO_malloc_locked(int num, const char *file, int line)
 void CRYPTO_free_locked(void *str)
 {
 	if(free_debug_func != NULL)
-		{ free_debug_func(str, 0); }
+	{ free_debug_func(str, 0); }
 #ifdef LEVITTE_DEBUG
 	fprintf(stderr, "LEVITTE_DEBUG:         < 0x%p\n", str);
 #endif
 	free_locked_func(str);
 	if(free_debug_func != NULL)
-		{ free_debug_func(NULL, 1); }
+	{ free_debug_func(NULL, 1); }
 }
 
 void *CRYPTO_malloc(int num, const char *file, int line)
@@ -220,7 +220,7 @@ void *CRYPTO_malloc(int num, const char *file, int line)
 	fprintf(stderr, "LEVITTE_DEBUG:         > 0x%p (%d)\n", ret, num);
 #endif
 	if(malloc_debug_func != NULL)
-		{ malloc_debug_func(ret, num, file, line, 1); }
+	{ malloc_debug_func(ret, num, file, line, 1); }
 
 	return ret;
 }
@@ -230,13 +230,13 @@ void *CRYPTO_realloc(void *str, int num, const char *file, int line)
 	void *ret = NULL;
 
 	if(realloc_debug_func != NULL)
-		{ realloc_debug_func(str, NULL, num, file, line, 0); }
+	{ realloc_debug_func(str, NULL, num, file, line, 0); }
 	ret = realloc_func(str, num);
 #ifdef LEVITTE_DEBUG
 	fprintf(stderr, "LEVITTE_DEBUG:         | 0x%p -> 0x%p (%d)\n", str, ret, num);
 #endif
 	if(realloc_debug_func != NULL)
-		{ realloc_debug_func(str, ret, num, file, line, 1); }
+	{ realloc_debug_func(str, ret, num, file, line, 1); }
 
 	return ret;
 }
@@ -244,13 +244,13 @@ void *CRYPTO_realloc(void *str, int num, const char *file, int line)
 void CRYPTO_free(void *str)
 {
 	if(free_debug_func != NULL)
-		{ free_debug_func(str, 0); }
+	{ free_debug_func(str, 0); }
 #ifdef LEVITTE_DEBUG
 	fprintf(stderr, "LEVITTE_DEBUG:         < 0x%p\n", str);
 #endif
 	free_func(str);
 	if(free_debug_func != NULL)
-		{ free_debug_func(NULL, 1); }
+	{ free_debug_func(NULL, 1); }
 }
 
 void *CRYPTO_remalloc(void *a, int num)
@@ -264,13 +264,13 @@ void *CRYPTO_remalloc(void *a, int num)
 void CRYPTO_set_mem_debug_options(long bits)
 {
 	if(set_debug_options_func != NULL)
-		{ set_debug_options_func(bits); }
+	{ set_debug_options_func(bits); }
 }
 
 long CRYPTO_get_mem_debug_options(void)
 {
 	if(get_debug_options_func != NULL)
-		{ return get_debug_options_func(); }
+	{ return get_debug_options_func(); }
 	return 0;
 }
 #endif

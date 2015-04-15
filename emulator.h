@@ -2,7 +2,7 @@
 #define OSEMU_EMULATOR_H_
 
 int8_t ProcessECM(int16_t ecmDataLen, uint16_t caid, uint32_t UNUSED(provider), const uint8_t *ecm,
-					uint8_t *dw, uint16_t srvid, uint16_t ecmpid);
+				  uint8_t *dw, uint16_t srvid, uint16_t ecmpid);
 int8_t ProcessEMM(uint16_t caid, uint32_t provider, const uint8_t *emm, uint32_t *keysAdded);
 
 

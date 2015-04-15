@@ -193,13 +193,13 @@ int BN_mod_exp_simple(BIGNUM *r, BIGNUM *a, const BIGNUM *p, const BIGNUM *m,
 	if(window > 1)
 	{
 		if(!BN_mod_mul(d, &(val[0]), &(val[0]), m, ctx))
-			{ goto err; }               /* 2 */
+		{ goto err; }               /* 2 */
 		j = 1 << (window - 1);
 		for(i = 1; i < j; i++)
 		{
 			BN_init(&(val[i]));
 			if(!BN_mod_mul(&(val[i]), &(val[i - 1]), d, m, ctx))
-				{ goto err; }
+			{ goto err; }
 		}
 		ts = i;
 	}
@@ -219,7 +219,7 @@ int BN_mod_exp_simple(BIGNUM *r, BIGNUM *a, const BIGNUM *p, const BIGNUM *m,
 		{
 			if(!start)
 				if(!BN_mod_mul(r, r, r, m, ctx))
-					{ goto err; }
+				{ goto err; }
 			if(wstart == 0) { break; }
 			wstart--;
 			continue;
@@ -249,12 +249,12 @@ int BN_mod_exp_simple(BIGNUM *r, BIGNUM *a, const BIGNUM *p, const BIGNUM *m,
 			for(i = 0; i < j; i++)
 			{
 				if(!BN_mod_mul(r, r, r, m, ctx))
-					{ goto err; }
+				{ goto err; }
 			}
 
 		/* wvalue will be an odd number < 2^window */
 		if(!BN_mod_mul(r, r, &(val[wvalue >> 1]), m, ctx))
-			{ goto err; }
+		{ goto err; }
 
 		/* move the 'window' down further */
 		wstart -= wend + 1;
@@ -266,7 +266,7 @@ int BN_mod_exp_simple(BIGNUM *r, BIGNUM *a, const BIGNUM *p, const BIGNUM *m,
 err:
 	BN_CTX_end(ctx);
 	for(i = 0; i < ts; i++)
-		{ BN_clear_free(&(val[i])); }
+	{ BN_clear_free(&(val[i])); }
 	return (ret);
 }
 

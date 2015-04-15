@@ -105,7 +105,7 @@ BN_ULONG BN_div_word(BIGNUM *a, BN_ULONG w)
 		a->d[i] = d;
 	}
 	if((a->top > 0) && (a->d[a->top - 1] == 0))
-		{ a->top--; }
+	{ a->top--; }
 	return (ret);
 }
 
@@ -119,7 +119,7 @@ int BN_add_word(BIGNUM *a, BN_ULONG w)
 		a->neg = 0;
 		i = BN_sub_word(a, w);
 		if(!BN_is_zero(a))
-			{ a->neg = !(a->neg); }
+		{ a->neg = !(a->neg); }
 		return (i);
 	}
 	w &= BN_MASK2;
@@ -130,13 +130,13 @@ int BN_add_word(BIGNUM *a, BN_ULONG w)
 		l = (a->d[i] + (BN_ULONG)w)&BN_MASK2;
 		a->d[i] = l;
 		if(w > l)
-			{ w = 1; }
+		{ w = 1; }
 		else
-			{ break; }
+		{ break; }
 		i++;
 	}
 	if(i >= a->top)
-		{ a->top++; }
+	{ a->top++; }
 	return (1);
 }
 
@@ -175,7 +175,7 @@ int BN_sub_word(BIGNUM *a, BN_ULONG w)
 		}
 	}
 	if((a->d[i] == 0) && (i == (a->top - 1)))
-		{ a->top--; }
+	{ a->top--; }
 	return (1);
 }
 
@@ -187,7 +187,7 @@ int BN_mul_word(BIGNUM *a, BN_ULONG w)
 	if(a->top)
 	{
 		if(w == 0)
-			{ BN_zero(a); }
+		{ BN_zero(a); }
 		else
 		{
 			ll = bn_mul_words(a->d, a->d, a->top, w);

@@ -26,24 +26,27 @@ static int32_t do_daemon(int32_t nochdir, int32_t noclose)
 
 	switch (fork())
 	{
-		case -1: return (-1);
-		case 0:  break;
-		default: _exit(0);
+	case -1:
+		return (-1);
+	case 0:
+		break;
+	default:
+		_exit(0);
 	}
 
 	if (setsid() == (-1))
-	return (-1);
+	{ return (-1); }
 
 	if (!nochdir)
-	(void)chdir("/");
+	{ (void)chdir("/"); }
 
 	if (!noclose && (fd = open("/dev/null", O_RDWR, 0)) != -1)
 	{
 		(void)dup2(fd, STDIN_FILENO);
 		(void)dup2(fd, STDOUT_FILENO);
 		(void)dup2(fd, STDERR_FILENO);
-	if (fd > 2)
-		(void)close(fd);
+		if (fd > 2)
+		{ (void)close(fd); }
 	}
 	return (0);
 }
@@ -55,7 +58,7 @@ static int32_t camd35_send(uchar *buf, int32_t buflen)
 
 	//Fix ECM len > 255
 	if(buflen <= 0)
-		{ buflen = ((buf[0] == 0) ? (((buf[21] & 0x0f) << 8) | buf[22]) + 3 : buf[1]); }
+	{ buflen = ((buf[0] == 0) ? (((buf[21] & 0x0f) << 8) | buf[22]) + 3 : buf[1]); }
 	l = 20 + (((buf[0] == 3) || (buf[0] == 4)) ? 0x34 : 0) + buflen;
 	memcpy(rbuf, cl_ucrc, 4);
 	memcpy(sbuf, buf, l);
@@ -115,31 +118,31 @@ static int32_t camd35_recv(uchar *buf, int32_t rs)
 		case 2:
 			aes_decrypt(&cl_aes_keys, buf, rs);
 			if(rs != boundary(4, rs))
-				cs_log_dbg("WARNING: packet size has wrong decryption boundary");
+			{ cs_log_dbg("WARNING: packet size has wrong decryption boundary"); }
 
 			n = (buf[0] == 3) ? 0x34 : 0;
 
 			//Fix for ECM request size > 255 (use ecm length field)
 			if(buf[0] == 0)
-				{ buflen = (((buf[21] & 0x0f) << 8) | buf[22]) + 3; }
+			{ buflen = (((buf[21] & 0x0f) << 8) | buf[22]) + 3; }
 			else if(buf[0] == 0x3d || buf[0] == 0x3e || buf[0] == 0x3f)  //cacheex-push
-				{ buflen = buf[1] | (buf[2] << 8); }
+			{ buflen = buf[1] | (buf[2] << 8); }
 			else
-				{ buflen = buf[1]; }
+			{ buflen = buf[1]; }
 
 			n = boundary(4, n + 20 + buflen);
 
 			cs_log_dbg("received %d bytes from client", rs);
 
 			if(n < rs)
-				cs_log_dbg("ignoring %d bytes of garbage", rs - n);
+			{ cs_log_dbg("ignoring %d bytes of garbage", rs - n); }
 			else if(n > rs) { rc = -3; }
 			break;
 		case 3:
-			if(crc32(0, buf + 20, buflen) != b2i(4, buf + 4)) { 
+			if(crc32(0, buf + 20, buflen) != b2i(4, buf + 4)) {
 				rc = -4;
 				cs_log_dump_dbg(buf, rs, "camd35 checksum failed for packet: ");
-				cs_log_dbg("checksum: %X", b2i(4, buf+4)); 
+				cs_log_dbg("checksum: %X", b2i(4, buf+4));
 			}
 			if(!rc) { rc = n; }
 			break;
@@ -171,14 +174,14 @@ out:
 }
 
 static void camd35_request_emm(uint16_t caid, uint32_t provider, uint8_t* hexserial,
-								uint8_t emm_global, uint8_t emm_shared, uint8_t emm_unique)
+							   uint8_t emm_global, uint8_t emm_shared, uint8_t emm_unique)
 {
 	uchar mbuf[1024];
 	uint8_t prid[4];
 
 	memset(mbuf, 0, sizeof(mbuf));
 	mbuf[2] = mbuf[3] = 0xff;           // must not be zero
-	
+
 	i2b_buf(4, provider, &mbuf[12]);
 
 	mbuf[0] = 5;
@@ -189,13 +192,13 @@ static void camd35_request_emm(uint16_t caid, uint32_t provider, uint8_t* hexser
 		mbuf[20] = caid >> 8;        // caid's (max 8)
 		mbuf[21] = caid & 0xff;
 
-		memcpy(mbuf + 40, hexserial, 6); 
+		memcpy(mbuf + 40, hexserial, 6);
 		mbuf[47] = 1;
 
 		prid[0] = provider >> 24;
 		prid[1] = provider >> 16;
 		prid[2] = provider >> 8;
-		prid[3] = provider & 0xFF;	
+		prid[3] = provider & 0xFF;
 
 		if((caid >= 0x1700 && caid <= 0x1799)  ||  // Betacrypt
 				(caid >= 0x0600 && caid <= 0x0699))    // Irdeto (don't know if this is correct, cause I don't own a IRDETO-Card)
@@ -215,7 +218,7 @@ static void camd35_request_emm(uint16_t caid, uint32_t provider, uint8_t* hexser
 		mbuf[130] = emm_unique; //EMM_UNIQUE
 	}
 	else        // disable emm
-		{ mbuf[20] = mbuf[39] = mbuf[40] = mbuf[47] = mbuf[49] = 1; }
+	{ mbuf[20] = mbuf[39] = mbuf[40] = mbuf[47] = mbuf[49] = 1; }
 
 	memcpy(mbuf + 10, mbuf + 20, 2);
 	camd35_send(mbuf, 0);       // send with data-len 111 for camd3 > 3.890
@@ -228,33 +231,33 @@ static void camd35_process_ecm(uchar *buf, int buflen)
 	ECM_REQUEST er;
 	uint16_t ecmlen = 0;
 	uint8_t hexserial[6];
-	
+
 	if(!buf || buflen < 23)
-		{ return; }
-	
+	{ return; }
+
 	ecmlen = (((buf[21] & 0x0f) << 8) | buf[22]) + 3;
 	if(ecmlen + 20 > buflen)
-		{ return; }
-	
+	{ return; }
+
 	memset(&er, 0, sizeof(ECM_REQUEST));
-    er.rc = E_UNHANDLED;
+	er.rc = E_UNHANDLED;
 	er.ecmlen = ecmlen;
 	er.srvid = b2i(2, buf + 8);
 	er.caid = b2i(2, buf + 10);
 	er.prid = b2i(4, buf + 12);
-	
+
 	cs_log_dbg("ProcessECM CAID: %X", er.caid);
 	cs_log_dump_dbg(buf+20, ecmlen, "ProcessECM: ");
-	
+
 	if(ProcessECM(er.ecmlen,er.caid,er.prid,buf+20,er.cw,er.srvid,er.pid)) {
-	  er.rc = E_NOTFOUND;
-	  cs_log_dbg("CW not found");
+		er.rc = E_NOTFOUND;
+		cs_log_dbg("CW not found");
 	}
 	else {
-	  er.rc = E_FOUND;
-	  cs_log_dump_dbg(er.cw, 16, "Found CW: ");
-    }
-    
+		er.rc = E_FOUND;
+		cs_log_dump_dbg(er.cw, 16, "Found CW: ");
+	}
+
 	if((er.rc == E_NOTFOUND || (er.rc == E_INVALID)) && !suppresscmd08)
 	{
 		buf[0] = 0x08;
@@ -281,7 +284,7 @@ static void camd35_process_ecm(uchar *buf, int buflen)
 		if((er.rc < E_NOTFOUND) || (er.rc == E_FAKE))
 		{
 			if(buf[0] == 3)
-				{ memmove(buf + 20 + 16, buf + 20 + buf[1], 0x34); }
+			{ memmove(buf + 20 + 16, buf + 20 + buf[1], 0x34); }
 			buf[0]++;
 			buf[1] = 16;
 			memcpy(buf + 20, er.cw, buf[1]);
@@ -294,11 +297,11 @@ static void camd35_process_ecm(uchar *buf, int buflen)
 		}
 	}
 	camd35_send(buf, 0);
-	
+
 	if(requestau) {
 		if(er.caid == 0x0500) {
 			memset(hexserial, 0, 6);
-			camd35_request_emm(er.caid, 0x030B00, hexserial, 1, 0, 0);	
+			camd35_request_emm(er.caid, 0x030B00, hexserial, 1, 0, 0);
 		}
 		else if(er.caid == 0x0604) {
 			memset(hexserial, 0, 6);
@@ -312,27 +315,27 @@ static void camd35_process_emm(uchar *buf, int buflen)
 {
 	uint32_t keysAdded = 0;
 	uint16_t emmlen = 0;
-	
+
 	if(!buf || buflen < 23)
-		{ return; }
-		
+	{ return; }
+
 	emmlen = (((buf[21] & 0x0f) << 8) | buf[22]) + 3;
 	if(emmlen + 20 > buflen)
-		{ return; }
-		
+	{ return; }
+
 	cs_log_dbg("ProcessEMM CAID: %X", (buf[10] << 8) | buf[11]);
 	cs_log_dump_dbg(buf+20, emmlen, "ProcessEMM: ");
-	
+
 	if(ProcessEMM((buf[10] << 8) | buf[11],
-      (buf[12] << 24) | (buf[13] << 16) | (buf[14] << 8) | buf[15],buf+20,&keysAdded)) {
-	  cs_log_dbg("EMM nok");
+				  (buf[12] << 24) | (buf[13] << 16) | (buf[14] << 8) | buf[15],buf+20,&keysAdded)) {
+		cs_log_dbg("EMM nok");
 	}
 	else {
-	  cs_log_dbg("EMM ok");
-    }	
+		cs_log_dbg("EMM ok");
+	}
 }
 
-void show_usage(char *cmdline){
+void show_usage(char *cmdline) {
 	cs_log("Usage: %s -a <user>:<password> -p <port> [-b -v -e -c <path> -l <logfile> -i -L]", cmdline);
 	cs_log("-b enables to start as a daemon (background)");
 	cs_log("-v enables a more verbose output (debug output)");
@@ -340,7 +343,7 @@ void show_usage(char *cmdline){
 	cs_log("-c sets path of SoftCam.Key");
 	cs_log("-l sets log file");
 	cs_log("-L only allow local connections");
-	cs_log("-i show version info and exit");	
+	cs_log("-i show version info and exit");
 }
 
 int main(int argc, char**argv)
@@ -353,59 +356,59 @@ int main(int argc, char**argv)
 	char *path = "./";
 
 	cs_log("OSEmu version %d", GetOSemuVersion());
-	
+
 	while ((opt = getopt(argc, argv, "bva:p:c:l:eiL")) != -1) {
 		switch (opt) {
-			case 'b':
-				bg = 1;
-				break;
-			case 'a': {
-				char *ptr = strtok(optarg, ":");
-				cs_strncpy((char *)&cl_user, ptr, sizeof(cl_user));
-				ptr = strtok(NULL, ":");
-				if(ptr) {
-					cs_strncpy((char *)&cl_passwd, ptr, sizeof(cl_passwd));
-					accountok = 1;
-				}
-				break;
+		case 'b':
+			bg = 1;
+			break;
+		case 'a': {
+			char *ptr = strtok(optarg, ":");
+			cs_strncpy((char *)&cl_user, ptr, sizeof(cl_user));
+			ptr = strtok(NULL, ":");
+			if(ptr) {
+				cs_strncpy((char *)&cl_passwd, ptr, sizeof(cl_passwd));
+				accountok = 1;
 			}
-			case 'p':
-				port = atoi(optarg);
-				break;
-			case 'v':
-				debuglog = 1;
-				break;
-			case 'c':
-				path = strdup(optarg);
-				break;
-			case 'l':
-				logfile = strdup(optarg);
-				havelogfile = 1;
-				break;
-			case 'e':
-				requestau = 1;
-				break;
-			case 'i':
-				exit(0);				
-			case 'L':
-				local = 1;
-				break;
-			default:
-				show_usage(argv[0]);
-				exit(0);
+			break;
+		}
+		case 'p':
+			port = atoi(optarg);
+			break;
+		case 'v':
+			debuglog = 1;
+			break;
+		case 'c':
+			path = strdup(optarg);
+			break;
+		case 'l':
+			logfile = strdup(optarg);
+			havelogfile = 1;
+			break;
+		case 'e':
+			requestau = 1;
+			break;
+		case 'i':
+			exit(0);
+		case 'L':
+			local = 1;
+			break;
+		default:
+			show_usage(argv[0]);
+			exit(0);
 		}
 	}
-	if(port == 0 || accountok == 0){
+	if(port == 0 || accountok == 0) {
 		show_usage(argv[0]);
 		exit(0);
 	}
 
 	if (bg && do_daemon(1, 0))
 	{
-		cs_log("Could not start as a daemon.");	
+		cs_log("Could not start as a daemon.");
 		exit(0);
 	}
-	
+
 	get_random_bytes_init();
 
 #if !defined(__APPLE__) && !defined(__ANDROID__)
@@ -415,35 +418,35 @@ int main(int argc, char**argv)
 	if(!read_emu_keyfile(path)) {
 		read_emu_keyfile("/var/keys/");
 	}
-	
+
 	cl_sockfd = socket(AF_INET,SOCK_DGRAM,0);
 	if(cl_sockfd == -1) {
-		cs_log("Could not create socket.");	
-		exit(0);		
+		cs_log("Could not create socket.");
+		exit(0);
 	}
-		
+
 	bzero(&servaddr,sizeof(servaddr));
 	servaddr.sin_family = AF_INET;
 	servaddr.sin_addr.s_addr = htonl(local ? INADDR_LOOPBACK : INADDR_ANY);
 	servaddr.sin_port = htons(port);
 	if(bind(cl_sockfd,(struct sockaddr *)&servaddr,sizeof(servaddr)) == -1) {
-		cs_log("Could not bind to socket.");	
-		exit(0);			
+		cs_log("Could not bind to socket.");
+		exit(0);
 	}
-	
+
 	aes_set_key(&cl_aes_keys, (char *) MD5(cl_passwd, strlen((char *)cl_passwd), md5tmp));
-	
-	for (;;){
+
+	for (;;) {
 		len = sizeof(cl_socket);
 		n = recvfrom(cl_sockfd,mbuf,sizeof(mbuf),0,(struct sockaddr *)&cl_socket,&len);
-		
-		if (camd35_recv(mbuf, n) >= 0 ){
+
+		if (camd35_recv(mbuf, n) >= 0 ) {
 			if(mbuf[0] == 0 || mbuf[0] == 3) {
 				camd35_process_ecm(mbuf, n);
 			}
 			else if((mbuf[0] == 6 || mbuf[0] == 19)) {
 				camd35_process_emm(mbuf, n);
-			} 
+			}
 			else {
 				cs_log("unknown/not implemented camd35 command! (%d) n=%d", mbuf[0], n);
 			}

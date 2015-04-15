@@ -91,7 +91,7 @@ void BN_CTX_init(BN_CTX *ctx)
 	ctx->depth = 0;
 	ctx->too_many = 0;
 	for(i = 0; i < BN_CTX_NUM; i++)
-		{ BN_init(&(ctx->bn[i])); }
+	{ BN_init(&(ctx->bn[i])); }
 }
 
 void BN_CTX_free(BN_CTX *ctx)
@@ -102,15 +102,15 @@ void BN_CTX_free(BN_CTX *ctx)
 	assert(ctx->depth == 0);
 
 	for(i = 0; i < BN_CTX_NUM; i++)
-		{ BN_clear_free(&(ctx->bn[i])); }
+	{ BN_clear_free(&(ctx->bn[i])); }
 	if(ctx->flags & BN_FLG_MALLOCED)
-		{ OPENSSL_free(ctx); }
+	{ OPENSSL_free(ctx); }
 }
 
 void BN_CTX_start(BN_CTX *ctx)
 {
 	if(ctx->depth < BN_CTX_NUM_POS)
-		{ ctx->pos[ctx->depth] = ctx->tos; }
+	{ ctx->pos[ctx->depth] = ctx->tos; }
 	ctx->depth++;
 }
 
@@ -136,11 +136,11 @@ void BN_CTX_end(BN_CTX *ctx)
 		/* should never happen, but we can tolerate it if not in
 		 * debug mode (could be a 'goto err' in the calling function
 		 * before BN_CTX_start was reached) */
-		{ BN_CTX_start(ctx); }
+	{ BN_CTX_start(ctx); }
 
 	ctx->too_many = 0;
 	ctx->depth--;
 	if(ctx->depth < BN_CTX_NUM_POS)
-		{ ctx->tos = ctx->pos[ctx->depth]; }
+	{ ctx->tos = ctx->pos[ctx->depth]; }
 }
 #endif

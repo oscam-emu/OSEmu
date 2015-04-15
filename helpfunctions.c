@@ -1,23 +1,23 @@
 #include "globals.h"
 #include "helpfunctions.h"
 
-void cs_log_txt(const char* format, ... ){
-	
-  FILE *fp = NULL;
-  if(havelogfile) { fp = fopen(logfile, "a"); }
-  	
-  va_list ap, ap2;
-  va_start(ap, format);
-  va_copy(ap2, ap);
-  
-  if(!bg) { vfprintf(stderr, format, ap); }
-  va_end(ap);
-   
-  if(fp) { vfprintf(fp, format, ap2); } 
-  va_end(ap2);
-  
-  if(!bg) { fprintf(stderr, "\n"); }
-  if(fp)  { fprintf(fp, "\n"); fclose(fp); }
+void cs_log_txt(const char* format, ... ) {
+
+	FILE *fp = NULL;
+	if(havelogfile) { fp = fopen(logfile, "a"); }
+
+	va_list ap, ap2;
+	va_start(ap, format);
+	va_copy(ap2, ap);
+
+	if(!bg) { vfprintf(stderr, format, ap); }
+	va_end(ap);
+
+	if(fp) { vfprintf(fp, format, ap2); }
+	va_end(ap2);
+
+	if(!bg) { fprintf(stderr, "\n"); }
+	if(fp)  { fprintf(fp, "\n"); fclose(fp); }
 }
 
 char *cs_hexdump(int32_t m, const uchar *buf, int32_t n, char *target, int32_t len)
@@ -26,7 +26,7 @@ char *cs_hexdump(int32_t m, const uchar *buf, int32_t n, char *target, int32_t l
 	target[0] = '\0';
 	m = m ? 3 : 2;
 	if(m * n >= len)
-		{ n = (len / m) - 1; }
+	{ n = (len / m) - 1; }
 	while(i < n)
 	{
 		snprintf(target + (m * i), len - (m * i), "%02X%s", *buf++, m > 2 ? " " : "");
@@ -40,73 +40,77 @@ void cs_log_hex(const uint8_t *buf, int32_t n, const char *fmt, ...)
 	FILE *fp = NULL;
 	char log_txt[512];
 	int32_t i;
-	
-	va_list ap;	
- 	va_start(ap, fmt);
+
+	va_list ap;
+	va_start(ap, fmt);
 	vsnprintf(log_txt, sizeof(log_txt), fmt, ap);
 	va_end(ap);
 
 	if(havelogfile) { fp = fopen(logfile, "a"); }
-	
+
 	if(!bg) { fprintf(stderr, log_txt); fprintf(stderr, "\n"); }
-	if(fp) { fprintf(fp, log_txt); fprintf(fp, "\n"); } 	
-	
+	if(fp) { fprintf(fp, log_txt); fprintf(fp, "\n"); }
+
 	if(buf)
-	{	 	
+	{
 		for(i = 0; i < n; i += 16)
 		{
 			cs_hexdump(1, buf + i, (n - i > 16) ? 16 : n - i, log_txt, sizeof(log_txt));
 			if(!bg)
-			{ 
+			{
 				fprintf(stderr, log_txt);
 				fprintf(stderr, "\n");
 			}
-			if(fp){
+			if(fp) {
 				fprintf(fp, log_txt);
 				fprintf(fp, "\n");
-			} 
+			}
 		}
 	}
-	
-	if(fp) { fclose(fp); }	
+
+	if(fp) { fclose(fp); }
 }
 
 
 int32_t boundary(int32_t exp, int32_t n)
 {
-  return (((n-1) >> exp) + 1) << exp;
+	return (((n-1) >> exp) + 1) << exp;
 }
 
 uint32_t b2i(int32_t n, const uchar *b)
 {
-  switch(n) {
-  case 2: return  (b[0] <<  8) |  b[1];
-  case 3: return  (b[0] << 16) | (b[1] <<  8) |  b[2];
-  case 4: return ((b[0] << 24) | (b[1] << 16) | (b[2] <<8 ) | b[3]) & 0xffffffff;
-  default: cs_log("Error in b2i, n=%i",n);
-  }
-  return 0;
+	switch(n) {
+	case 2:
+		return  (b[0] <<  8) |  b[1];
+	case 3:
+		return  (b[0] << 16) | (b[1] <<  8) |  b[2];
+	case 4:
+		return ((b[0] << 24) | (b[1] << 16) | (b[2] <<8 ) | b[3]) & 0xffffffff;
+	default:
+		cs_log("Error in b2i, n=%i",n);
+	}
+	return 0;
 }
 
 uchar *i2b_buf(int32_t n, uint32_t i, uchar *b)
 {
-  switch(n) {
-  case 2:
-    b[0] = (i>> 8) & 0xff;
-    b[1] = (i    ) & 0xff;
-    break;
-  case 3:
-    b[0] = (i>>16) & 0xff;
-    b[1] = (i>> 8) & 0xff;
-    b[2] = (i    ) & 0xff;
-  case 4:
-    b[0] = (i>>24) & 0xff;
-    b[1] = (i>>16) & 0xff;
-    b[2] = (i>> 8) & 0xff;
-    b[3] = (i    ) & 0xff;
-    break;
-  }
-  return b;
+	switch(n) {
+	case 2:
+		b[0] = (i>> 8) & 0xff;
+		b[1] = (i    ) & 0xff;
+		break;
+	case 3:
+		b[0] = (i>>16) & 0xff;
+		b[1] = (i>> 8) & 0xff;
+		b[2] = (i    ) & 0xff;
+	case 4:
+		b[0] = (i>>24) & 0xff;
+		b[1] = (i>>16) & 0xff;
+		b[2] = (i>> 8) & 0xff;
+		b[3] = (i    ) & 0xff;
+		break;
+	}
+	return b;
 }
 
 /* Ordinary strncpy does not terminate the string if the source is exactly
@@ -115,17 +119,17 @@ uchar *i2b_buf(int32_t n, uint32_t i, uchar *b)
    num should be the real size of char array (do not subtract -1). */
 void cs_strncpy(char *destination, const char *source, size_t num)
 {
-  if (!source) {
-    destination[0] = '\0';
-    return;
-  }
-  uint32_t l, size = strlen(source);
-  if (size > num - 1)
-    l = num - 1;
-  else
-    l = size;
-  memcpy(destination, source, l);
-  destination[l] = '\0';
+	if (!source) {
+		destination[0] = '\0';
+		return;
+	}
+	uint32_t l, size = strlen(source);
+	if (size > num - 1)
+	{ l = num - 1; }
+	else
+	{ l = size; }
+	memcpy(destination, source, l);
+	destination[l] = '\0';
 }
 
 /* CRYPTO */
@@ -136,27 +140,27 @@ void cs_strncpy(char *destination, const char *source, size_t num)
 static uint8_t rand_pool[RAND_POOL_SIZE + sizeof(uint32_t)];
 
 void get_random_bytes_init(void) {
-  srand(time(NULL));
-  int fd = open("/dev/urandom", O_RDONLY);
-  if (fd < 0) {
-    fd = open("/dev/random", O_RDONLY);
-    if (fd < 0)
-      return;
-  }
-  if (read(fd, rand_pool, RAND_POOL_SIZE + sizeof(uint32_t)) > -1) {
-    uint32_t pool_seed = b2i(4, rand_pool + RAND_POOL_SIZE);
-    srand(pool_seed);
-  }
-  close(fd);
+	srand(time(NULL));
+	int fd = open("/dev/urandom", O_RDONLY);
+	if (fd < 0) {
+		fd = open("/dev/random", O_RDONLY);
+		if (fd < 0)
+		{ return; }
+	}
+	if (read(fd, rand_pool, RAND_POOL_SIZE + sizeof(uint32_t)) > -1) {
+		uint32_t pool_seed = b2i(4, rand_pool + RAND_POOL_SIZE);
+		srand(pool_seed);
+	}
+	close(fd);
 }
 
 void get_random_bytes(uint8_t *dst, uint32_t dst_len) {
-  static uint32_t rand_pool_pos; // *MUST* be static
-  uint32_t i;
-  for (i = 0; i < dst_len; i++) {
-    rand_pool_pos++; // Races are welcome...
-    dst[i] = rand() ^ rand_pool[rand_pool_pos % RAND_POOL_SIZE];
-  }
+	static uint32_t rand_pool_pos; // *MUST* be static
+	uint32_t i;
+	for (i = 0; i < dst_len; i++) {
+		rand_pool_pos++; // Races are welcome...
+		dst[i] = rand() ^ rand_pool[rand_pool_pos % RAND_POOL_SIZE];
+	}
 }
 
 /*
@@ -165,58 +169,58 @@ void get_random_bytes(uint8_t *dst, uint32_t dst_len) {
  * For conditions of distribution and use, see copyright notice in zlib.h
  */
 static const uint32_t crc_table[256] = {
-  0x00000000, 0x77073096, 0xee0e612c, 0x990951ba, 0x076dc419,
-  0x706af48f, 0xe963a535, 0x9e6495a3, 0x0edb8832, 0x79dcb8a4,
-  0xe0d5e91e, 0x97d2d988, 0x09b64c2b, 0x7eb17cbd, 0xe7b82d07,
-  0x90bf1d91, 0x1db71064, 0x6ab020f2, 0xf3b97148, 0x84be41de,
-  0x1adad47d, 0x6ddde4eb, 0xf4d4b551, 0x83d385c7, 0x136c9856,
-  0x646ba8c0, 0xfd62f97a, 0x8a65c9ec, 0x14015c4f, 0x63066cd9,
-  0xfa0f3d63, 0x8d080df5, 0x3b6e20c8, 0x4c69105e, 0xd56041e4,
-  0xa2677172, 0x3c03e4d1, 0x4b04d447, 0xd20d85fd, 0xa50ab56b,
-  0x35b5a8fa, 0x42b2986c, 0xdbbbc9d6, 0xacbcf940, 0x32d86ce3,
-  0x45df5c75, 0xdcd60dcf, 0xabd13d59, 0x26d930ac, 0x51de003a,
-  0xc8d75180, 0xbfd06116, 0x21b4f4b5, 0x56b3c423, 0xcfba9599,
-  0xb8bda50f, 0x2802b89e, 0x5f058808, 0xc60cd9b2, 0xb10be924,
-  0x2f6f7c87, 0x58684c11, 0xc1611dab, 0xb6662d3d, 0x76dc4190,
-  0x01db7106, 0x98d220bc, 0xefd5102a, 0x71b18589, 0x06b6b51f,
-  0x9fbfe4a5, 0xe8b8d433, 0x7807c9a2, 0x0f00f934, 0x9609a88e,
-  0xe10e9818, 0x7f6a0dbb, 0x086d3d2d, 0x91646c97, 0xe6635c01,
-  0x6b6b51f4, 0x1c6c6162, 0x856530d8, 0xf262004e, 0x6c0695ed,
-  0x1b01a57b, 0x8208f4c1, 0xf50fc457, 0x65b0d9c6, 0x12b7e950,
-  0x8bbeb8ea, 0xfcb9887c, 0x62dd1ddf, 0x15da2d49, 0x8cd37cf3,
-  0xfbd44c65, 0x4db26158, 0x3ab551ce, 0xa3bc0074, 0xd4bb30e2,
-  0x4adfa541, 0x3dd895d7, 0xa4d1c46d, 0xd3d6f4fb, 0x4369e96a,
-  0x346ed9fc, 0xad678846, 0xda60b8d0, 0x44042d73, 0x33031de5,
-  0xaa0a4c5f, 0xdd0d7cc9, 0x5005713c, 0x270241aa, 0xbe0b1010,
-  0xc90c2086, 0x5768b525, 0x206f85b3, 0xb966d409, 0xce61e49f,
-  0x5edef90e, 0x29d9c998, 0xb0d09822, 0xc7d7a8b4, 0x59b33d17,
-  0x2eb40d81, 0xb7bd5c3b, 0xc0ba6cad, 0xedb88320, 0x9abfb3b6,
-  0x03b6e20c, 0x74b1d29a, 0xead54739, 0x9dd277af, 0x04db2615,
-  0x73dc1683, 0xe3630b12, 0x94643b84, 0x0d6d6a3e, 0x7a6a5aa8,
-  0xe40ecf0b, 0x9309ff9d, 0x0a00ae27, 0x7d079eb1, 0xf00f9344,
-  0x8708a3d2, 0x1e01f268, 0x6906c2fe, 0xf762575d, 0x806567cb,
-  0x196c3671, 0x6e6b06e7, 0xfed41b76, 0x89d32be0, 0x10da7a5a,
-  0x67dd4acc, 0xf9b9df6f, 0x8ebeeff9, 0x17b7be43, 0x60b08ed5,
-  0xd6d6a3e8, 0xa1d1937e, 0x38d8c2c4, 0x4fdff252, 0xd1bb67f1,
-  0xa6bc5767, 0x3fb506dd, 0x48b2364b, 0xd80d2bda, 0xaf0a1b4c,
-  0x36034af6, 0x41047a60, 0xdf60efc3, 0xa867df55, 0x316e8eef,
-  0x4669be79, 0xcb61b38c, 0xbc66831a, 0x256fd2a0, 0x5268e236,
-  0xcc0c7795, 0xbb0b4703, 0x220216b9, 0x5505262f, 0xc5ba3bbe,
-  0xb2bd0b28, 0x2bb45a92, 0x5cb36a04, 0xc2d7ffa7, 0xb5d0cf31,
-  0x2cd99e8b, 0x5bdeae1d, 0x9b64c2b0, 0xec63f226, 0x756aa39c,
-  0x026d930a, 0x9c0906a9, 0xeb0e363f, 0x72076785, 0x05005713,
-  0x95bf4a82, 0xe2b87a14, 0x7bb12bae, 0x0cb61b38, 0x92d28e9b,
-  0xe5d5be0d, 0x7cdcefb7, 0x0bdbdf21, 0x86d3d2d4, 0xf1d4e242,
-  0x68ddb3f8, 0x1fda836e, 0x81be16cd, 0xf6b9265b, 0x6fb077e1,
-  0x18b74777, 0x88085ae6, 0xff0f6a70, 0x66063bca, 0x11010b5c,
-  0x8f659eff, 0xf862ae69, 0x616bffd3, 0x166ccf45, 0xa00ae278,
-  0xd70dd2ee, 0x4e048354, 0x3903b3c2, 0xa7672661, 0xd06016f7,
-  0x4969474d, 0x3e6e77db, 0xaed16a4a, 0xd9d65adc, 0x40df0b66,
-  0x37d83bf0, 0xa9bcae53, 0xdebb9ec5, 0x47b2cf7f, 0x30b5ffe9,
-  0xbdbdf21c, 0xcabac28a, 0x53b39330, 0x24b4a3a6, 0xbad03605,
-  0xcdd70693, 0x54de5729, 0x23d967bf, 0xb3667a2e, 0xc4614ab8,
-  0x5d681b02, 0x2a6f2b94, 0xb40bbe37, 0xc30c8ea1, 0x5a05df1b,
-  0x2d02ef8d
+	0x00000000, 0x77073096, 0xee0e612c, 0x990951ba, 0x076dc419,
+	0x706af48f, 0xe963a535, 0x9e6495a3, 0x0edb8832, 0x79dcb8a4,
+	0xe0d5e91e, 0x97d2d988, 0x09b64c2b, 0x7eb17cbd, 0xe7b82d07,
+	0x90bf1d91, 0x1db71064, 0x6ab020f2, 0xf3b97148, 0x84be41de,
+	0x1adad47d, 0x6ddde4eb, 0xf4d4b551, 0x83d385c7, 0x136c9856,
+	0x646ba8c0, 0xfd62f97a, 0x8a65c9ec, 0x14015c4f, 0x63066cd9,
+	0xfa0f3d63, 0x8d080df5, 0x3b6e20c8, 0x4c69105e, 0xd56041e4,
+	0xa2677172, 0x3c03e4d1, 0x4b04d447, 0xd20d85fd, 0xa50ab56b,
+	0x35b5a8fa, 0x42b2986c, 0xdbbbc9d6, 0xacbcf940, 0x32d86ce3,
+	0x45df5c75, 0xdcd60dcf, 0xabd13d59, 0x26d930ac, 0x51de003a,
+	0xc8d75180, 0xbfd06116, 0x21b4f4b5, 0x56b3c423, 0xcfba9599,
+	0xb8bda50f, 0x2802b89e, 0x5f058808, 0xc60cd9b2, 0xb10be924,
+	0x2f6f7c87, 0x58684c11, 0xc1611dab, 0xb6662d3d, 0x76dc4190,
+	0x01db7106, 0x98d220bc, 0xefd5102a, 0x71b18589, 0x06b6b51f,
+	0x9fbfe4a5, 0xe8b8d433, 0x7807c9a2, 0x0f00f934, 0x9609a88e,
+	0xe10e9818, 0x7f6a0dbb, 0x086d3d2d, 0x91646c97, 0xe6635c01,
+	0x6b6b51f4, 0x1c6c6162, 0x856530d8, 0xf262004e, 0x6c0695ed,
+	0x1b01a57b, 0x8208f4c1, 0xf50fc457, 0x65b0d9c6, 0x12b7e950,
+	0x8bbeb8ea, 0xfcb9887c, 0x62dd1ddf, 0x15da2d49, 0x8cd37cf3,
+	0xfbd44c65, 0x4db26158, 0x3ab551ce, 0xa3bc0074, 0xd4bb30e2,
+	0x4adfa541, 0x3dd895d7, 0xa4d1c46d, 0xd3d6f4fb, 0x4369e96a,
+	0x346ed9fc, 0xad678846, 0xda60b8d0, 0x44042d73, 0x33031de5,
+	0xaa0a4c5f, 0xdd0d7cc9, 0x5005713c, 0x270241aa, 0xbe0b1010,
+	0xc90c2086, 0x5768b525, 0x206f85b3, 0xb966d409, 0xce61e49f,
+	0x5edef90e, 0x29d9c998, 0xb0d09822, 0xc7d7a8b4, 0x59b33d17,
+	0x2eb40d81, 0xb7bd5c3b, 0xc0ba6cad, 0xedb88320, 0x9abfb3b6,
+	0x03b6e20c, 0x74b1d29a, 0xead54739, 0x9dd277af, 0x04db2615,
+	0x73dc1683, 0xe3630b12, 0x94643b84, 0x0d6d6a3e, 0x7a6a5aa8,
+	0xe40ecf0b, 0x9309ff9d, 0x0a00ae27, 0x7d079eb1, 0xf00f9344,
+	0x8708a3d2, 0x1e01f268, 0x6906c2fe, 0xf762575d, 0x806567cb,
+	0x196c3671, 0x6e6b06e7, 0xfed41b76, 0x89d32be0, 0x10da7a5a,
+	0x67dd4acc, 0xf9b9df6f, 0x8ebeeff9, 0x17b7be43, 0x60b08ed5,
+	0xd6d6a3e8, 0xa1d1937e, 0x38d8c2c4, 0x4fdff252, 0xd1bb67f1,
+	0xa6bc5767, 0x3fb506dd, 0x48b2364b, 0xd80d2bda, 0xaf0a1b4c,
+	0x36034af6, 0x41047a60, 0xdf60efc3, 0xa867df55, 0x316e8eef,
+	0x4669be79, 0xcb61b38c, 0xbc66831a, 0x256fd2a0, 0x5268e236,
+	0xcc0c7795, 0xbb0b4703, 0x220216b9, 0x5505262f, 0xc5ba3bbe,
+	0xb2bd0b28, 0x2bb45a92, 0x5cb36a04, 0xc2d7ffa7, 0xb5d0cf31,
+	0x2cd99e8b, 0x5bdeae1d, 0x9b64c2b0, 0xec63f226, 0x756aa39c,
+	0x026d930a, 0x9c0906a9, 0xeb0e363f, 0x72076785, 0x05005713,
+	0x95bf4a82, 0xe2b87a14, 0x7bb12bae, 0x0cb61b38, 0x92d28e9b,
+	0xe5d5be0d, 0x7cdcefb7, 0x0bdbdf21, 0x86d3d2d4, 0xf1d4e242,
+	0x68ddb3f8, 0x1fda836e, 0x81be16cd, 0xf6b9265b, 0x6fb077e1,
+	0x18b74777, 0x88085ae6, 0xff0f6a70, 0x66063bca, 0x11010b5c,
+	0x8f659eff, 0xf862ae69, 0x616bffd3, 0x166ccf45, 0xa00ae278,
+	0xd70dd2ee, 0x4e048354, 0x3903b3c2, 0xa7672661, 0xd06016f7,
+	0x4969474d, 0x3e6e77db, 0xaed16a4a, 0xd9d65adc, 0x40df0b66,
+	0x37d83bf0, 0xa9bcae53, 0xdebb9ec5, 0x47b2cf7f, 0x30b5ffe9,
+	0xbdbdf21c, 0xcabac28a, 0x53b39330, 0x24b4a3a6, 0xbad03605,
+	0xcdd70693, 0x54de5729, 0x23d967bf, 0xb3667a2e, 0xc4614ab8,
+	0x5d681b02, 0x2a6f2b94, 0xb40bbe37, 0xc30c8ea1, 0x5a05df1b,
+	0x2d02ef8d
 };
 
 #define DO1(buf) crc = crc_table[((int32_t)crc ^ (*buf++)) & 0xff] ^ (crc >> 8);
@@ -226,19 +230,20 @@ static const uint32_t crc_table[256] = {
 
 uint32_t crc32(uint32_t crc, const unsigned char *buf, uint32_t len)
 {
-  if (!buf)
-    return 0;
-  crc = crc ^ 0xffffffff;
-  while (len >= 8) {
-    DO8(buf);
-    len -= 8;
-  }
-  if (len) {
-    do {
-      DO1(buf);
-    } while (--len);
-  }
-  return crc ^ 0xffffffff;
+	if (!buf)
+	{ return 0; }
+	crc = crc ^ 0xffffffff;
+	while (len >= 8) {
+		DO8(buf);
+		len -= 8;
+	}
+	if (len) {
+		do {
+			DO1(buf);
+		}
+		while (--len);
+	}
+	return crc ^ 0xffffffff;
 }
 
 static uint32_t fletcher_crc_table[256] = {
@@ -284,7 +289,8 @@ static uint32_t fletcher_crc_table[256] = {
 	0xea23f0af, 0xeee2ed18, 0xf0a5bd1d, 0xf464a0aa, 0xf9278673, 0xfde69bc4,
 	0x89b8fd09, 0x8d79e0be, 0x803ac667, 0x84fbdbd0, 0x9abc8bd5, 0x9e7d9662,
 	0x933eb0bb, 0x97ffad0c, 0xafb010b1, 0xab710d06, 0xa6322bdf, 0xa2f33668,
-	0xbcb4666d, 0xb8757bda, 0xb5365d03, 0xb1f740b4};
+	0xbcb4666d, 0xb8757bda, 0xb5365d03, 0xb1f740b4
+};
 
 uint32_t fletcher_crc32(uint8_t *data, uint32_t len)
 {
@@ -292,30 +298,30 @@ uint32_t fletcher_crc32(uint8_t *data, uint32_t len)
 	uint32_t crc = 0xffffffff;
 
 	for (i=0; i<len; i++)
-		crc = (crc << 8) ^ fletcher_crc_table[((crc >> 24) ^ *data++) & 0xff];
+	{ crc = (crc << 8) ^ fletcher_crc_table[((crc >> 24) ^ *data++) & 0xff]; }
 
 	return crc;
 }
 
 void aes_set_key(struct aes_keys *aes, char *key)
 {
-  AES_set_decrypt_key((const unsigned char *)key, 128, &aes->aeskey_decrypt);
-  AES_set_encrypt_key((const unsigned char *)key, 128, &aes->aeskey_encrypt);
+	AES_set_decrypt_key((const unsigned char *)key, 128, &aes->aeskey_decrypt);
+	AES_set_encrypt_key((const unsigned char *)key, 128, &aes->aeskey_encrypt);
 }
 
 void aes_decrypt(struct aes_keys *aes, uchar *buf, int32_t n)
 {
-  int32_t i;
-  for (i=0; i+15<n; i+=16) {
-    AES_decrypt(buf+i, buf+i, &aes->aeskey_decrypt);
-  }
+	int32_t i;
+	for (i=0; i+15<n; i+=16) {
+		AES_decrypt(buf+i, buf+i, &aes->aeskey_decrypt);
+	}
 }
 
 void aes_encrypt_idx(struct aes_keys *aes, uchar *buf, int32_t n)
 {
-  int32_t i;
-  for (i=0; i+15<n; i+=16) {
-    AES_encrypt(buf+i, buf+i, &aes->aeskey_encrypt);
-  }
+	int32_t i;
+	for (i=0; i+15<n; i+=16) {
+		AES_encrypt(buf+i, buf+i, &aes->aeskey_encrypt);
+	}
 }
 

@@ -136,7 +136,7 @@ static IDEA_INT inverse(unsigned int xin)
 	long n1, n2, q, r, b1, b2, t;
 
 	if(xin == 0)
-		{ b2 = 0; }
+	{ b2 = 0; }
 	else
 	{
 		n1 = 0x10001;

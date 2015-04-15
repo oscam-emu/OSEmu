@@ -142,7 +142,7 @@ int BN_lshift(BIGNUM *r, const BIGNUM *a, int n)
 	t[a->top + nw] = 0;
 	if(lb == 0)
 		for(i = a->top - 1; i >= 0; i--)
-			{ t[nw + i] = f[i]; }
+		{ t[nw + i] = f[i]; }
 	else
 		for(i = a->top - 1; i >= 0; i--)
 		{
@@ -180,7 +180,7 @@ int BN_rshift(BIGNUM *r, BIGNUM *a, int n)
 	else
 	{
 		if(n == 0)
-			{ return 1; } /* or the copying loop will go berserk */
+		{ return 1; } /* or the copying loop will go berserk */
 	}
 
 	f = &(a->d[nw]);
@@ -191,7 +191,7 @@ int BN_rshift(BIGNUM *r, BIGNUM *a, int n)
 	if(rb == 0)
 	{
 		for(i = j + 1; i > 0; i--)
-			{ *(t++) = *(f++); }
+		{ *(t++) = *(f++); }
 	}
 	else
 	{

@@ -238,19 +238,19 @@ void bn_sqr_recursive(BN_ULONG *r, BN_ULONG *a, int n2, BN_ULONG *t)
 	c1 = bn_cmp_words(a, &(a[n]), n);
 	zero = 0;
 	if(c1 > 0)
-		{ bn_sub_words(t, a, &(a[n]), n); }
+	{ bn_sub_words(t, a, &(a[n]), n); }
 	else if(c1 < 0)
-		{ bn_sub_words(t, &(a[n]), a, n); }
+	{ bn_sub_words(t, &(a[n]), a, n); }
 	else
-		{ zero = 1; }
+	{ zero = 1; }
 
 	/* The result will always be negative unless it is zero */
 	p = &(t[n2 * 2]);
 
 	if(!zero)
-		{ bn_sqr_recursive(&(t[n2]), t, n, p); }
+	{ bn_sqr_recursive(&(t[n2]), t, n, p); }
 	else
-		{ memset(&(t[n2]), 0, n2 * sizeof(BN_ULONG)); }
+	{ memset(&(t[n2]), 0, n2 * sizeof(BN_ULONG)); }
 	bn_sqr_recursive(r, a, n, p);
 	bn_sqr_recursive(&(r[n2]), &(a[n]), n, p);
 
