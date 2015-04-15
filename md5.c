@@ -5,8 +5,8 @@
  * This code is in the public domain; do with it what you wish.
  *
  * ----------------------------------------------------------------------------
- * The md5_crypt() function was taken from freeBSD's libcrypt and contains 
- * this license: 
+ * The md5_crypt() function was taken from freeBSD's libcrypt and contains
+ * this license:
  *    "THE BEER-WARE LICENSE" (Revision 42):
  *     <phk@login.dknet.dk> wrote this file.  As long as you retain this notice you
  *     can do whatever you want with this stuff. If we meet some day, and you think
@@ -15,7 +15,7 @@
  * $FreeBSD: src/lib/libcrypt/crypt.c,v 1.7.2.1 1999/08/29 14:56:33 peter Exp $
  *
  * ----------------------------------------------------------------------------
- * On April 19th, 2001 md5_crypt() was modified to make it reentrant 
+ * On April 19th, 2001 md5_crypt() was modified to make it reentrant
  * by Erik Andersen <andersen@uclibc.org>
  */
 
@@ -33,10 +33,11 @@ static void byteReverse(unsigned char *buf, unsigned int longs)
 	uint32_t t;
 	do {
 		t = (uint32_t)((unsigned int)buf[3] << 8 | buf[2]) << 16 |
-					  ((unsigned int)buf[1] << 8 | buf[0]);
+			((unsigned int)buf[1] << 8 | buf[0]);
 		memcpy(buf, &t, 4);
 		buf += 4;
-	} while (--longs);
+	}
+	while (--longs);
 }
 #endif
 /* The four core functions - F1 is optimized somewhat */
@@ -164,7 +165,7 @@ void MD5_Update(MD5_CTX *ctx, const unsigned char *buf, unsigned int len)
 
 	t = ctx->bits[0];
 	if ((ctx->bits[0] = t + ((uint32_t) len << 3)) < t)
-	ctx->bits[1]++; 	/* Carry from low to high */
+	{ ctx->bits[1]++; } 	/* Carry from low to high */
 	ctx->bits[1] += len >> 29;
 
 	t = (t >> 3) & 0x3f;	/* Bytes already in shsInfo->data */
@@ -199,7 +200,7 @@ void MD5_Update(MD5_CTX *ctx, const unsigned char *buf, unsigned int len)
 }
 
 /*
- * Final wrapup - pad to 64-byte boundary with the bit pattern 
+ * Final wrapup - pad to 64-byte boundary with the bit pattern
  * 1 0* (64-bit count of bits processed, MSB-first)
  */
 void MD5_Final(unsigned char digest[MD5_DIGEST_LENGTH], MD5_CTX *ctx)
@@ -227,7 +228,8 @@ void MD5_Final(unsigned char digest[MD5_DIGEST_LENGTH], MD5_CTX *ctx)
 
 		/* Now fill the next block with 56 bytes */
 		memset(ctx->in, 0, 56);
-	} else {
+	}
+	else {
 		/* Pad block to 56 bytes */
 		memset(p, 0, count - 8);
 	}
@@ -293,11 +295,11 @@ char * __md5_crypt( const char *pw, const char *salt, char *passwd )
 	/* If it starts with the magic string, then skip that */
 	__md5__magic_len = strlen(__md5__magic);
 	if(!strncmp(sp,__md5__magic,__md5__magic_len))
-		sp += __md5__magic_len;
+	{ sp += __md5__magic_len; }
 
 	/* It stops at the first '$', max 8 chars */
-	for(ep=sp;*ep && *ep != '$' && ep < (sp+8);ep++)
-		continue;
+	for(ep=sp; *ep && *ep != '$' && ep < (sp+8); ep++)
+	{ continue; }
 
 	/* get the length of the true salt */
 	sl = ep - sp;
@@ -321,7 +323,7 @@ char * __md5_crypt( const char *pw, const char *salt, char *passwd )
 	MD5_Update(&ctx1,(const unsigned char *)pw,pw_len);
 	MD5_Final(final,&ctx1);
 	for(pl = pw_len; pl > 0; pl -= 16)
-		MD5_Update(&ctx,(const unsigned char *)final,pl>16 ? 16 : pl);
+	{ MD5_Update(&ctx,(const unsigned char *)final,pl>16 ? 16 : pl); }
 
 	/* Don't leave anything around in vm they could use. */
 	memset(final,0,sizeof final);
@@ -343,23 +345,23 @@ char * __md5_crypt( const char *pw, const char *salt, char *passwd )
 	 * On a 60 Mhz Pentium this takes 34 msec, so you would
 	 * need 30 seconds to build a 1000 entry dictionary...
 	 */
-	for(i=0;i<1000;i++) {
+	for(i=0; i<1000; i++) {
 		MD5_Init(&ctx1);
 		if(i & 1)
-			MD5_Update(&ctx1,(const unsigned char *)pw,pw_len);
+		{ MD5_Update(&ctx1,(const unsigned char *)pw,pw_len); }
 		else
-			MD5_Update(&ctx1,(const unsigned char *)final,16);
+		{ MD5_Update(&ctx1,(const unsigned char *)final,16); }
 
 		if(i % 3)
-			MD5_Update(&ctx1,(const unsigned char *)sp,sl);
+		{ MD5_Update(&ctx1,(const unsigned char *)sp,sl); }
 
 		if(i % 7)
-			MD5_Update(&ctx1,(const unsigned char *)pw,pw_len);
+		{ MD5_Update(&ctx1,(const unsigned char *)pw,pw_len); }
 
 		if(i & 1)
-			MD5_Update(&ctx1,(const unsigned char *)final,16);
+		{ MD5_Update(&ctx1,(const unsigned char *)final,16); }
 		else
-			MD5_Update(&ctx1,(const unsigned char *)pw,pw_len);
+		{ MD5_Update(&ctx1,(const unsigned char *)pw,pw_len); }
 		MD5_Final(final,&ctx1);
 	}
 
@@ -368,10 +370,12 @@ char * __md5_crypt( const char *pw, const char *salt, char *passwd )
 	final[16] = final[5];
 	for ( i=0 ; i < 5 ; i++ ) {
 		l = (final[i]<<16) | (final[i+6]<<8) | final[i+12];
-		__md5_to64(p,l,4); p += 4;
+		__md5_to64(p,l,4);
+		p += 4;
 	}
 	l = final[11];
-	__md5_to64(p,l,2); p += 2;
+	__md5_to64(p,l,2);
+	p += 2;
 	*p = '\0';
 
 	/* Don't leave anything around in vm they could use. */

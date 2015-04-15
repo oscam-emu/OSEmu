@@ -103,9 +103,9 @@ int BN_add(BIGNUM *r, const BIGNUM *a, const BIGNUM *b)
 	}
 
 	if(a->neg)  /* both are neg */
-		{ r->neg = 1; }
+	{ r->neg = 1; }
 	else
-		{ r->neg = 0; }
+	{ r->neg = 0; }
 
 	if(!BN_uadd(r, a, b)) { return (0); }
 	return (1);
@@ -132,7 +132,7 @@ int BN_uadd(BIGNUM *r, const BIGNUM *a, const BIGNUM *b)
 	min = b->top;
 
 	if(bn_wexpand(r, max + 1) == NULL)
-		{ return (0); }
+	{ return (0); }
 
 	r->top = max;
 
@@ -169,7 +169,7 @@ int BN_uadd(BIGNUM *r, const BIGNUM *a, const BIGNUM *b)
 	if(rp != ap)
 	{
 		for(; i < max; i++)
-			{ *(rp++) = *(ap++); }
+		{ *(rp++) = *(ap++); }
 	}
 	/* memcpy(rp,ap,sizeof(*ap)*(max-i));*/
 	return (1);

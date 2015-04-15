@@ -95,7 +95,7 @@ int BN_div(BIGNUM *dv, BIGNUM *rem, const BIGNUM *m, const BIGNUM *d,
 	if(dv == NULL) { dv = BN_CTX_get(ctx); }
 	if(rem == NULL) { rem = BN_CTX_get(ctx); }
 	if(D == NULL || dv == NULL || rem == NULL)
-		{ goto end; }
+	{ goto end; }
 
 	nd = BN_num_bits(d);
 	nm = BN_num_bits(m);
@@ -188,7 +188,7 @@ int BN_div(BIGNUM *dv, BIGNUM *rm, const BIGNUM *num, const BIGNUM *divisor,
 	snum = BN_CTX_get(ctx);
 	sdiv = BN_CTX_get(ctx);
 	if(dv == NULL)
-		{ res = BN_CTX_get(ctx); }
+	{ res = BN_CTX_get(ctx); }
 	else    { res = dv; }
 	if(sdiv == NULL || res == NULL) { goto err; }
 	tmp->neg = 0;
@@ -236,7 +236,7 @@ int BN_div(BIGNUM *dv, BIGNUM *rm, const BIGNUM *num, const BIGNUM *divisor,
 		res->d[res->top - 1] = 1;
 	}
 	else
-		{ res->top--; }
+	{ res->top--; }
 	resp--;
 
 	for(i = 0; i < loop - 1; i++)
@@ -251,7 +251,7 @@ int BN_div(BIGNUM *dv, BIGNUM *rm, const BIGNUM *num, const BIGNUM *divisor,
 		n0 = wnump[0];
 		n1 = wnump[-1];
 		if(n0 == d0)
-			{ q = BN_MASK2; }
+		{ q = BN_MASK2; }
 		else            /* n0 < d0 */
 		{
 #ifdef BN_LLONG
@@ -275,7 +275,7 @@ int BN_div(BIGNUM *dv, BIGNUM *rm, const BIGNUM *num, const BIGNUM *divisor,
 			for(;;)
 			{
 				if(t2 <= ((((BN_ULLONG)rem) << BN_BITS2) | wnump[-2]))
-					{ break; }
+				{ break; }
 				q--;
 				rem += d0;
 				if(rem < d0) { break; }  /* don't let rem overflow */
@@ -304,7 +304,7 @@ int BN_div(BIGNUM *dv, BIGNUM *rm, const BIGNUM *num, const BIGNUM *divisor,
 			{
 				if((t2h < rem) ||
 						((t2h == rem) && (t2l <= wnump[-2])))
-					{ break; }
+				{ break; }
 				q--;
 				rem += d0;
 				if(rem < d0) { break; }  /* don't let rem overflow */
@@ -360,7 +360,7 @@ int BN_mod(BIGNUM *rem, const BIGNUM *m, const BIGNUM *d, BN_CTX *ctx)
 	BIGNUM *dv;
 
 	if(BN_ucmp(m, d) < 0)
-		{ return ((BN_copy(rem, m) == NULL) ? 0 : 1); }
+	{ return ((BN_copy(rem, m) == NULL) ? 0 : 1); }
 
 	BN_CTX_start(ctx);
 	dv = BN_CTX_get(ctx);
