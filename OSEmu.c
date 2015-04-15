@@ -62,7 +62,7 @@ static int32_t camd35_send(uchar *buf, int32_t buflen)
 	memset(sbuf + l, 0xff, 15); // set unused space to 0xff for newer camd3's
 	i2b_buf(4, crc32(0, sbuf + 20, buflen), sbuf + 4);
 	l = boundary(4, l);
-	cs_log_debug("send %d bytes to client", l);
+	cs_log_dbg("send %d bytes to client", l);
 	aes_encrypt_idx(&cl_aes_keys, sbuf, l);
 
 	status = sendto(cl_sockfd, rbuf, l + 4, 0, (struct sockaddr *)&cl_socket, sizeof(cl_socket));
@@ -115,7 +115,7 @@ static int32_t camd35_recv(uchar *buf, int32_t rs)
 		case 2:
 			aes_decrypt(&cl_aes_keys, buf, rs);
 			if(rs != boundary(4, rs))
-				cs_log_debug("WARNING: packet size has wrong decryption boundary");
+				cs_log_dbg("WARNING: packet size has wrong decryption boundary");
 
 			n = (buf[0] == 3) ? 0x34 : 0;
 
@@ -129,17 +129,17 @@ static int32_t camd35_recv(uchar *buf, int32_t rs)
 
 			n = boundary(4, n + 20 + buflen);
 
-			cs_log_debug("received %d bytes from client", rs);
+			cs_log_dbg("received %d bytes from client", rs);
 
 			if(n < rs)
-				cs_log_debug("ignoring %d bytes of garbage", rs - n);
+				cs_log_dbg("ignoring %d bytes of garbage", rs - n);
 			else if(n > rs) { rc = -3; }
 			break;
 		case 3:
 			if(crc32(0, buf + 20, buflen) != b2i(4, buf + 4)) { 
 				rc = -4;
-				cs_log_hexdump("camd35 checksum failed for packet: ", buf, rs);
-				cs_log_debug("checksum: %X", b2i(4, buf+4)); 
+				cs_log_dump_dbg(buf, rs, "camd35 checksum failed for packet: ");
+				cs_log_dbg("checksum: %X", b2i(4, buf+4)); 
 			}
 			if(!rc) { rc = n; }
 			break;
@@ -149,7 +149,7 @@ static int32_t camd35_recv(uchar *buf, int32_t rs)
 out:
 	if((rs > 0) && ((rc == -1) || (rc == -2)))
 	{
-		cs_log_debug("received %d bytes from client (native)", rs);
+		cs_log_dbg("received %d bytes from client (native)", rs);
 	}
 	switch(rc)
 	{
@@ -243,16 +243,16 @@ static void camd35_process_ecm(uchar *buf, int buflen)
 	er.caid = b2i(2, buf + 10);
 	er.prid = b2i(4, buf + 12);
 	
-	cs_log_debug("ProcessECM CAID: %X", er.caid);
-	cs_log_hexdump("ProcessECM: ", buf+20, ecmlen);
+	cs_log_dbg("ProcessECM CAID: %X", er.caid);
+	cs_log_dump_dbg(buf+20, ecmlen, "ProcessECM: ");
 	
 	if(ProcessECM(er.ecmlen,er.caid,er.prid,buf+20,er.cw,er.srvid,er.pid)) {
 	  er.rc = E_NOTFOUND;
-	  cs_log_debug("CW not found");
+	  cs_log_dbg("CW not found");
 	}
 	else {
 	  er.rc = E_FOUND;
-	  cs_log_hexdump("Found CW: ", er.cw, 16);
+	  cs_log_dump_dbg(er.cw, 16, "Found CW: ");
     }
     
 	if((er.rc == E_NOTFOUND || (er.rc == E_INVALID)) && !suppresscmd08)
@@ -320,15 +320,15 @@ static void camd35_process_emm(uchar *buf, int buflen)
 	if(emmlen + 20 > buflen)
 		{ return; }
 		
-	cs_log_debug("ProcessEMM CAID: %X", (buf[10] << 8) | buf[11]);
-	cs_log_hexdump("ProcessEMM: ", buf+20, emmlen);
+	cs_log_dbg("ProcessEMM CAID: %X", (buf[10] << 8) | buf[11]);
+	cs_log_dump_dbg(buf+20, emmlen, "ProcessEMM: ");
 	
 	if(ProcessEMM((buf[10] << 8) | buf[11],
       (buf[12] << 24) | (buf[13] << 16) | (buf[14] << 8) | buf[15],buf+20,&keysAdded)) {
-	  cs_log_debug("EMM nok");
+	  cs_log_dbg("EMM nok");
 	}
 	else {
-	  cs_log_debug("EMM ok");
+	  cs_log_dbg("EMM ok");
     }	
 }
 

@@ -1,6 +1,7 @@
 #include "globals.h"
+#include "helpfunctions.h"
 
-void cs_log(const char* format, ... ){
+void cs_log_txt(const char* format, ... ){
 	
   FILE *fp = NULL;
   if(havelogfile) { fp = fopen(logfile, "a"); }
@@ -19,27 +20,6 @@ void cs_log(const char* format, ... ){
   if(fp)  { fprintf(fp, "\n"); fclose(fp); }
 }
 
-void cs_log_debug(const char* format, ... ){
-	
-  if(debuglog){
-  	FILE *fp = NULL;
-  	if(havelogfile) { fp = fopen(logfile, "a"); }
-  		
-  	va_list ap, ap2;
-  	va_start(ap, format);
-  	va_copy(ap2, ap);
-  	
-  	if(!bg) { vfprintf(stderr, format, ap); }
-  	va_end(ap);
-  	 
-  	if(fp) { vfprintf(fp, format, ap2); } 
-  	va_end(ap2);
-  	
-  	if(!bg) { fprintf(stderr, "\n"); }
-  	if(fp)  { fprintf(fp, "\n"); fclose(fp); }
-  }
-}
-
 char *cs_hexdump(int32_t m, const uchar *buf, int32_t n, char *target, int32_t len)
 {
 	int32_t i = 0;
@@ -55,28 +35,42 @@ char *cs_hexdump(int32_t m, const uchar *buf, int32_t n, char *target, int32_t l
 	return target;
 }
 
-const char *HexStr(char *str, const unsigned char *mem, int len)
+void cs_log_hex(const uint8_t *buf, int32_t n, const char *fmt, ...)
 {
-  int i;
-    for (i=0 ; i<len ; i++) sprintf(&str[i*2],"%02X",mem[i]);
-    return str;
+	FILE *fp = NULL;
+	char log_txt[512];
+	int32_t i;
+	
+	va_list ap;	
+ 	va_start(ap, fmt);
+	vsnprintf(log_txt, sizeof(log_txt), fmt, ap);
+	va_end(ap);
+
+	if(havelogfile) { fp = fopen(logfile, "a"); }
+	
+	if(!bg) { fprintf(stderr, log_txt); fprintf(stderr, "\n"); }
+	if(fp) { fprintf(fp, log_txt); fprintf(fp, "\n"); } 	
+	
+	if(buf)
+	{	 	
+		for(i = 0; i < n; i += 16)
+		{
+			cs_hexdump(1, buf + i, (n - i > 16) ? 16 : n - i, log_txt, sizeof(log_txt));
+			if(!bg)
+			{ 
+				fprintf(stderr, log_txt);
+				fprintf(stderr, "\n");
+			}
+			if(fp){
+				fprintf(fp, log_txt);
+				fprintf(fp, "\n");
+			} 
+		}
+	}
+	
+	if(fp) { fclose(fp); }	
 }
 
-void cs_log_hexdump(char* label,const unsigned char *buffer, int n)
-{
-    char Message[3000];
-    if(!debuglog) return;
-   
-    HexStr(Message,buffer,n);
-    char *str3 = (char *)malloc((strlen(label) + strlen(Message) + 1)*sizeof(char));
-    if (str3)
-    {
-        strcpy(str3, label);
-        strcat(str3, Message);
-        cs_log_debug("%s", str3);
-        free(str3);
-    }
-}
 
 int32_t boundary(int32_t exp, int32_t n)
 {

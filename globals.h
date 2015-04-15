@@ -1,3 +1,6 @@
+#ifndef OSEMU_GLOBALS_H_
+#define OSEMU_GLOBALS_H_
+
 #define _GNU_SOURCE //needed for PTHREAD_MUTEX_RECURSIVE on some plattforms and maybe other things; do not remove
 #include <stdio.h>
 #include <stdlib.h>
@@ -63,3 +66,5 @@ typedef struct ecm_request_t {
 	uint16_t        pid;
 	int8_t			rc;
 } ECM_REQUEST;
+
+#endif

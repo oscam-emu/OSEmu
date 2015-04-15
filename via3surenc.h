@@ -1,3 +1,5 @@
+#ifndef OSEMU_VIA3SURENC_H_
+#define OSEMU_VIA3SURENC_H_
 
 int hdSurEncBasicCrypt_D2_0F_11(int Value, int XorVal);
 int hdSurEncCryptLookup_D2_0F_11(unsigned char Value, unsigned char AddrInd);		
@@ -12,3 +14,5 @@ void Common_D2_13_15(unsigned char *cw0, const unsigned char *cw1, int loopval);
 void ExchangeCWs(unsigned char *cw0, unsigned char *cw1);
 void hdSurEncPhase1_D2_13_15(unsigned char *cws);
 void hdSurEncPhase2_D2_13_15(unsigned char *cws);
+
+#endif
