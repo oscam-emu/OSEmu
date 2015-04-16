@@ -38,9 +38,11 @@ char *cs_hexdump(int32_t m, const uchar *buf, int32_t n, char *target, int32_t l
 void cs_log_hex(const uint8_t *buf, int32_t n, const char *fmt, ...)
 {
 	FILE *fp = NULL;
-	char log_txt[512];
+	char log_txt[512], *newline;
 	int32_t i;
 
+	newline = "\n";
+	
 	va_list ap;
 	va_start(ap, fmt);
 	vsnprintf(log_txt, sizeof(log_txt), fmt, ap);
@@ -48,8 +50,16 @@ void cs_log_hex(const uint8_t *buf, int32_t n, const char *fmt, ...)
 
 	if(havelogfile) { fp = fopen(logfile, "a"); }
 
-	if(!bg) { fprintf(stderr, log_txt); fprintf(stderr, "\n"); }
-	if(fp) { fprintf(fp, log_txt); fprintf(fp, "\n"); }
+	if(!bg)
+	{
+		fwrite(log_txt, sizeof(char), strlen(log_txt), stderr);
+		fwrite(newline, sizeof(char), strlen(newline), stderr);
+	}
+	if(fp)
+	{
+		fwrite(log_txt, sizeof(char), strlen(log_txt), fp);
+		fwrite(newline, sizeof(char), strlen(newline), fp);
+	}
 
 	if(buf)
 	{
@@ -58,12 +68,12 @@ void cs_log_hex(const uint8_t *buf, int32_t n, const char *fmt, ...)
 			cs_hexdump(1, buf + i, (n - i > 16) ? 16 : n - i, log_txt, sizeof(log_txt));
 			if(!bg)
 			{
-				fprintf(stderr, log_txt);
-				fprintf(stderr, "\n");
+				fwrite(log_txt, sizeof(char), strlen(log_txt), stderr);
+				fwrite(newline, sizeof(char), strlen(newline), stderr);
 			}
 			if(fp) {
-				fprintf(fp, log_txt);
-				fprintf(fp, "\n");
+				fwrite(log_txt, sizeof(char), strlen(log_txt), fp);
+				fwrite(newline, sizeof(char), strlen(newline), fp);
 			}
 		}
 	}
