@@ -1,6 +1,8 @@
 #include "globals.h"
 #include "helpfunctions.h"
-#include "emulator.h"
+#include "module-emulator-osemu.h"
+#include <pthread.h>
+#include <signal.h>
 
 static struct aes_keys cl_aes_keys;
 static uchar cl_ucrc[4];
@@ -10,11 +12,14 @@ static unsigned char cl_passwd[128];
 static int cl_sockfd;
 static struct sockaddr_in cl_socket;
 
+static uint32_t osemu_stacksize = 0;
+
 int8_t debuglog = 0;
 int8_t havelogfile = 0;
 int8_t requestau = 0;
 char*  logfile = NULL;
 int bg = 0;
+int32_t exit_oscam = 0;
 
 #define REQ_SIZE	584		// 512 + 20 + 0x34
 
@@ -65,7 +70,7 @@ static int32_t camd35_send(uchar *buf, int32_t buflen)
 	memset(sbuf + l, 0xff, 15); // set unused space to 0xff for newer camd3's
 	i2b_buf(4, crc32(0, sbuf + 20, buflen), sbuf + 4);
 	l = boundary(4, l);
-	cs_log_dbg("send %d bytes to client", l);
+	cs_log_dbg(0, "send %d bytes to client", l);
 	aes_encrypt_idx(&cl_aes_keys, sbuf, l);
 
 	status = sendto(cl_sockfd, rbuf, l + 4, 0, (struct sockaddr *)&cl_socket, sizeof(cl_socket));
@@ -118,7 +123,7 @@ static int32_t camd35_recv(uchar *buf, int32_t rs)
 		case 2:
 			aes_decrypt(&cl_aes_keys, buf, rs);
 			if(rs != boundary(4, rs))
-			{ cs_log_dbg("WARNING: packet size has wrong decryption boundary"); }
+			{ cs_log_dbg(0, "WARNING: packet size has wrong decryption boundary"); }
 
 			n = (buf[0] == 3) ? 0x34 : 0;
 
@@ -132,17 +137,17 @@ static int32_t camd35_recv(uchar *buf, int32_t rs)
 
 			n = boundary(4, n + 20 + buflen);
 
-			cs_log_dbg("received %d bytes from client", rs);
+			cs_log_dbg(0, "received %d bytes from client", rs);
 
 			if(n < rs)
-			{ cs_log_dbg("ignoring %d bytes of garbage", rs - n); }
+			{ cs_log_dbg(0, "ignoring %d bytes of garbage", rs - n); }
 			else if(n > rs) { rc = -3; }
 			break;
 		case 3:
 			if(crc32(0, buf + 20, buflen) != b2i(4, buf + 4)) {
 				rc = -4;
 				cs_log_dump_dbg(buf, rs, "camd35 checksum failed for packet: ");
-				cs_log_dbg("checksum: %X", b2i(4, buf+4));
+				cs_log_dbg(0, "checksum: %X", b2i(4, buf+4));
 			}
 			if(!rc) { rc = n; }
 			break;
@@ -152,7 +157,7 @@ static int32_t camd35_recv(uchar *buf, int32_t rs)
 out:
 	if((rs > 0) && ((rc == -1) || (rc == -2)))
 	{
-		cs_log_dbg("received %d bytes from client (native)", rs);
+		cs_log_dbg(0, "received %d bytes from client (native)", rs);
 	}
 	switch(rc)
 	{
@@ -231,7 +236,9 @@ static void camd35_process_ecm(uchar *buf, int buflen)
 	ECM_REQUEST er;
 	uint16_t ecmlen = 0;
 	uint8_t hexserial[6];
-
+	uint8_t hexserials[1][4];
+	int32_t count = 0;
+	
 	if(!buf || buflen < 23)
 	{ return; }
 
@@ -246,12 +253,12 @@ static void camd35_process_ecm(uchar *buf, int buflen)
 	er.caid = b2i(2, buf + 10);
 	er.prid = b2i(4, buf + 12);
 
-	cs_log_dbg("ProcessECM CAID: %X", er.caid);
+	cs_log_dbg(0, "ProcessECM CAID: %X", er.caid);
 	cs_log_dump_dbg(buf+20, ecmlen, "ProcessECM: ");
 
 	if(ProcessECM(er.ecmlen,er.caid,er.prid,buf+20,er.cw,er.srvid,er.pid)) {
 		er.rc = E_NOTFOUND;
-		cs_log_dbg("CW not found");
+		cs_log_dbg(0, "CW not found");
 	}
 	else {
 		er.rc = E_FOUND;
@@ -299,14 +306,26 @@ static void camd35_process_ecm(uchar *buf, int buflen)
 	camd35_send(buf, 0);
 
 	if(requestau) {
-		if(er.caid == 0x0500) {
-			memset(hexserial, 0, 6);
-			camd35_request_emm(er.caid, 0x030B00, hexserial, 1, 0, 0);
+		memset(hexserial, 0, 6);
+		
+		if(er.caid>>8 == 0x05) {
+			camd35_request_emm(er.caid, er.prid, hexserial, 1, 0, 0);
 		}
-		else if(er.caid == 0x0604) {
-			memset(hexserial, 0, 6);
-			GetIrdeto2Hexserial(er.caid, hexserial);
-			camd35_request_emm(er.caid, 0x010200, hexserial, 1, 1, 1);
+		else if(er.caid>>8 == 0x06) {
+			if(GetIrdeto2Hexserial(er.caid, hexserial)) {
+				camd35_request_emm(er.caid, er.prid, hexserial, 0, 1, 1);
+			}
+		}
+		else if(er.caid>>8 == 0x0E) {
+			if(GetPowervuHexserials(er.srvid, hexserials, 1, &count) && count) { 
+				memcpy(hexserial, hexserials[0], 4);
+				camd35_request_emm(er.caid, 0, hexserial, 0, 0, 1);	
+			}
+		}
+		else if(er.caid>>8 == 0x4A) {
+			if(GetDrecryptHexserials(er.caid, hexserial, 1, &count) && count) { 
+				camd35_request_emm(er.caid, 0, hexserial, 1, 1, 0);	
+			}
 		}
 	}
 }
@@ -323,20 +342,20 @@ static void camd35_process_emm(uchar *buf, int buflen)
 	if(emmlen + 20 > buflen)
 	{ return; }
 
-	cs_log_dbg("ProcessEMM CAID: %X", (buf[10] << 8) | buf[11]);
+	cs_log_dbg(0, "ProcessEMM CAID: %X", (buf[10] << 8) | buf[11]);
 	cs_log_dump_dbg(buf+20, emmlen, "ProcessEMM: ");
 
 	if(ProcessEMM((buf[10] << 8) | buf[11],
 				  (buf[12] << 24) | (buf[13] << 16) | (buf[14] << 8) | buf[15],buf+20,&keysAdded)) {
-		cs_log_dbg("EMM nok");
+		cs_log_dbg(0, "EMM nok");
 	}
 	else {
-		cs_log_dbg("EMM ok");
+		cs_log_dbg(0, "EMM ok");
 	}
 }
 
 void show_usage(char *cmdline) {
-	cs_log("Usage: %s -a <user>:<password> -p <port> [-b -v -e -c <path> -l <logfile> -i -L]", cmdline);
+	cs_log("Usage: %s -a <user>:<password> -p <port> [-b -v -e -c <path> -l <logfile> -i -L -r <stream source port>:<osemu stream rely port>]", cmdline);
 	cs_log("-b enables to start as a daemon (background)");
 	cs_log("-v enables a more verbose output (debug output)");
 	cs_log("-e enables emm au");
@@ -344,20 +363,107 @@ void show_usage(char *cmdline) {
 	cs_log("-l sets log file");
 	cs_log("-L only allow local connections");
 	cs_log("-i show version info and exit");
+	cs_log("-r <stream source port>:<relay port> enables stream relay server");
+}
+
+#define SAFE_PTHREAD_1ARG(a, b, c) { \
+	int32_t pter = a(b); \
+	if(pter != 0) \
+	{ \
+		c("FATAL ERROR: %s() failed in %s with error %d %s\n", #a, __func__, pter, strerror(pter)); \
+		exit_oscam = 1;\
+	} }
+
+#define SAFE_ATTR_INIT(a)			SAFE_PTHREAD_1ARG(pthread_attr_init, a, cs_log)
+
+#define SAFE_PTHREAD_2ARG(a, b, c, d) { \
+	int32_t pter = a(b, c); \
+	if(pter != 0) \
+	{ \
+		d("FATAL ERROR: %s() failed in %s with error %d %s\n", #a, __func__, pter, strerror(pter)); \
+		exit_oscam = 1;\
+	} }
+
+#define SAFE_ATTR_SETSTACKSIZE(a,b) SAFE_PTHREAD_2ARG(pthread_attr_setstacksize, a, b, cs_log)
+
+static void fix_stacksize(void)
+{
+// Changing the default stack size is generally a bad idea.
+// We are doing it anyway at the moment, because we are using several threads,
+// and are running on machnies with little RAM.
+// HOWEVER, as we do not know which minimal stack size is needed to run
+// oscam without SEQFAULT (stack overflow), this is risky business.
+// If after a code change SEQFAULTs related to stack overflow appear,
+// increase OSCAM_STACK_MIN or remove the calls to SAFE_ATTR_SETSTACKSIZE.
+
+#ifndef PTHREAD_STACK_MIN
+#define PTHREAD_STACK_MIN 64000
+#endif
+#define OSCAM_STACK_MIN PTHREAD_STACK_MIN+32768
+   
+	if(osemu_stacksize < OSCAM_STACK_MIN)
+	{
+		long pagesize = sysconf(_SC_PAGESIZE);
+		if(pagesize < 1)
+		{
+			osemu_stacksize = OSCAM_STACK_MIN;
+			return;
+		}
+		
+		osemu_stacksize = (((OSCAM_STACK_MIN) / pagesize) + 1) * pagesize;
+	}
+}
+
+/* Starts a thread named nameroutine with the start function startroutine. */
+static int32_t start_thread(char *nameroutine, void *startroutine, void *arg, pthread_t *pthread, int8_t detach, int8_t modify_stacksize)
+{
+	pthread_t temp;
+	pthread_attr_t attr;
+	
+	cs_log_dbg(D_TRACE, "starting thread %s", nameroutine);
+
+	SAFE_ATTR_INIT(&attr);
+	
+	if(modify_stacksize)
+ 		{ SAFE_ATTR_SETSTACKSIZE(&attr, osemu_stacksize); }
+ 		
+	int32_t ret = pthread_create(pthread == NULL ? &temp : pthread, &attr, startroutine, arg);
+	if(ret)
+		{ cs_log("ERROR: can't create %s thread (errno=%d %s)", nameroutine, ret, strerror(ret)); }
+	else
+	{
+		cs_log_dbg(D_TRACE, "%s thread started", nameroutine);
+		
+		if(detach)
+			{ pthread_detach(pthread == NULL ? temp : *pthread); }
+	}
+
+	pthread_attr_destroy(&attr);
+
+	return ret;
+}
+
+static void sigpipe_handler(int signum)
+{
+	return;
 }
 
 int main(int argc, char**argv)
 {
-	int n, opt, port = 0, accountok = 0, local = 0;
+	int n, opt, port = 0, accountok = 0, local = 0, start_relay = 0;
 	struct sockaddr_in servaddr;
 	socklen_t len;
 	unsigned char mbuf[20+1024];
 	unsigned char md5tmp[MD5_DIGEST_LENGTH];
 	char *path = "./";
 
+	signal(SIGPIPE, sigpipe_handler);
+	
+	fix_stacksize();
+
 	cs_log("OSEmu version %d", GetOSemuVersion());
 
-	while ((opt = getopt(argc, argv, "bva:p:c:l:eiL")) != -1) {
+	while ((opt = getopt(argc, argv, "bva:p:c:l:eiLr:")) != -1) {
 		switch (opt) {
 		case 'b':
 			bg = 1;
@@ -393,6 +499,16 @@ int main(int argc, char**argv)
 		case 'L':
 			local = 1;
 			break;
+		case 'r': {
+			char *ptr = strtok(optarg, ":");
+			emu_stream_source_port = atoi(ptr);
+			ptr = strtok(NULL, ":");
+			if(ptr) {
+				emu_stream_relay_port = atoi(ptr);
+			}
+			start_relay = 1;
+			break;
+		}
 		default:
 			show_usage(argv[0]);
 			exit(0);
@@ -419,6 +535,12 @@ int main(int argc, char**argv)
 		read_emu_keyfile("/var/keys/");
 	}
 
+	if(start_relay && !stream_server_thread_init)
+	{
+		start_thread("emu stream server", stream_server, NULL, NULL, 1, 0);
+		stream_server_thread_init = 1;
+	}
+		
 	cl_sockfd = socket(AF_INET,SOCK_DGRAM,0);
 	if(cl_sockfd == -1) {
 		cs_log("Could not create socket.");
@@ -436,7 +558,7 @@ int main(int argc, char**argv)
 
 	aes_set_key(&cl_aes_keys, (char *) MD5(cl_passwd, strlen((char *)cl_passwd), md5tmp));
 
-	for (;;) {
+	while(!exit_oscam) {
 		len = sizeof(cl_socket);
 		n = recvfrom(cl_sockfd,mbuf,sizeof(mbuf),0,(struct sockaddr *)&cl_socket,&len);
 
@@ -452,4 +574,6 @@ int main(int argc, char**argv)
 			}
 		}
 	}
+	
+	return 0;
 }

@@ -15,8 +15,10 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <sys/types.h>
+#include <arpa/inet.h>
 #include <dirent.h>
-
+#include <errno.h>
+ 
 #include "aes.h"
 #include "des.h"
 #include "md5.h"
@@ -46,6 +48,7 @@ typedef unsigned char uchar;
 ///////above is all notfound, some error or problem
 #define E_UNHANDLED 100 //for selection of unhandled, use >= E_UNHANDLED
 
+#define SCT_LEN(sct) (3+((sct[1]&0x0f)<<8)+sct[2])
 
 extern int8_t debuglog;
 extern int8_t havelogfile;
@@ -66,5 +69,7 @@ typedef struct ecm_request_t {
 	uint16_t        pid;
 	int8_t			rc;
 } ECM_REQUEST;
+
+#include "helpfunctions.h"
 
 #endif
