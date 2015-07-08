@@ -1,8 +1,7 @@
 UNAME := $(shell uname -s)
 CC = gcc
 STRIP = strip
-CFLAGS=-I. 
-LFLAGS=-lpthread 
+CFLAGS=-I. -pthread
 SRCS = bn_ctx.c bn_lib.c bn_exp.c bn_sqr.c bn_div.c bn_asm.c bn_shift.c bn_word.c bn_add.c bn_mul.c \
  aes.c  i_cbc.c i_ecb.c i_skey.c mem.c des.c md5.c ffdecsa/ffdecsa.c \
  module-emulator-st20.c module-emulator-dre2overcrypt.c viades.c via3surenc.c \
@@ -21,14 +20,14 @@ all: OSEmu
 
 OSEmu: $(OBJS)
 ifeq ($(UNAME),Darwin)
-	$(CC) -Wall -O2 -o $(BIN) $(OBJS) $(CFLAGS) $(LFLAGS)
+	$(CC) -Wall -O2 -o $(BIN) $(OBJS) $(CFLAGS) 
 else ifdef ANDROID_NDK
-	$(CC) -Wall -O2 -o $(BIN) $(OBJS) $(CFLAGS) $(LFLAGS)
+	$(CC) -Wall -O2 -o $(BIN) $(OBJS) $(CFLAGS) 
 else ifdef ANDROID_STANDALONE_TOOLCHAIN
-	$(CC) -Wall -O2 -o $(BIN) $(OBJS) $(CFLAGS) $(LFLAGS)
+	$(CC) -Wall -O2 -o $(BIN) $(OBJS) $(CFLAGS) 
 else
 	touch SoftCam.Key
-	$(CC) -Wall -O2 -o $(BIN) $(OBJS) $(CFLAGS) $(LFLAGS) -Wl,--format=binary -Wl,SoftCam.Key -Wl,--format=default	
+	$(CC) -Wall -O2 -o $(BIN) $(OBJS) $(CFLAGS) -Wl,--format=binary -Wl,SoftCam.Key -Wl,--format=default	
 endif
 	$(STRIP) $(BIN)
 	
