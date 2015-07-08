@@ -1,6 +1,47 @@
 #include "globals.h"
 #include "helpfunctions.h"
 
+/* This function encapsulates malloc. It automatically adds an error message
+   to the log if it failed and calls cs_exit(quiterror) if quiterror > -1.
+   result will be automatically filled with the new memory position or NULL
+   on failure. */
+bool cs_malloc(void *result, size_t size)
+{
+	void **tmp = result;
+	*tmp = malloc(size);
+	if(*tmp == NULL)
+	{
+		fprintf(stderr, "%s: ERROR: Can't allocate %zu bytes!", __func__, size);
+	}
+	else
+	{
+		memset(*tmp, 0, size);
+	}
+	return !!*tmp;
+}
+
+void cs_sleepms(uint32_t msec)
+{
+	//does not interfere with signals like sleep and usleep do
+	struct timespec req_ts;
+	req_ts.tv_sec = msec / 1000;
+	req_ts.tv_nsec = (msec % 1000) * 1000000L;
+	int32_t olderrno = errno; // Some OS (especially MacOSX) seem to set errno to ETIMEDOUT when sleeping
+	while (1)
+	{
+		/* Sleep for the time specified in req_ts. If interrupted by a
+		signal, place the remaining time left to sleep back into req_ts. */
+		int rval = nanosleep (&req_ts, &req_ts);
+		if (rval == 0)
+			break; // Completed the entire sleep time; all done.
+		else if (errno == EINTR)
+			continue; // Interrupted by a signal. Try again.
+		else 
+			break; // Some other error; bail out.
+	}
+	errno = olderrno;
+}
+
 void cs_log_txt(const char* format, ... ) {
 
 	FILE *fp = NULL;
@@ -38,9 +79,11 @@ char *cs_hexdump(int32_t m, const uchar *buf, int32_t n, char *target, int32_t l
 void cs_log_hex(const uint8_t *buf, int32_t n, const char *fmt, ...)
 {
 	FILE *fp = NULL;
-	char log_txt[512];
+	char log_txt[512], *newline;
 	int32_t i;
 
+	newline = "\n";
+	
 	va_list ap;
 	va_start(ap, fmt);
 	vsnprintf(log_txt, sizeof(log_txt), fmt, ap);
@@ -48,8 +91,16 @@ void cs_log_hex(const uint8_t *buf, int32_t n, const char *fmt, ...)
 
 	if(havelogfile) { fp = fopen(logfile, "a"); }
 
-	if(!bg) { fprintf(stderr, log_txt); fprintf(stderr, "\n"); }
-	if(fp) { fprintf(fp, log_txt); fprintf(fp, "\n"); }
+	if(!bg)
+	{
+		fwrite(log_txt, sizeof(char), strlen(log_txt), stderr);
+		fwrite(newline, sizeof(char), strlen(newline), stderr);
+	}
+	if(fp)
+	{
+		fwrite(log_txt, sizeof(char), strlen(log_txt), fp);
+		fwrite(newline, sizeof(char), strlen(newline), fp);
+	}
 
 	if(buf)
 	{
@@ -58,12 +109,12 @@ void cs_log_hex(const uint8_t *buf, int32_t n, const char *fmt, ...)
 			cs_hexdump(1, buf + i, (n - i > 16) ? 16 : n - i, log_txt, sizeof(log_txt));
 			if(!bg)
 			{
-				fprintf(stderr, log_txt);
-				fprintf(stderr, "\n");
+				fwrite(log_txt, sizeof(char), strlen(log_txt), stderr);
+				fwrite(newline, sizeof(char), strlen(newline), stderr);
 			}
 			if(fp) {
-				fprintf(fp, log_txt);
-				fprintf(fp, "\n");
+				fwrite(log_txt, sizeof(char), strlen(log_txt), fp);
+				fwrite(newline, sizeof(char), strlen(newline), fp);
 			}
 		}
 	}

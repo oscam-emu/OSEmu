@@ -12,5 +12,5 @@ sed -i -e "s/\$Version:[^\$]*/\$Version: ${VERSION} /g" VERSION
 sed -i -e "s/\$Time:[^\$]*/\$Time: ${NOW} /g" VERSION
 sed -i -e "s/\$Unixtime:[^\$]*/\$Unixtime: ${NOWUNIX} /g" VERSION
 
-sed -i -e "s/\$Version:[^\$]*/\$Version: ${VERSION} /g" emu-shared.c
+sed -i -e "s/\$Version:[^\$]*/\$Version: ${VERSION} /g" module-emulator-osemu.c
 

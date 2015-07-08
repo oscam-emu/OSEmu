@@ -3,8 +3,9 @@ CC = gcc
 STRIP = strip
 CFLAGS=-I.
 SRCS = bn_ctx.c bn_lib.c bn_exp.c bn_sqr.c bn_div.c bn_asm.c bn_shift.c bn_word.c bn_add.c bn_mul.c \
- aes.c  i_cbc.c i_ecb.c i_skey.c mem.c des.c md5.c \
- helpfunctions.c via3surenc.c emulator.c OSEmu.c
+ aes.c  i_cbc.c i_ecb.c i_skey.c mem.c des.c md5.c ffdecsa/ffdecsa.c \
+ module-emulator-st20.c module-emulator-dre2overcrypt.c viades.c via3surenc.c \
+ helpfunctions.c module-emulator-stream.c module-emulator-osemu.c OSEmu.c
 OBJS = $(SRCS:.c=.o)
 DEPS = $(SRCS:.c=.d)
 BIN = OSEmu
