@@ -23,7 +23,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#include "FFdecsa.h"
+#include "ffdecsa.h"
 
 #ifndef NULL
 #define NULL 0
