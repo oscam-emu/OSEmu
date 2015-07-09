@@ -14,7 +14,7 @@
 		uint16_t video_pid;
 		uint16_t audio_pids[4];
 		uint8_t audio_pid_count;
-		uint8_t ecm_nb;
+		int16_t ecm_nb;
 		uint32_t pvu_des_ks[8][2][32];
 		int8_t pvu_csa_used;
 		void* pvu_csa_ks[8];

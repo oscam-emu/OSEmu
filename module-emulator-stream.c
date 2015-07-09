@@ -546,6 +546,8 @@ static void handle_stream_client(int32_t connfd)
 	stream_server_has_ecm = 0;
 #endif
 
+	cs_log("[Emu] stream client connected with request %s", stream_path);
+
 	snprintf(http_buf, 1024, "HTTP/1.0 200 OK\nConnection: Close\nContent-Type: video/mpeg\nServer: stream_enigma2\n\n");
 	clientStatus = send(connfd, http_buf, strlen(http_buf), 0);
 
@@ -657,6 +659,7 @@ void *stream_server(void *UNUSED(a))
 		}
 		
 		handle_stream_client(gconnfd);
+		cs_log("[Emu] stream client disconnected");
 	} 
 	
 	close(glistenfd);
