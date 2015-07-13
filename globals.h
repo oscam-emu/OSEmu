@@ -19,9 +19,9 @@
 #include <dirent.h>
 #include <errno.h>
  
-#include "aes.h"
-#include "des.h"
-#include "md5.h"
+#include "cscrypt/aes.h"
+#include "cscrypt/des.h"
+#include "cscrypt/md5.h"
 
 #ifndef uchar
 typedef unsigned char uchar;

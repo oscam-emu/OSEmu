@@ -1,12 +1,10 @@
 #include "globals.h"
+#include "cscrypt/des.h"
 
 #ifdef WITH_EMU
-#include "cscrypt/des.h"
 #include "oscam-string.h"
 #include "oscam-config.h"
 #include "oscam-time.h"
-#else
-#include "des.h"
 #endif
 
 #include "ffdecsa/ffdecsa.h"

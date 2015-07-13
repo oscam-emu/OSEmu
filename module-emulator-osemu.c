@@ -1,11 +1,11 @@
 #include "globals.h"
 #include "ffdecsa/ffdecsa.h"
-
-#ifdef WITH_EMU
 #include "cscrypt/bn.h"
 #include "cscrypt/des.h"
 #include "cscrypt/idea.h"
 #include "cscrypt/md5.h"
+
+#ifdef WITH_EMU
 #include "oscam-aes.h"
 #include "oscam-string.h"
 #include "oscam-config.h"
@@ -18,11 +18,7 @@ void hdSurEncPhase2_D2_0F_11(uint8_t *CWs);
 void hdSurEncPhase1_D2_13_15(uint8_t *cws);
 void hdSurEncPhase2_D2_13_15(uint8_t *cws);
 #else
-#include "bn.h"
-#include "des.h"
-#include "idea.h"
-#include "md5.h"
-#include "viades.h"
+#include "cscrypt/viades.h"
 #include "via3surenc.h"
 #endif
 
