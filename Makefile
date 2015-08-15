@@ -1,12 +1,14 @@
 UNAME := $(shell uname -s)
 CC = gcc
 STRIP = strip
-CFLAGS=-I. 
-LFLAGS=-lpthread 
-SRCS = bn_ctx.c bn_lib.c bn_exp.c bn_sqr.c bn_div.c bn_asm.c bn_shift.c bn_word.c bn_add.c bn_mul.c \
- aes.c  i_cbc.c i_ecb.c i_skey.c mem.c des.c md5.c ffdecsa/ffdecsa.c \
- module-emulator-st20.c module-emulator-dre2overcrypt.c viades.c via3surenc.c \
- helpfunctions.c module-emulator-stream.c module-emulator-osemu.c OSEmu.c
+CFLAGS=-I.
+LFLAGS=-lpthread
+SRCS = cscrypt/bn_ctx.c cscrypt/bn_lib.c cscrypt/bn_exp.c cscrypt/bn_sqr.c cscrypt/bn_div.c \
+cscrypt/bn_asm.c cscrypt/bn_shift.c cscrypt/bn_word.c cscrypt/bn_add.c cscrypt/bn_mul.c \
+cscrypt/aes.c cscrypt/i_cbc.c cscrypt/i_ecb.c cscrypt/i_skey.c cscrypt/mem.c cscrypt/des.c \
+cscrypt/md5.c cscrypt/viades.c ffdecsa/ffdecsa.c \
+module-emulator-st20.c module-emulator-dre2overcrypt.c via3surenc.c \
+helpfunctions.c module-emulator-stream.c module-emulator-osemu.c OSEmu.c
 OBJS = $(SRCS:.c=.o)
 DEPS = $(SRCS:.c=.d)
 BIN = OSEmu
@@ -16,8 +18,8 @@ all: OSEmu
 -include $(OBJS:.o=.d)
 
 %.o: %.c
-	$(CC) -Wall -c -o $@ $< $(CFLAGS)
-	$(CC) -Wall -MM $(CFLAGS) $*.c > $*.d
+	$(CC) -Wall -O2 -c -o $@ $< $(CFLAGS)
+	$(CC) -Wall -O2 -MM $(CFLAGS) $*.c > $*.d
 
 OSEmu: $(OBJS)
 ifeq ($(UNAME),Darwin)

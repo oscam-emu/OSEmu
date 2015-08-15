@@ -18,10 +18,12 @@
 #include <arpa/inet.h>
 #include <dirent.h>
 #include <errno.h>
+#include <pthread.h>
+#include <signal.h>
  
-#include "aes.h"
-#include "des.h"
-#include "md5.h"
+#include "cscrypt/aes.h"
+#include "cscrypt/des.h"
+#include "cscrypt/md5.h"
 
 #ifndef uchar
 typedef unsigned char uchar;
@@ -54,6 +56,7 @@ extern int8_t debuglog;
 extern int8_t havelogfile;
 extern char*  logfile;
 extern int bg;
+extern int32_t exit_oscam;
 
 struct aes_keys {
 	AES_KEY			aeskey_encrypt;		// encryption key needed by monitor and used by camd33, camd35

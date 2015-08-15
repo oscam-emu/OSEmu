@@ -1,5 +1,5 @@
-#include "globals.h"
-#include "helpfunctions.h"
+#include "../globals.h"
+#include "../helpfunctions.h"
 #include "viades.h"
 
 #define DES_IP              1

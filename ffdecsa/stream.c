@@ -514,22 +514,22 @@ DBG(dump_mem("",(unsigned char *)&iB[i][b],BYPG,BYPG));
     }
   }
   for(b=0;b<4;b++){
-    regs->A[aboff+8][b]=FFDECSA_FF0();
-    regs->A[aboff+9][b]=FFDECSA_FF0();
-    regs->B[aboff+8][b]=FFDECSA_FF0();
-    regs->B[aboff+9][b]=FFDECSA_FF0();
+    regs->A[aboff+8][b]=FF0();
+    regs->A[aboff+9][b]=FF0();
+    regs->B[aboff+8][b]=FF0();
+    regs->B[aboff+9][b]=FF0();
   }
   for(b=0;b<4;b++){
-    regs->X[b]=FFDECSA_FF0();
-    regs->Y[b]=FFDECSA_FF0();
-    regs->Z[b]=FFDECSA_FF0();
-    regs->D[b]=FFDECSA_FF0();
-    regs->E[b]=FFDECSA_FF0();
-    regs->F[b]=FFDECSA_FF0();
+    regs->X[b]=FF0();
+    regs->Y[b]=FF0();
+    regs->Z[b]=FF0();
+    regs->D[b]=FF0();
+    regs->E[b]=FF0();
+    regs->F[b]=FF0();
   }
-  regs->p=FFDECSA_FF0();
-  regs->q=FFDECSA_FF0();
-  regs->r=FFDECSA_FF0();
+  regs->p=FF0();
+  regs->q=FF0();
+  regs->r=FF0();
 #endif
 
 for(dbg=0;dbg<4;dbg++){
@@ -572,8 +572,8 @@ for(dbg=0;dbg<4;dbg++){
 /* 1110 0010  0011 0011   : lev  6: */ //tmp1=( ( fa|fb )^( ( fc&( fa|( fb^fd ) ) )^ALL_ONES ) );
 /* 0011 0110  1000 1101   : lev  5: */ //tmp2=( fa^( ( fb&fd )^( ( fa&fd )|fc ) ) );
 /* 0101 0101  1001 0011   : lev  5: */ //tmp3=( ( fa&fc )^( fa^( ( fa&fb )|fd ) ) );
-/* 1000 1110  1110 0001   : lev  7: */ tmp0=FFXOR(fa,FFXOR(fb,FFXOR(FFOR(FFXOR(FFOR(fa,fb),fc),FFXOR(fc,fd)),FFDECSA_FF1())));
-/* 1110 0010  0011 0011   : lev  6: */ tmp1=FFXOR(FFOR(fa,fb),FFXOR(FFAND(fc,FFOR(fa,FFXOR(fb,fd))),FFDECSA_FF1()));
+/* 1000 1110  1110 0001   : lev  7: */ tmp0=FFXOR(fa,FFXOR(fb,FFXOR(FFOR(FFXOR(FFOR(fa,fb),fc),FFXOR(fc,fd)),FF1())));
+/* 1110 0010  0011 0011   : lev  6: */ tmp1=FFXOR(FFOR(fa,fb),FFXOR(FFAND(fc,FFOR(fa,FFXOR(fb,fd))),FF1()));
 /* 0011 0110  1000 1101   : lev  5: */ tmp2=FFXOR(fa,FFXOR(FFAND(fb,fd),FFOR(FFAND(fa,fd),fc)));
 /* 0101 0101  1001 0011   : lev  5: */ tmp3=FFXOR(FFAND(fa,fc),FFXOR(fa,FFOR(FFAND(fa,fb),fd)));
       s1a=FFXOR(tmp0,FFAND(fe,tmp1));
@@ -589,9 +589,9 @@ for(dbg=0;dbg<4;dbg++){
 /* 0000 0011  0111 1011   : lev  5: */ //tmp1=( ( fa&( fb^fd ) )|( ( fa|fb )&fc ) );
 /* 1100 0110  1101 0010   : lev  6: */ //tmp2=( ( fb&fd )^( ( fa&fd )|( fb^( fc^ALL_ONES ) ) ) );
 /* 0001 1110  1111 0101   : lev  5: */ //tmp3=( ( fa&fd )|( fa^( fb^( fc&fd ) ) ) );
-/* 1001 1110  0110 0001   : lev  6: */ tmp0=FFXOR(fa,FFXOR(FFAND(fb,FFOR(fc,fd)),FFXOR(fc,FFXOR(fd,FFDECSA_FF1()))));
+/* 1001 1110  0110 0001   : lev  6: */ tmp0=FFXOR(fa,FFXOR(FFAND(fb,FFOR(fc,fd)),FFXOR(fc,FFXOR(fd,FF1()))));
 /* 0000 0011  0111 1011   : lev  5: */ tmp1=FFOR(FFAND(fa,FFXOR(fb,fd)),FFAND(FFOR(fa,fb),fc));
-/* 1100 0110  1101 0010   : lev  6: */ tmp2=FFXOR(FFAND(fb,fd),FFOR(FFAND(fa,fd),FFXOR(fb,FFXOR(fc,FFDECSA_FF1()))));
+/* 1100 0110  1101 0010   : lev  6: */ tmp2=FFXOR(FFAND(fb,fd),FFOR(FFAND(fa,fd),FFXOR(fb,FFXOR(fc,FF1()))));
 /* 0001 1110  1111 0101   : lev  5: */ tmp3=FFOR(FFAND(fa,fd),FFXOR(fa,FFXOR(fb,FFAND(fc,fd))));
       s2a=FFXOR(tmp0,FFAND(fe,tmp1));
       s2b=FFXOR(tmp2,FFAND(fe,tmp3));
@@ -602,9 +602,9 @@ for(dbg=0;dbg<4;dbg++){
 /* 0010 0111  1101 1000   : lev  4: */ //tmp2=( fa^( ( ( fb^fc )&fd )^fc ) );
 /* 1111 1111  1111 1111   : lev  0: */ //tmp3=ALL_ONES;
 /* 0100 1011  1001 0110   : lev  5: */ tmp0=FFXOR(fa,FFXOR(fb,FFXOR(FFAND(fc,FFOR(fa,fd)),fd)));
-/* 1101 0101  1000 1100   : lev  7: */ tmp1=FFXOR(FFAND(fa,fc),FFOR(FFXOR(fa,fd),FFXOR(FFOR(fb,fc),FFXOR(fd,FFDECSA_FF1()))));
+/* 1101 0101  1000 1100   : lev  7: */ tmp1=FFXOR(FFAND(fa,fc),FFOR(FFXOR(fa,fd),FFXOR(FFOR(fb,fc),FFXOR(fd,FF1()))));
 /* 0010 0111  1101 1000   : lev  4: */ tmp2=FFXOR(fa,FFXOR(FFAND(FFXOR(fb,fc),fd),fc));
-/* 1111 1111  1111 1111   : lev  0: */ tmp3=FFDECSA_FF1();
+/* 1111 1111  1111 1111   : lev  0: */ tmp3=FF1();
       s3a=FFXOR(tmp0,FFAND(FFNOT(fe),tmp1));
       s3b=FFXOR(tmp2,FFAND(fe,tmp3));
 
@@ -613,10 +613,10 @@ for(dbg=0;dbg<4;dbg++){
 /* 0010 1101  0110 0110   : lev  6: */ //tmp1=( ( fa&fb )^( fb^( ( ( fa|fc )&fd )^fc ) ) );
 /* 0110 0111  1101 0000   : lev  7: */ //tmp2=( fa^( ( fb&fc )|( ( ( fa&( fb^fd ) )|fc )^fd ) ) );
 /* 1111 1111  1111 1111   : lev  0: */ //tmp3=ALL_ONES;
-/* 1011 0101  0100 1001   : lev  7: */ tmp0=FFXOR(fa,FFOR(FFAND(fc,FFXOR(fa,fd)),FFXOR(fb,FFOR(fc,FFXOR(fd,FFDECSA_FF1())))));
+/* 1011 0101  0100 1001   : lev  7: */ tmp0=FFXOR(fa,FFOR(FFAND(fc,FFXOR(fa,fd)),FFXOR(fb,FFOR(fc,FFXOR(fd,FF1())))));
 /* 0010 1101  0110 0110   : lev  6: */ tmp1=FFXOR(FFAND(fa,fb),FFXOR(fb,FFXOR(FFAND(FFOR(fa,fc),fd),fc)));
 /* 0110 0111  1101 0000   : lev  7: */ tmp2=FFXOR(fa,FFOR(FFAND(fb,fc),FFXOR(FFOR(FFAND(fa,FFXOR(fb,fd)),fc),fd)));
-/* 1111 1111  1111 1111   : lev  0: */ tmp3=FFDECSA_FF1();
+/* 1111 1111  1111 1111   : lev  0: */ tmp3=FF1();
       s4a=FFXOR(tmp0,FFAND(fe,FFXOR(tmp1,tmp0)));
       s4b=FFXOR(FFXOR(s4a,tmp2),FFAND(fe,tmp3));
 
@@ -625,10 +625,10 @@ for(dbg=0;dbg<4;dbg++){
 /* 0110 1011  0000 1011   : lev  6: */ //tmp1=( fb^( ( fc^fd )&( fc^( fb|( fa^fd ) ) ) ) );
 /* 0001 1010  0111 1001   : lev  6: */ //tmp2=( ( fa&fc )^( fb^( ( fb|( fa^fc ) )&fd ) ) );
 /* 0101 1101  1101 0101   : lev  4: */ //tmp3=( ( ( fa^fb )&( fc^ALL_ONES ) )|fd );
-/* 1000 1111  0011 0010   : lev  7: */ tmp0=FFOR(FFXOR(FFAND(fa,FFOR(fb,fc)),fb),FFXOR(FFOR(FFXOR(fa,fc),fd),FFDECSA_FF1()));
+/* 1000 1111  0011 0010   : lev  7: */ tmp0=FFOR(FFXOR(FFAND(fa,FFOR(fb,fc)),fb),FFXOR(FFOR(FFXOR(fa,fc),fd),FF1()));
 /* 0110 1011  0000 1011   : lev  6: */ tmp1=FFXOR(fb,FFAND(FFXOR(fc,fd),FFXOR(fc,FFOR(fb,FFXOR(fa,fd)))));
 /* 0001 1010  0111 1001   : lev  6: */ tmp2=FFXOR(FFAND(fa,fc),FFXOR(fb,FFAND(FFOR(fb,FFXOR(fa,fc)),fd)));
-/* 0101 1101  1101 0101   : lev  4: */ tmp3=FFOR(FFAND(FFXOR(fa,fb),FFXOR(fc,FFDECSA_FF1())),fd);
+/* 0101 1101  1101 0101   : lev  4: */ tmp3=FFOR(FFAND(FFXOR(fa,fb),FFXOR(fc,FF1())),fd);
       s5a=FFXOR(tmp0,FFAND(fe,tmp1));
       s5b=FFXOR(tmp2,FFAND(fe,tmp3));
 
@@ -638,7 +638,7 @@ for(dbg=0;dbg<4;dbg++){
 /* 0101 1000  0110 0111   : lev  6: */ //tmp2=( ( fa&( fb|fc ) )^( fb^( ( fb&fc )|fd ) ) );
 /* 0001 0011  0000 0001   : lev  5: */ //tmp3=( fc&( ( fa&( fb^fd ) )^( fb|fd ) ) );
 /* 0011 0110  0010 1101   : lev  6: */ tmp0=FFXOR(FFAND(FFAND(fa,fc),fd),FFXOR(FFAND(fb,FFOR(fa,fd)),fc));
-/* 1110 1110  1011 1011   : lev  3: */ tmp1=FFXOR(FFAND(FFXOR(fa,fc),fd),FFDECSA_FF1());
+/* 1110 1110  1011 1011   : lev  3: */ tmp1=FFXOR(FFAND(FFXOR(fa,fc),fd),FF1());
 /* 0101 1000  0110 0111   : lev  6: */ tmp2=FFXOR(FFAND(fa,FFOR(fb,fc)),FFXOR(fb,FFOR(FFAND(fb,fc),fd)));
 /* 0001 0011  0000 0001   : lev  5: */ tmp3=FFAND(fc,FFXOR(FFAND(fa,FFXOR(fb,fd)),FFOR(fb,fd)));
       s6a=FFXOR(tmp0,FFAND(fe,tmp1));
@@ -652,7 +652,7 @@ for(dbg=0;dbg<4;dbg++){
 /* 0111 1000  1001 0110   : lev  5: */ tmp0=FFXOR(fb,FFOR(FFAND(fc,fd),FFXOR(fa,FFXOR(fc,fd))));
 /* 0100 1001  0101 1011   : lev  6: */ tmp1=FFAND(FFOR(fb,fd),FFOR(FFAND(fa,fc),FFXOR(fb,FFXOR(fc,fd))));
 /* 0100 1001  1011 1001   : lev  5: */ tmp2=FFXOR(FFOR(fa,fb),FFXOR(FFAND(fc,FFOR(fb,fd)),fd));
-/* 1111 1111  1101 1101   : lev  3: */ tmp3=FFOR(fd,FFXOR(FFAND(fa,fc),FFDECSA_FF1()));
+/* 1111 1111  1101 1101   : lev  3: */ tmp3=FFOR(fd,FFXOR(FFAND(fa,fc),FF1()));
       s7a=FFXOR(tmp0,FFAND(fe,tmp1));
       s7b=FFXOR(tmp2,FFAND(fe,tmp3));
 

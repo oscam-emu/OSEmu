@@ -33,4 +33,62 @@ void aes_set_key(struct aes_keys *aes, char *key);
 void aes_decrypt(struct aes_keys *aes, uchar *buf, int32_t n);
 void aes_encrypt_idx(struct aes_keys *aes, uchar *buf, int32_t n);
 
+#ifdef IPV6SUPPORT
+#define IN_ADDR_T struct in6_addr
+#define SOCKADDR sockaddr_storage
+#define ADDR_ANY in6addr_any
+#define DEFAULT_AF AF_INET6
+#else
+#define IN_ADDR_T in_addr_t
+#define SOCKADDR sockaddr_in
+#define ADDR_ANY INADDR_ANY
+#define DEFAULT_AF AF_INET
+#endif
+
+#ifdef IPV6SUPPORT
+#define GET_IP() *(struct in6_addr *)pthread_getspecific(getip)
+#define IP_ISSET(a) !cs_in6addr_isnull(&a)
+#define IP_EQUAL(a, b) cs_in6addr_equal(&a, &b)
+#define IP_ASSIGN(a, b) cs_in6addr_copy(&a, &b)
+#define SIN_GET_ADDR(a) ((struct sockaddr_in6 *)&a)->sin6_addr
+#define SIN_GET_PORT(a) ((struct sockaddr_in6 *)&a)->sin6_port
+#define SIN_GET_FAMILY(a) ((struct sockaddr_in6 *)&a)->sin6_family
+#else
+#define GET_IP() *(in_addr_t *)pthread_getspecific(getip)
+#define IP_ISSET(a) (a)
+#define IP_EQUAL(a, b) (a == b)
+#define IP_ASSIGN(a, b) (a = b)
+#define SIN_GET_ADDR(a) (a.sin_addr.s_addr)
+#define SIN_GET_PORT(a) (a.sin_port)
+#define SIN_GET_FAMILY(a) (a.sin_family)
+#endif
+
+void cs_resolve(const char *hostname, IN_ADDR_T *ip, struct SOCKADDR *sock, socklen_t *sa_len);
+
+#define SAFE_PTHREAD_1ARG(a, b, c) { \
+	int32_t pter = a(b); \
+	if(pter != 0) \
+	{ \
+		c("FATAL ERROR: %s() failed in %s with error %d %s\n", #a, __func__, pter, strerror(pter)); \
+		exit_oscam = 1;\
+	} }
+
+#define SAFE_ATTR_INIT(a)			SAFE_PTHREAD_1ARG(pthread_attr_init, a, cs_log)
+#define SAFE_MUTEX_LOCK(a)			SAFE_PTHREAD_1ARG(pthread_mutex_lock, a, cs_log)
+#define SAFE_MUTEX_UNLOCK(a)		SAFE_PTHREAD_1ARG(pthread_mutex_unlock, a, cs_log)
+
+#define SAFE_PTHREAD_2ARG(a, b, c, d) { \
+	int32_t pter = a(b, c); \
+	if(pter != 0) \
+	{ \
+		d("FATAL ERROR: %s() failed in %s with error %d %s\n", #a, __func__, pter, strerror(pter)); \
+		exit_oscam = 1;\
+	} }
+
+#define SAFE_ATTR_SETSTACKSIZE(a,b) SAFE_PTHREAD_2ARG(pthread_attr_setstacksize, a, b, cs_log)
+#define SAFE_MUTEX_INIT(a,b)		SAFE_PTHREAD_2ARG(pthread_mutex_init, a, b, cs_log)
+
+int32_t start_thread(char *nameroutine, void *startroutine, void *arg, pthread_t *pthread, int8_t detach, int8_t modify_stacksize);
+
+
 #endif

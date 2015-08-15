@@ -133,7 +133,7 @@
  * [including the GNU Public Licence.]
  */
 
-#include "globals.h"
+#include "../globals.h"
 #include "des.h"
 
 static const uint8_t weak_keys[16][8] = {
