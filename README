@@ -40,7 +40,8 @@ Run:
   -L (only allow local connections from localhost)
   -i (show OSEmu version info and exit)
   -r <stream source port>:<relay port> (enables stream relay server)
-  
+  -s <stream source host> (set stream relay source server host)
+
   Examples:
     /usr/bin/OSEmu -a user:password -p 11000 -b
     /usr/bin/OSEmu -a user:password -p 11000 -b -c /usr/keys -l /var/log/osemu.log -e

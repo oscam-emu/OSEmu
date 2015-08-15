@@ -103,13 +103,27 @@
 #define BITS_PER_GROUP GROUP_PARALLELISM
 #define BIPG BITS_PER_GROUP
 
+// platform specific
+
+#ifdef __arm__
+#if !defined(MEMALIGN_VAL) || MEMALIGN_VAL<4
+#undef MEMALIGN_VAL
+#define MEMALIGN_VAL 4
+#endif
+#define COPY_UNALIGNED_PKT
+#endif
+
+//
+
 #ifndef MALLOC
 #define MALLOC(X) malloc(X)
 #endif
 #ifndef FREE
 #define FREE(X) free(X)
 #endif
-#ifndef MEMALIGN
+#ifdef MEMALIGN_VAL
+#define MEMALIGN __attribute__((aligned(MEMALIGN_VAL)))
+#else
 #define MEMALIGN
 #endif
 
@@ -505,13 +519,13 @@ static void schedule_key(struct csa_key_t *key, const unsigned char *pk){
   key_schedule_stream(key->ck,key->iA,key->iB);
   for(by=0;by<8;by++){
     for(bi=0;bi<8;bi++){
-      key->ck_g[by][bi]=(key->ck[by]&(1<<bi))?FFDECSA_FF1():FFDECSA_FF0();
+      key->ck_g[by][bi]=(key->ck[by]&(1<<bi))?FF1():FF0();
     }
   }
   for(by=0;by<8;by++){
     for(bi=0;bi<4;bi++){
-      key->iA_g[by][bi]=(key->iA[by]&(1<<bi))?FFDECSA_FF1():FFDECSA_FF0();
-      key->iB_g[by][bi]=(key->iB[by]&(1<<bi))?FFDECSA_FF1():FFDECSA_FF0();
+      key->iA_g[by][bi]=(key->iA[by]&(1<<bi))?FF1():FF0();
+      key->iB_g[by][bi]=(key->iB[by]&(1<<bi))?FF1():FF0();
     }
   }
 // precalculations for block
@@ -574,6 +588,10 @@ int decrypt_packets(void *keys, unsigned char **cluster){
   MEMALIGN unsigned char stream_out[GROUP_PARALLELISM*8];
   MEMALIGN unsigned char ib[GROUP_PARALLELISM*8];
   MEMALIGN unsigned char block_out[GROUP_PARALLELISM*8];
+#ifdef COPY_UNALIGNED_PKT
+  unsigned char *unaligned[GROUP_PARALLELISM];
+  MEMALIGN unsigned char alignedBuff[GROUP_PARALLELISM][188];
+#endif
   struct stream_regs regs;
 
 //icc craziness  i=(int)&pad1;//////////align!!! FIXME
@@ -799,6 +817,14 @@ DBG(fprintf(stderr,"--- WARNING: DEBUGGING IS MORE DIFFICULT WHEN PROCESSING RAN
     encp[g]=g_pkt[g];
     DBG(fprintf(stderr,"header[%i]=%p (%02x)\n",g,encp[g],*(encp[g])));
     encp[g]+=g_offset[g]; // skip header
+#ifdef COPY_UNALIGNED_PKT
+    if(((int)encp[g])&0x03) {
+      memcpy(alignedBuff[g],encp[g],g_len[g]);
+      unaligned[g]=encp[g];
+      encp[g]=alignedBuff[g];
+      }
+    else unaligned[g]=0;
+#endif
     FFTABLEIN(stream_in,g,encp[g]);
   }
 //dump_mem("stream_in",stream_in,GROUP_PARALLELISM*8,BYPG);
@@ -873,6 +899,11 @@ DBG(dump_mem("23jd_after_ib_decrypt_data ",encp[g],8,8));
   // so do nothing
 
   DBG(fprintf(stderr,"returning advanced=%i\n",advanced));
+
+#ifdef COPY_UNALIGNED_PKT
+  for(g=0;g<grouped;g++)
+    if(unaligned[g]) memcpy(unaligned[g],alignedBuff[g],g_len[g]);
+#endif
 
   M_EMPTY(); // restore CPU multimedia state
 

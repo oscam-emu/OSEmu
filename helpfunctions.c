@@ -1,5 +1,8 @@
 #include "globals.h"
 #include "helpfunctions.h"
+#include <netdb.h>
+
+extern uint32_t osemu_stacksize;
 
 /* This function encapsulates malloc. It automatically adds an error message
    to the log if it failed and calls cs_exit(quiterror) if quiterror > -1.
@@ -374,5 +377,100 @@ void aes_encrypt_idx(struct aes_keys *aes, uchar *buf, int32_t n)
 	for (i=0; i+15<n; i+=16) {
 		AES_encrypt(buf+i, buf+i, &aes->aeskey_encrypt);
 	}
+}
+
+uint32_t cs_getIPfromHost(const char *hostname)
+{
+	uint32_t result = 0;
+
+	struct addrinfo hints, *res = NULL;
+	memset(&hints, 0, sizeof(hints));
+	hints.ai_socktype = SOCK_STREAM;
+	hints.ai_family = AF_INET;
+	hints.ai_protocol = IPPROTO_TCP;
+
+	int32_t err = getaddrinfo(hostname, NULL, &hints, &res);
+	if(err != 0 || !res || !res->ai_addr)
+	{
+		cs_log("can't resolve %s, error: %s", hostname, err ? gai_strerror(err) : "unknown");
+	}
+	else
+	{
+		result = ((struct sockaddr_in *)(res->ai_addr))->sin_addr.s_addr;
+	}
+	if(res) { freeaddrinfo(res); }
+
+	return result;
+}
+
+#ifdef IPV6SUPPORT
+void cs_getIPv6fromHost(const char *hostname, struct in6_addr *addr, struct sockaddr_storage *sa, socklen_t *sa_len)
+{
+	uint32_t ipv4addr = 0;
+	struct addrinfo hints, *res = NULL;
+	memset(&hints, 0, sizeof(hints));
+	hints.ai_socktype = SOCK_STREAM;
+	hints.ai_family = AF_UNSPEC;
+	hints.ai_protocol = IPPROTO_TCP;
+	int32_t err = getaddrinfo(hostname, NULL, &hints, &res);
+	if(err != 0 || !res || !res->ai_addr)
+	{
+		cs_log("can't resolve %s, error: %s", hostname, err ? gai_strerror(err) : "unknown");
+	}
+	else
+	{
+		ipv4addr = ((struct sockaddr_in *)(res->ai_addr))->sin_addr.s_addr;
+		if(res->ai_family == AF_INET)
+			{ cs_in6addr_ipv4map(addr, ipv4addr); }
+		else
+			{ IP_ASSIGN(*addr, SIN_GET_ADDR(*res->ai_addr)); }
+		if(sa)
+			{ memcpy(sa, res->ai_addr, res->ai_addrlen); }
+		if(sa_len)
+			{ *sa_len = res->ai_addrlen; }
+	}
+	if(res)
+		{ freeaddrinfo(res); }
+}
+#endif
+
+void cs_resolve(const char *hostname, IN_ADDR_T *ip, struct SOCKADDR *sock, socklen_t *sa_len)
+{
+#ifdef IPV6SUPPORT
+	cs_getIPv6fromHost(hostname, ip, sock, sa_len);
+#else
+	*ip = cs_getIPfromHost(hostname);
+	if(sa_len)
+		{ *sa_len = sizeof(*sock); }
+#endif
+}
+
+/* Starts a thread named nameroutine with the start function startroutine. */
+int32_t start_thread(char *nameroutine, void *startroutine, void *arg, pthread_t *pthread, int8_t detach, int8_t modify_stacksize)
+{
+	pthread_t temp;
+	pthread_attr_t attr;
+	
+	cs_log_dbg(D_TRACE, "starting thread %s", nameroutine);
+
+	SAFE_ATTR_INIT(&attr);
+	
+	if(modify_stacksize)
+ 		{ SAFE_ATTR_SETSTACKSIZE(&attr, osemu_stacksize); }
+ 		
+	int32_t ret = pthread_create(pthread == NULL ? &temp : pthread, &attr, startroutine, arg);
+	if(ret)
+		{ cs_log("ERROR: can't create %s thread (errno=%d %s)", nameroutine, ret, strerror(ret)); }
+	else
+	{
+		cs_log_dbg(D_TRACE, "%s thread started", nameroutine);
+		
+		if(detach)
+			{ pthread_detach(pthread == NULL ? temp : *pthread); }
+	}
+
+	pthread_attr_destroy(&attr);
+
+	return ret;
 }
 

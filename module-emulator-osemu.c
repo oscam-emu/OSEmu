@@ -29,7 +29,7 @@ void hdSurEncPhase2_D2_13_15(uint8_t *cws);
 // Version info
 uint32_t GetOSemuVersion(void)
 {
-	return atoi("$Version: 716 $"+10);
+	return atoi("$Version: 717 $"+10);
 }
 
 // Key DB
@@ -60,14 +60,15 @@ int32_t CharToBin(uint8_t *out, char *in, uint32_t inLen)
 	return 1;
 }
 
-KeyDataContainer CwKeys = { .EmuKeys=NULL, .keyCount=0, .keyMax=0 };
-KeyDataContainer ViKeys = { .EmuKeys=NULL, .keyCount=0, .keyMax=0 };
-KeyDataContainer NagraKeys = { .EmuKeys=NULL, .keyCount=0, .keyMax=0 };
-KeyDataContainer IrdetoKeys = { .EmuKeys=NULL, .keyCount=0, .keyMax=0 };
-KeyDataContainer NDSKeys = { .EmuKeys=NULL, .keyCount=0, .keyMax=0 };
-KeyDataContainer BissKeys = { .EmuKeys=NULL, .keyCount=0, .keyMax=0 };
-KeyDataContainer PowervuKeys = { .EmuKeys=NULL, .keyCount=0, .keyMax=0 };
-KeyDataContainer DreKeys = { .EmuKeys=NULL, .keyCount=0, .keyMax=0 };
+
+KeyDataContainer CwKeys = { NULL, 0, 0 };
+KeyDataContainer ViKeys = { NULL, 0, 0 };
+KeyDataContainer NagraKeys = { NULL, 0, 0 };
+KeyDataContainer IrdetoKeys = { NULL, 0, 0 };
+KeyDataContainer NDSKeys = { NULL, 0, 0 };
+KeyDataContainer BissKeys = { NULL, 0, 0 };
+KeyDataContainer PowervuKeys = { NULL, 0, 0 };
+KeyDataContainer DreKeys = { NULL, 0, 0 };
 
 static KeyDataContainer *GetKeyContainer(char identifier)
 {
@@ -2688,17 +2689,22 @@ static void PowervuCalculateCw(uint8_t seedType, uint8_t *seed, uint8_t csaUsed,
 	}
 }
 
-int8_t PowervuECM(uint8_t *ecm, uint8_t *dw, emu_stream_client_data *cdata, int8_t global_cdata)
+int8_t PowervuECM(uint8_t *ecm, uint8_t *dw, uint16_t srvid, emu_stream_client_key_data *cdata)
 {
+	int8_t ret = 1;
 	uint16_t ecmLen = GetEcmLen(ecm);
 	uint32_t ecmCrc32;
 	uint8_t nanoCmd, nanoChecksum, keyType, fixedKey, oddKey, bid, keyIndex, csaUsed;
-	uint16_t nanoLen, channelId;
+	uint16_t nanoLen, channelId, ecmSrvid;
 	uint32_t i, j, k;
 	uint8_t convolvedCw[8][8];
 	uint8_t ecmKey[7], tmpEcmKey[7], seedBase[4], baseCw[7], seed[8][8], cw[8][8];
 #ifdef WITH_EMU
 	emu_stream_cw_item *cw_item;
+	int8_t update_global_key = 0;
+	int8_t update_global_keys[EMU_STREAM_SERVER_MAX_CONNECTIONS];
+	
+	memset(update_global_keys, 0, sizeof(update_global_keys));
 #endif
 
 	if(ecmLen < 7)
@@ -2784,14 +2790,20 @@ int8_t PowervuECM(uint8_t *ecm, uint8_t *dw, emu_stream_client_data *cdata, int8
 
 			keyIndex = (fixedKey<<3) | (bid<<2) | oddKey;
 			channelId = b2i(2, ecm+i+23);
-			if(!GetPowervuKey(ecmKey, channelId, '0', keyIndex, 7, 1))
+			ecmSrvid = (channelId >> 4) | ((channelId & 0xF) << 12);
+			if(!GetPowervuKey(ecmKey, ecmSrvid, '0', keyIndex, 7, 1))
 			{
-				break;
+				if(!GetPowervuKey(ecmKey, channelId, '0', keyIndex, 7, 1))
+				{
+					ret = 2;
+					break;
+				}
 			}
 
 			PowervuDecrypt(ecm+i+8, 14, ecmKey);
 			if((ecm[i+6] != ecm[i+6+7]) || (ecm[i+6+8] != ecm[i+6+15]))
 			{
+				ret = 8;
 				break;
 			}
 			memcpy(tmpEcmKey, ecmKey, 7);
@@ -2799,12 +2811,31 @@ int8_t PowervuECM(uint8_t *ecm, uint8_t *dw, emu_stream_client_data *cdata, int8
 			PowervuDecrypt(ecm+i+27, 27, ecmKey);
 			if((ecm[i+23] != ecm[i+23+29]) || (ecm[i+23+1] != ecm[i+23+30]))
 			{
+				ret = 8;
 				break;
 			}
 
 			memcpy(seedBase, ecm+i+6+2, 4);
-						
-			if(cdata != NULL || global_cdata)
+	
+#ifdef WITH_EMU	
+			if(cdata == NULL)
+			{
+				SAFE_MUTEX_LOCK(&emu_fixed_key_srvid_mutex);
+				for(j=0; j<EMU_STREAM_SERVER_MAX_CONNECTIONS; j++)
+				{
+					if(!stream_server_has_ecm[j] && emu_stream_cur_srvid[j] == srvid)
+					{
+						update_global_key = 1;
+						update_global_keys[j] = 1;
+					}	
+				}
+				SAFE_MUTEX_UNLOCK(&emu_fixed_key_srvid_mutex);
+			}
+			
+			if(cdata != NULL || update_global_key)
+#else	
+			if(cdata != NULL)
+#endif
 			{
 				// Calculate all seeds
 				for(j=0; j<8; j++)
@@ -2818,13 +2849,17 @@ int8_t PowervuECM(uint8_t *ecm, uint8_t *dw, emu_stream_client_data *cdata, int8
 				// Calculate only video and audio1 seed
 				memcpy(ecmKey, tmpEcmKey, 7);
 				PowervuCalculateSeed(PVU_CW_VID, ecm+i, seedBase, ecmKey, seed[PVU_CW_VID]);
-				memcpy(ecmKey, tmpEcmKey, 7);
-				PowervuCalculateSeed(PVU_CW_A1, ecm+i, seedBase, ecmKey, seed[PVU_CW_A1]);	
+				//memcpy(ecmKey, tmpEcmKey, 7);
+				//PowervuCalculateSeed(PVU_CW_A1, ecm+i, seedBase, ecmKey, seed[PVU_CW_A1]);	
 			}
 			
 			memcpy(baseCw, ecm+i+6+8, 7);
 
-			if(cdata != NULL || global_cdata)
+#ifdef WITH_EMU
+			if(cdata != NULL || update_global_key)
+#else
+			if(cdata != NULL)
+#endif
 			{
 				// Calculate all cws
 				for(j=0; j<8; j++)
@@ -2840,15 +2875,23 @@ int8_t PowervuECM(uint8_t *ecm, uint8_t *dw, emu_stream_client_data *cdata, int8
 				}
 
 #ifdef WITH_EMU				
-				if(global_cdata)
+				if(update_global_key)
 				{
-					cw_item = (emu_stream_cw_item*)malloc(sizeof(emu_stream_cw_item));
-					if(cw_item != NULL)
+					for(j=0; j<EMU_STREAM_SERVER_MAX_CONNECTIONS; j++)
 					{
-						cw_item->csa_used = csaUsed;
-						cw_item->is_even = ecm[0] == 0x80 ? 1 : 0;
-						memcpy(cw_item->cw, cw, sizeof(cw));
-						ll_append(ll_emu_stream_delayed_keys, cw_item);
+						if(update_global_keys[j])
+						{
+							cw_item = (emu_stream_cw_item*)malloc(sizeof(emu_stream_cw_item));
+							if(cw_item != NULL)
+							{
+								cw_item->csa_used = csaUsed;
+								cw_item->is_even = ecm[0] == 0x80 ? 1 : 0;
+								cs_ftime(&cw_item->write_time);
+								add_ms_to_timeb(&cw_item->write_time, cfg.emu_stream_ecm_delay);
+								memcpy(cw_item->cw, cw, sizeof(cw));
+								ll_append(ll_emu_stream_delayed_keys[j], cw_item);
+							}
+						}
 					}
 				}
 				else 
@@ -2880,28 +2923,42 @@ int8_t PowervuECM(uint8_t *ecm, uint8_t *dw, emu_stream_client_data *cdata, int8
 					}
 #ifdef WITH_EMU
 				}
-#endif
-
-				memcpy(dw, cw[PVU_CW_VID], 8);
-				memcpy(&dw[8], cw[PVU_CW_A1], 8);			
+#endif		
 			}
 			else
 			{
 				// Calculate only video and audio1 cw
 				PowervuCalculateCw(PVU_CW_VID, seed[PVU_CW_VID], csaUsed, convolvedCw[PVU_CW_VID], cw[PVU_CW_VID], baseCw);
-				PowervuCalculateCw(PVU_CW_A1, seed[PVU_CW_A1], csaUsed, convolvedCw[PVU_CW_A1], cw[PVU_CW_A1], baseCw);
-
-				memcpy(dw, cw[PVU_CW_VID], 8);
-				memcpy(&dw[8], cw[PVU_CW_A1], 8);
-				
+				//PowervuCalculateCw(PVU_CW_A1, seed[PVU_CW_A1], csaUsed, convolvedCw[PVU_CW_A1], cw[PVU_CW_A1], baseCw);
+			}
+			
+			memset(dw, 0, 16);
+			
+			if(ecm[0] == 0x80)
+			{
+				memcpy(dw, cw[PVU_CW_VID], 8);		
+			
 				if(csaUsed)
 				{
-					for(k = 0; k < 16; k += 4) {
+					for(k = 0; k < 8; k += 4)
+					{
 						dw[k + 3] = ((dw[k] + dw[k + 1] + dw[k + 2]) & 0xff);
 					}
 				}
 			}
-			
+			else
+			{
+				memcpy(&dw[8], cw[PVU_CW_VID], 8);
+				
+				if(csaUsed)
+				{
+					for(k = 8; k < 16; k += 4)
+					{
+						dw[k + 3] = ((dw[k] + dw[k + 1] + dw[k + 2]) & 0xff);
+					}
+				}
+			}
+						
 			return 0;
 
 		default:
@@ -2910,7 +2967,7 @@ int8_t PowervuECM(uint8_t *ecm, uint8_t *dw, emu_stream_client_data *cdata, int8
 		i += nanoLen;
 	}
 
-	return 1;
+	return ret;
 }
 
 
@@ -3124,7 +3181,7 @@ char* GetProcessECMErrorReason(int8_t result)
 int8_t ProcessECM(int16_t ecmDataLen, uint16_t caid, uint32_t provider, const uint8_t *ecm,
 				  uint8_t *dw, uint16_t srvid, uint16_t ecmpid)
 {
-	int8_t result = 1, i, use_gkey = 0;
+	int8_t result = 1, i;
 	uint8_t ecmCopy[EMU_MAX_ECM_LEN];
 	uint16_t ecmLen = 0;
 
@@ -3166,11 +3223,7 @@ int8_t ProcessECM(int16_t ecmDataLen, uint16_t caid, uint32_t provider, const ui
 		result = BissECM(caid,ecm,ecmDataLen,dw,srvid,ecmpid);
 	}
 	else if((caid>>8)==0x0E) {
-#ifdef WITH_EMU
-		if(!stream_server_has_ecm && srvid == emu_stream_cur_srvid)
-			{ use_gkey = 1; } 
-#endif
-		result = PowervuECM(ecmCopy,dw,NULL,use_gkey);
+		result = PowervuECM(ecmCopy,dw,srvid,NULL);
 	}
 	else if(caid==0x4AE1) {
 		result = Drecrypt2ECM(caid,provider,ecmCopy,dw);
@@ -3715,7 +3768,7 @@ static int8_t PowervuEMM(uint8_t *emm, uint32_t *keysAdded)
 	snprintf(keyName, EMU_MAX_CHAR_KEYNAME, "%.8X", uniqueAddress);
 	if(!GetPowervuEmmKey(emmKey, 0, keyName, 7, 1, &channelId))
 	{
-		return 0;
+		return 2;
 	}
 
 	for(i=19; i+27<=emmLen; i+=27) {
@@ -3892,7 +3945,7 @@ static int8_t Drecrypt2EMM(uint16_t caid, uint32_t provId, uint8_t *emm, uint32_
 	cs_hexdump(0, &emm[0x6D], 32, keyValue, sizeof(keyValue));
 	cs_log("[Emu] Key found in EMM: D %.6X %s %s", keyIdent, newKeyName, keyValue); 	
 	
-	return 1;
+	return 0;
 }
 
 int32_t GetDrecryptHexserials(uint16_t caid, uint8_t *hexserials, int32_t length, int32_t* count)

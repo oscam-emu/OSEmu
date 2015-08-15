@@ -1,8 +1,8 @@
 UNAME := $(shell uname -s)
 CC = gcc
 STRIP = strip
-CFLAGS=-I. 
-LFLAGS=-lpthread 
+CFLAGS=-I.
+LFLAGS=-lpthread
 SRCS = cscrypt/bn_ctx.c cscrypt/bn_lib.c cscrypt/bn_exp.c cscrypt/bn_sqr.c cscrypt/bn_div.c \
 cscrypt/bn_asm.c cscrypt/bn_shift.c cscrypt/bn_word.c cscrypt/bn_add.c cscrypt/bn_mul.c \
 cscrypt/aes.c cscrypt/i_cbc.c cscrypt/i_ecb.c cscrypt/i_skey.c cscrypt/mem.c cscrypt/des.c \
@@ -18,8 +18,8 @@ all: OSEmu
 -include $(OBJS:.o=.d)
 
 %.o: %.c
-	$(CC) -Wall -c -o $@ $< $(CFLAGS)
-	$(CC) -Wall -MM $(CFLAGS) $*.c > $*.d
+	$(CC) -Wall -O2 -c -o $@ $< $(CFLAGS)
+	$(CC) -Wall -O2 -MM $(CFLAGS) $*.c > $*.d
 
 OSEmu: $(OBJS)
 ifeq ($(UNAME),Darwin)

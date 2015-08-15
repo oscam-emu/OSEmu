@@ -1,8 +1,6 @@
 #include "globals.h"
 #include "helpfunctions.h"
 #include "module-emulator-osemu.h"
-#include <pthread.h>
-#include <signal.h>
 
 static struct aes_keys cl_aes_keys;
 static uchar cl_ucrc[4];
@@ -12,7 +10,7 @@ static unsigned char cl_passwd[128];
 static int cl_sockfd;
 static struct sockaddr_in cl_socket;
 
-static uint32_t osemu_stacksize = 0;
+uint32_t osemu_stacksize = 0;
 
 int8_t debuglog = 0;
 int8_t havelogfile = 0;
@@ -355,7 +353,7 @@ static void camd35_process_emm(uchar *buf, int buflen)
 }
 
 void show_usage(char *cmdline) {
-	cs_log("Usage: %s -a <user>:<password> -p <port> [-b -v -e -c <path> -l <logfile> -i -L -r <stream source port>:<osemu stream rely port>]", cmdline);
+	cs_log("Usage: %s -a <user>:<password> -p <port> [-b -v -e -c <path> -l <logfile> -i -L -r <stream source port>:<osemu stream rely port> -s <stream source host>]", cmdline);
 	cs_log("-b enables to start as a daemon (background)");
 	cs_log("-v enables a more verbose output (debug output)");
 	cs_log("-e enables emm au");
@@ -364,27 +362,8 @@ void show_usage(char *cmdline) {
 	cs_log("-L only allow local connections");
 	cs_log("-i show version info and exit");
 	cs_log("-r <stream source port>:<relay port> enables stream relay server");
+	cs_log("-s <stream source host> set stream relay source server host");
 }
-
-#define SAFE_PTHREAD_1ARG(a, b, c) { \
-	int32_t pter = a(b); \
-	if(pter != 0) \
-	{ \
-		c("FATAL ERROR: %s() failed in %s with error %d %s\n", #a, __func__, pter, strerror(pter)); \
-		exit_oscam = 1;\
-	} }
-
-#define SAFE_ATTR_INIT(a)			SAFE_PTHREAD_1ARG(pthread_attr_init, a, cs_log)
-
-#define SAFE_PTHREAD_2ARG(a, b, c, d) { \
-	int32_t pter = a(b, c); \
-	if(pter != 0) \
-	{ \
-		d("FATAL ERROR: %s() failed in %s with error %d %s\n", #a, __func__, pter, strerror(pter)); \
-		exit_oscam = 1;\
-	} }
-
-#define SAFE_ATTR_SETSTACKSIZE(a,b) SAFE_PTHREAD_2ARG(pthread_attr_setstacksize, a, b, cs_log)
 
 static void fix_stacksize(void)
 {
@@ -414,35 +393,6 @@ static void fix_stacksize(void)
 	}
 }
 
-/* Starts a thread named nameroutine with the start function startroutine. */
-static int32_t start_thread(char *nameroutine, void *startroutine, void *arg, pthread_t *pthread, int8_t detach, int8_t modify_stacksize)
-{
-	pthread_t temp;
-	pthread_attr_t attr;
-	
-	cs_log_dbg(D_TRACE, "starting thread %s", nameroutine);
-
-	SAFE_ATTR_INIT(&attr);
-	
-	if(modify_stacksize)
- 		{ SAFE_ATTR_SETSTACKSIZE(&attr, osemu_stacksize); }
- 		
-	int32_t ret = pthread_create(pthread == NULL ? &temp : pthread, &attr, startroutine, arg);
-	if(ret)
-		{ cs_log("ERROR: can't create %s thread (errno=%d %s)", nameroutine, ret, strerror(ret)); }
-	else
-	{
-		cs_log_dbg(D_TRACE, "%s thread started", nameroutine);
-		
-		if(detach)
-			{ pthread_detach(pthread == NULL ? temp : *pthread); }
-	}
-
-	pthread_attr_destroy(&attr);
-
-	return ret;
-}
-
 static void sigpipe_handler(int signum)
 {
 	return;
@@ -463,7 +413,7 @@ int main(int argc, char**argv)
 
 	cs_log("OSEmu version %d", GetOSemuVersion());
 
-	while ((opt = getopt(argc, argv, "bva:p:c:l:eiLr:")) != -1) {
+	while ((opt = getopt(argc, argv, "bva:p:c:l:eiLr:s:")) != -1) {
 		switch (opt) {
 		case 'b':
 			bg = 1;
@@ -507,6 +457,10 @@ int main(int argc, char**argv)
 				emu_stream_relay_port = atoi(ptr);
 			}
 			start_relay = 1;
+			break;
+		}
+		case 's': {
+			cs_strncpy(emu_stream_source_host, optarg, sizeof(emu_stream_source_host));
 			break;
 		}
 		default:

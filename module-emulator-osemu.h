@@ -97,6 +97,6 @@
 #define PVU_CW_UTL 6	// UTiLity
 #define PVU_CW_VBI 7	// Vertical Blanking Interval
 		  
-	int8_t PowervuECM(uint8_t *ecm, uint8_t *dw, emu_stream_client_data *cdata, int8_t global_cdata);
+	int8_t PowervuECM(uint8_t *ecm, uint8_t *dw, uint16_t srvid, emu_stream_client_key_data *cdata);
 		
 #endif
