@@ -6,6 +6,8 @@
 #include "oscam-config.h"
 #include "oscam-time.h"
 #include "oscam-net.h"
+
+extern int32_t exit_oscam;
 #endif
 
 #include "ffdecsa/ffdecsa.h"
@@ -18,11 +20,12 @@ typedef struct
 	int32_t connid;	
 } emu_stream_client_conn_data;
 
-extern int32_t exit_oscam;
 int8_t stream_server_thread_init = 0;
-int32_t emu_stream_source_port = 8001;
-int32_t emu_stream_relay_port = 17999;
 char emu_stream_source_host[256] = {"127.0.0.1"};
+int32_t emu_stream_source_port = 8001;
+char *emu_stream_source_auth = NULL;
+int32_t emu_stream_relay_port = 17999;
+
 
 static uint8_t emu_stream_server_mutex_init = 0;
 static pthread_mutex_t emu_stream_server_mutex;
@@ -264,11 +267,19 @@ static void ParseECMData(emu_stream_client_data *cdata)
 		|| ((cdata->ecm_nb - data[0xb]) > 5))
 	{
 		cdata->ecm_nb = data[0xb];
+#ifdef WITH_EMU
 		PowervuECM(data, dcw, cdata->srvid, &cdata->key);
+#else
+		PowervuECM(data, dcw, &cdata->key);
+#endif
 	}
 }
 
+#ifdef WITH_EMU
 static void ParseTSPackets(emu_stream_client_conn_data *conndata, emu_stream_client_data *data, uint8_t *stream_buf, uint32_t bufLength, uint16_t packetSize)
+#else
+static void ParseTSPackets(emu_stream_client_data *data, uint8_t *stream_buf, uint32_t bufLength, uint16_t packetSize)
+#endif
 {
 	uint32_t i, j, k;
 	uint32_t tsHeader;
@@ -289,7 +300,7 @@ static void ParseTSPackets(emu_stream_client_conn_data *conndata, emu_stream_cli
 	uint32_t ce =1;  //video cluster end
 	uint32_t csa[4];  //cluster index for audio tracks
 	
-	for(i=0; (i+packetSize-1)<bufLength; i+=packetSize)
+	for(i=0; i<bufLength; i+=packetSize)
 	{		
 		tsHeader = b2i(4, stream_buf+i);
 		pid = (tsHeader & 0x1fff00) >> 8;
@@ -358,7 +369,8 @@ static void ParseTSPackets(emu_stream_client_conn_data *conndata, emu_stream_cli
 		if(!stream_server_has_ecm[conndata->connid])
 		{
 			keydata = &emu_fixed_key_data[conndata->connid];
-			SAFE_MUTEX_LOCK(&emu_fixed_key_data_mutex[conndata->connid]); 
+			SAFE_MUTEX_LOCK(&emu_fixed_key_data_mutex[conndata->connid]);
+			data->key.pvu_csa_used = keydata->pvu_csa_used;
 		}
 		else
 		{
@@ -538,12 +550,23 @@ static int32_t connect_to_stream(char *http_buf, int32_t http_buf_len, char *str
 	
 	if(connect(streamfd, (struct sockaddr *)&cservaddr, sizeof(cservaddr)) == -1)
 		{ return -1; }
-			
-	snprintf(http_buf, http_buf_len, "GET %s HTTP/1.1\nHost: %s:%u\n"
+	if(emu_stream_source_auth)
+	{
+		snprintf(http_buf, http_buf_len, "GET %s HTTP/1.1\nHost: %s:%u\n"
+				"User-Agent: Mozilla/5.0 (Windows NT 6.1; WOW64; rv:38.0) Gecko/20100101 Firefox/38.0\n"
+				"Accept: text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8\n"
+				"Accept-Language: en-US\n"
+				"Authorization: Basic %s\n"
+				"Connection: keep-alive\n\n", stream_path, emu_stream_source_host, emu_stream_source_port, emu_stream_source_auth);		
+	}
+	else			
+	{
+		snprintf(http_buf, http_buf_len, "GET %s HTTP/1.1\nHost: %s:%u\n"
 				"User-Agent: Mozilla/5.0 (Windows NT 6.1; WOW64; rv:38.0) Gecko/20100101 Firefox/38.0\n"
 				"Accept: text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8\n"
 				"Accept-Language: en-US\n"
 				"Connection: keep-alive\n\n", stream_path, emu_stream_source_host, emu_stream_source_port);
+	}
 
 	if(send(streamfd, http_buf, strlen(http_buf), 0) == -1)
 		{ return -1; }
@@ -584,8 +607,11 @@ static void stream_client_disconnect(emu_stream_client_conn_data *conndata)
 static void *stream_client_handler(void *arg)
 {
 #define EMU_DVB_MAX_TS_PACKETS 256
-#define EMU_DVB_BUFFER_SIZE 188*EMU_DVB_MAX_TS_PACKETS
-#define EMU_DVB_BUFFER_WAIT 188*(EMU_DVB_MAX_TS_PACKETS-128) 
+#define EMU_DVB_BUFFER_SIZE_CSA 188*EMU_DVB_MAX_TS_PACKETS
+#define EMU_DVB_BUFFER_WAIT_CSA 188*(EMU_DVB_MAX_TS_PACKETS-128) 
+#define EMU_DVB_BUFFER_SIZE_DES 188*32
+#define EMU_DVB_BUFFER_WAIT_DES 188*29
+#define EMU_DVB_BUFFER_SIZE EMU_DVB_BUFFER_SIZE_CSA
 
 	emu_stream_client_conn_data *conndata = (emu_stream_client_conn_data *)arg;
 	char *http_buf, stream_path[255], stream_path_copy[255];
@@ -594,6 +620,7 @@ static void *stream_client_handler(void *arg)
 	uint8_t *stream_buf;
 	uint16_t packetCount = 0, packetSize = 0, startOffset = 0;
 	uint32_t remainingDataPos, remainingDataLength;
+	int32_t cur_dvb_buffer_size, cur_dvb_buffer_wait;
 	int32_t bytesRead = 0;
 	emu_stream_client_data *data;
 	int8_t streamConnectErrorCount = 0;
@@ -705,7 +732,18 @@ static void *stream_client_handler(void *arg)
 		
 		while(!exit_oscam && clientStatus != -1 && streamStatus != -1 && streamConnectErrorCount < 3  && streamDataErrorCount < 15)
 		{
-			streamStatus = recv(streamfd, stream_buf+bytesRead, EMU_DVB_BUFFER_SIZE-bytesRead, MSG_WAITALL);
+			if(data->key.pvu_csa_used)
+			{
+				cur_dvb_buffer_size = EMU_DVB_BUFFER_SIZE_CSA;
+				cur_dvb_buffer_wait = EMU_DVB_BUFFER_WAIT_CSA;
+			}
+			else
+			{
+				cur_dvb_buffer_size = EMU_DVB_BUFFER_SIZE_DES;
+				cur_dvb_buffer_wait = EMU_DVB_BUFFER_WAIT_DES;				
+			}
+			
+			streamStatus = recv(streamfd, stream_buf+bytesRead, cur_dvb_buffer_size-bytesRead, MSG_WAITALL);
 			if(streamStatus == -1)
 				{ break; }
 		
@@ -717,7 +755,7 @@ static void *stream_client_handler(void *arg)
 				continue;	
 			}
 			
-			if(streamStatus < EMU_DVB_BUFFER_SIZE-bytesRead) // probably just received header but no stream
+			if(streamStatus < cur_dvb_buffer_size-bytesRead) // probably just received header but no stream
 			{
 				if(!bytesRead && streamStatus > 13 &&
 					sscanf((const char*)stream_buf, "HTTP/%3s %d ", http_version , &http_status_code) == 2 &&
@@ -728,12 +766,16 @@ static void *stream_client_handler(void *arg)
 					cs_sleepms(100);
 					break;
 				}
+				else
+				{
+					cs_log_dbg(0, "[Emu] warning: non-full buffer from stream source");
+				}
 			}
 
 			streamConnectErrorCount = 0;	
 			bytesRead += streamStatus;
 			
-			if(bytesRead >= EMU_DVB_BUFFER_WAIT)
+			if(bytesRead >= cur_dvb_buffer_wait)
 			{	
 				startOffset = 0;
 				if(stream_buf[0] != 0x47 || packetSize == 0)
@@ -748,8 +790,11 @@ static void *stream_client_handler(void *arg)
 				{
 					packetCount = ((bytesRead-startOffset) / packetSize);
 
-					ParseTSPackets(conndata, data, stream_buf+startOffset, bytesRead-startOffset, packetSize);
-					
+#ifdef WITH_EMU
+					ParseTSPackets(conndata, data, stream_buf+startOffset, packetCount*packetSize, packetSize);
+#else
+					ParseTSPackets(data, stream_buf+startOffset, packetCount*packetSize, packetSize);
+#endif					
 					clientStatus = send(conndata->connfd, stream_buf+startOffset, packetCount*packetSize, 0);
 						 
 					remainingDataPos = startOffset+(packetCount*packetSize);
@@ -803,12 +848,12 @@ void *stream_server(void *UNUSED(a))
 		stream_server_has_ecm[i] = 0;
 	}
 	SAFE_MUTEX_UNLOCK(&emu_fixed_key_srvid_mutex);
+#endif
 	
 	for(i=0; i<EMU_STREAM_SERVER_MAX_CONNECTIONS; i++)
 	{
 		gconnfd[i] = -1;
 	}
-#endif
 	
 	glistenfd = socket(AF_INET, SOCK_STREAM, 0);
 	if(glistenfd == -1)
@@ -884,7 +929,7 @@ void *stream_server(void *UNUSED(a))
 			cs_log("[Emu] error: stream server client dropped because of too much connections");
 		}
 		
-		cs_sleepms(100);
+		cs_sleepms(20);
 	} 
 	
 	close(glistenfd);

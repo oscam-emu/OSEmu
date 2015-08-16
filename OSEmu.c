@@ -353,16 +353,23 @@ static void camd35_process_emm(uchar *buf, int buflen)
 }
 
 void show_usage(char *cmdline) {
-	cs_log("Usage: %s -a <user>:<password> -p <port> [-b -v -e -c <path> -l <logfile> -i -L -r <stream source port>:<osemu stream rely port> -s <stream source host>]", cmdline);
+	
+	cs_log("Usage: %s -a <user>:<password> -p <port> "
+			"[-b -v -e -c <path> -l <logfile> -i -L "
+			"-r <stream source port>:<osemu stream rely port> -s <stream source host> "
+			"-t <stream source user>:<stream source password>"
+			"]", cmdline);
+			
 	cs_log("-b enables to start as a daemon (background)");
-	cs_log("-v enables a more verbose output (debug output)");
-	cs_log("-e enables emm au");
 	cs_log("-c sets path of SoftCam.Key");
+	cs_log("-e enables emm au");
+	cs_log("-i show version info and exit");
 	cs_log("-l sets log file");
 	cs_log("-L only allow local connections");
-	cs_log("-i show version info and exit");
 	cs_log("-r <stream source port>:<relay port> enables stream relay server");
-	cs_log("-s <stream source host> set stream relay source server host");
+	cs_log("-s <stream source host> set stream relay source server host (default: 127.0.0.1)");
+	cs_log("-t <stream source user>:<strean source password> set stream relay source user and password (default: none)");
+	cs_log("-v enables a more verbose output (debug output)");
 }
 
 static void fix_stacksize(void)
@@ -393,7 +400,7 @@ static void fix_stacksize(void)
 	}
 }
 
-static void sigpipe_handler(int signum)
+static void sigpipe_handler(int UNUSED(signum))
 {
 	return;
 }
@@ -413,7 +420,7 @@ int main(int argc, char**argv)
 
 	cs_log("OSEmu version %d", GetOSemuVersion());
 
-	while ((opt = getopt(argc, argv, "bva:p:c:l:eiLr:s:")) != -1) {
+	while ((opt = getopt(argc, argv, "bva:p:c:l:eiLr:s:t:")) != -1) {
 		switch (opt) {
 		case 'b':
 			bg = 1;
@@ -461,6 +468,10 @@ int main(int argc, char**argv)
 		}
 		case 's': {
 			cs_strncpy(emu_stream_source_host, optarg, sizeof(emu_stream_source_host));
+			break;
+		}
+		case 't': {
+			b64encode(optarg, strlen(optarg), &emu_stream_source_auth);
 			break;
 		}
 		default:

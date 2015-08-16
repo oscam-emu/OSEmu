@@ -29,7 +29,7 @@ void hdSurEncPhase2_D2_13_15(uint8_t *cws);
 // Version info
 uint32_t GetOSemuVersion(void)
 {
-	return atoi("$Version: 717 $"+10);
+	return atoi("$Version: 718 $"+10);
 }
 
 // Key DB
@@ -2689,7 +2689,11 @@ static void PowervuCalculateCw(uint8_t seedType, uint8_t *seed, uint8_t csaUsed,
 	}
 }
 
+#ifdef WITH_EMU
 int8_t PowervuECM(uint8_t *ecm, uint8_t *dw, uint16_t srvid, emu_stream_client_key_data *cdata)
+#else
+int8_t PowervuECM(uint8_t *ecm, uint8_t *dw, emu_stream_client_key_data *cdata)
+#endif
 {
 	int8_t ret = 1;
 	uint16_t ecmLen = GetEcmLen(ecm);
@@ -3223,7 +3227,11 @@ int8_t ProcessECM(int16_t ecmDataLen, uint16_t caid, uint32_t provider, const ui
 		result = BissECM(caid,ecm,ecmDataLen,dw,srvid,ecmpid);
 	}
 	else if((caid>>8)==0x0E) {
+#ifdef WITH_EMU
 		result = PowervuECM(ecmCopy,dw,srvid,NULL);
+#else
+		result = PowervuECM(ecmCopy,dw,NULL);
+#endif
 	}
 	else if(caid==0x4AE1) {
 		result = Drecrypt2ECM(caid,provider,ecmCopy,dw);

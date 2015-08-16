@@ -90,5 +90,7 @@ void cs_resolve(const char *hostname, IN_ADDR_T *ip, struct SOCKADDR *sock, sock
 
 int32_t start_thread(char *nameroutine, void *startroutine, void *arg, pthread_t *pthread, int8_t detach, int8_t modify_stacksize);
 
+size_t b64encode(const char *in, size_t inlen, char **out);
+void base64_encode(const char *in, size_t inlen, char *out, size_t outlen);
 
 #endif
