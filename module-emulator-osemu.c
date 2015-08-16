@@ -29,13 +29,13 @@ void hdSurEncPhase2_D2_13_15(uint8_t *cws);
 // Version info
 uint32_t GetOSemuVersion(void)
 {
-	return atoi("$Version: 718 $"+10);
+	return atoi("$Version: 719 $"+10);
 }
 
 // Key DB
 static char *emu_keyfile_path = NULL;
 
-void set_emu_keyfile_path(char *path)
+void set_emu_keyfile_path(const char *path)
 {
 	if(emu_keyfile_path != NULL) {
 		free(emu_keyfile_path);
@@ -48,7 +48,7 @@ void set_emu_keyfile_path(char *path)
 	emu_keyfile_path[strlen(path)] = 0;
 }
 
-int32_t CharToBin(uint8_t *out, char *in, uint32_t inLen)
+int32_t CharToBin(uint8_t *out, const char *in, uint32_t inLen)
 {
 	uint32_t i, tmp;
 	for(i=0; i<inLen/2; i++) {
@@ -94,7 +94,7 @@ static KeyDataContainer *GetKeyContainer(char identifier)
 	}
 }
 
-static void WriteKeyToFile(char identifier, uint32_t provider, char *keyName, uint8_t *key, uint32_t keyLength)
+static void WriteKeyToFile(char identifier, uint32_t provider, const char *keyName, uint8_t *key, uint32_t keyLength)
 {
 	char line[1200], dateText[100];
 	uint32_t pathLength;
@@ -178,7 +178,7 @@ static void WriteKeyToFile(char identifier, uint32_t provider, char *keyName, ui
 	fclose(file);
 }
 
-static int32_t SetKey(char identifier, uint32_t provider, char *keyName, uint8_t *key,
+static int32_t SetKey(char identifier, uint32_t provider, const char *keyName, uint8_t *key,
 					  uint32_t keyLength, uint8_t writeKey)
 {
 	uint32_t i;
@@ -339,7 +339,7 @@ static int32_t SetKey(char identifier, uint32_t provider, char *keyName, uint8_t
 	return 1;
 }
 
-static int32_t FindKey(char identifier, uint32_t provider, char *keyName, uint8_t *key, uint32_t maxKeyLength,
+static int32_t FindKey(char identifier, uint32_t provider, const char *keyName, uint8_t *key, uint32_t maxKeyLength,
 					   uint8_t isCriticalKey, uint8_t keyRef, uint8_t matchLength, uint32_t *getProvider)
 {
 	uint32_t i;
@@ -417,7 +417,7 @@ static int32_t UpdateKey(char identifier, uint32_t provider, char *keyName, uint
 }
 
 
-uint8_t read_emu_keyfile(char *opath)
+uint8_t read_emu_keyfile(const char *opath)
 {
 	char line[1200], keyName[EMU_MAX_CHAR_KEYNAME], keyString[1026];
 	uint32_t pathLength, provider, keyLength;
@@ -2699,10 +2699,13 @@ int8_t PowervuECM(uint8_t *ecm, uint8_t *dw, emu_stream_client_key_data *cdata)
 	uint16_t ecmLen = GetEcmLen(ecm);
 	uint32_t ecmCrc32;
 	uint8_t nanoCmd, nanoChecksum, keyType, fixedKey, oddKey, bid, keyIndex, csaUsed;
-	uint16_t nanoLen, channelId, ecmSrvid;
+	uint16_t nanoLen;
+	uint32_t channelId, ecmSrvid, channelIdSearch, ecmSrvidSearch, keyCounter;
 	uint32_t i, j, k;
 	uint8_t convolvedCw[8][8];
 	uint8_t ecmKey[7], tmpEcmKey[7], seedBase[4], baseCw[7], seed[8][8], cw[8][8];
+	uint8_t decrypt_ok;
+	uint8_t ecmPart1[14], ecmPart2[27];
 #ifdef WITH_EMU
 	emu_stream_cw_item *cw_item;
 	int8_t update_global_key = 0;
@@ -2795,29 +2798,50 @@ int8_t PowervuECM(uint8_t *ecm, uint8_t *dw, emu_stream_client_key_data *cdata)
 			keyIndex = (fixedKey<<3) | (bid<<2) | oddKey;
 			channelId = b2i(2, ecm+i+23);
 			ecmSrvid = (channelId >> 4) | ((channelId & 0xF) << 12);
-			if(!GetPowervuKey(ecmKey, ecmSrvid, '0', keyIndex, 7, 1))
+			
+			decrypt_ok = 0;
+			keyCounter = 0;
+			
+			memcpy(ecmPart1, ecm+i+8, 14);
+			memcpy(ecmPart2, ecm+i+27, 27);
+			
+			do
 			{
-				if(!GetPowervuKey(ecmKey, channelId, '0', keyIndex, 7, 1))
+				channelIdSearch = channelId | (keyCounter << 16);
+				ecmSrvidSearch = ecmSrvid | (keyCounter << 16);
+				
+				if(!GetPowervuKey(ecmKey, ecmSrvidSearch, '0', keyIndex, 7, 0))
 				{
-					ret = 2;
-					break;
+					if(!GetPowervuKey(ecmKey, channelIdSearch, '0', keyIndex, 7, 0))
+					{
+						GetPowervuKey(ecmKey, ecmSrvidSearch, '0', keyIndex, 7, 1);
+						return 2;
+					}
 				}
-			}
 
-			PowervuDecrypt(ecm+i+8, 14, ecmKey);
-			if((ecm[i+6] != ecm[i+6+7]) || (ecm[i+6+8] != ecm[i+6+15]))
-			{
-				ret = 8;
+				PowervuDecrypt(ecm+i+8, 14, ecmKey);
+				if((ecm[i+6] != ecm[i+6+7]) || (ecm[i+6+8] != ecm[i+6+15]))
+				{
+					memcpy(ecm+i+8, ecmPart1, 14);
+					keyCounter++;
+					continue;
+				}
+				
+				memcpy(tmpEcmKey, ecmKey, 7);
+
+				PowervuDecrypt(ecm+i+27, 27, ecmKey);
+				if((ecm[i+23] != ecm[i+23+29]) || (ecm[i+23+1] != ecm[i+23+30]))
+				{
+					memcpy(ecm+i+8, ecmPart1, 14);
+					memcpy(ecm+i+27, ecmPart2, 27);
+					keyCounter++;
+					continue;
+				}
+				
+				decrypt_ok = 1;
 				break;
 			}
-			memcpy(tmpEcmKey, ecmKey, 7);
-
-			PowervuDecrypt(ecm+i+27, 27, ecmKey);
-			if((ecm[i+23] != ecm[i+23+29]) || (ecm[i+23+1] != ecm[i+23+30]))
-			{
-				ret = 8;
-				break;
-			}
+			while(!decrypt_ok);
 
 			memcpy(seedBase, ecm+i+6+2, 4);
 	
@@ -3146,7 +3170,7 @@ static int8_t Drecrypt2ECM(uint16_t caid, uint32_t provId, uint8_t *ecm, uint8_t
 	return 1;
 }
 
-char* GetProcessECMErrorReason(int8_t result)
+const char* GetProcessECMErrorReason(int8_t result)
 {
 	switch(result) {
 	case 0:
@@ -3989,7 +4013,7 @@ int32_t GetDrecryptHexserials(uint16_t caid, uint8_t *hexserials, int32_t length
 	return 1;
 }
 
-char* GetProcessEMMErrorReason(int8_t result)
+const char* GetProcessEMMErrorReason(int8_t result)
 {
 	switch(result) {
 	case 0:

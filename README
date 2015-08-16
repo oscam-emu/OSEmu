@@ -40,7 +40,8 @@ Run:
   -L (only allow local connections from localhost)
   -i (show OSEmu version info and exit)
   -r <stream source port>:<relay port> (enables stream relay server)
-  -s <stream source host> (set stream relay source server host)
+  -s <stream source host> (set stream relay source server host; default: 127.0.0.1)
+  -t <stream source user>:<strean source password> (set stream relay source user and password; default: none)
 
   Examples:
     /usr/bin/OSEmu -a user:password -p 11000 -b
@@ -109,6 +110,11 @@ Keys in SoftCam.Key:
 	example:
 	P 1234 01 11223344556677
 
+	For channels with same srvid:
+	Channel #1: P  1234 01 11223344556677
+	Channel #2: P 11234 01 11223344556677
+	Channel #3: P 21234 01 11223344556677
+	
 	AU keys:
 	P <srvid> <UA> <key>
 	example:

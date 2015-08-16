@@ -36,14 +36,14 @@
 
 	uint32_t GetOSemuVersion(void);
 	
-	void set_emu_keyfile_path(char *path);
-	uint8_t read_emu_keyfile(char *path);
+	void set_emu_keyfile_path(const char *path);
+	uint8_t read_emu_keyfile(const char *path);
 
 #if !defined(__APPLE__) && !defined(__ANDROID__)
 	void read_emu_keymemory(void);
 #endif
 
-	int32_t CharToBin(uint8_t *out, char *in, uint32_t inLen);
+	int32_t CharToBin(uint8_t *out, const char *in, uint32_t inLen);
 	
 	/* Error codes
 	0  OK
@@ -58,7 +58,7 @@
 	int8_t ProcessECM(int16_t ecmDataLen, uint16_t caid, uint32_t provider, const uint8_t *ecm,
 					  uint8_t *dw, uint16_t srvid, uint16_t ecmpid);
 
-	char* GetProcessECMErrorReason(int8_t result);
+	const char* GetProcessECMErrorReason(int8_t result);
 
 	/* Error codes
 	0  OK
@@ -72,7 +72,7 @@
 	*/	
 	int8_t ProcessEMM(uint16_t caid, uint32_t provider, const uint8_t *emm, uint32_t *keysAdded);
 	
-	char* GetProcessEMMErrorReason(int8_t result);			  
+	const char* GetProcessEMMErrorReason(int8_t result);			  
 
 	//hexserial must be of type "uint8_t hexserial[3]"
 	//returns 0 on error, 1 on success

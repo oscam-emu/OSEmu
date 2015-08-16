@@ -1057,7 +1057,7 @@ static int32_t allocate_data_block(data_block *buff, uint32_t size)
 {
 	if (buff->data == NULL)
 	{
-		buff->data = malloc(size);
+		buff->data = (uint8_t*)malloc(size);
 		if (buff->data == NULL) { return -1; }
 		buff->size = size;
 		buff->used = 0;
@@ -1066,7 +1066,7 @@ static int32_t allocate_data_block(data_block *buff, uint32_t size)
 	{
 		uint8_t *new_buff;
 
-		new_buff = malloc(size);
+		new_buff = (uint8_t*)malloc(size);
 		if (new_buff == NULL) { return -1; }
 		memcpy(new_buff, buff->data, buff->used);
 
@@ -1266,7 +1266,7 @@ static void Drecrypt2OverUnpack(data_block *dec_buff, uint8_t *input, uint32_t l
 
 	uint32_t i=0;
 
-	lookup_buff = malloc(0x1000);
+	lookup_buff = (uint8_t*)malloc(0x1000);
 
 	memset(lookup_buff, 0, 0x1000);
 	memset(lookup_buff, ' ', 0xFEE);

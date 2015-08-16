@@ -88,7 +88,8 @@ void cs_resolve(const char *hostname, IN_ADDR_T *ip, struct SOCKADDR *sock, sock
 #define SAFE_ATTR_SETSTACKSIZE(a,b) SAFE_PTHREAD_2ARG(pthread_attr_setstacksize, a, b, cs_log)
 #define SAFE_MUTEX_INIT(a,b)		SAFE_PTHREAD_2ARG(pthread_mutex_init, a, b, cs_log)
 
-int32_t start_thread(char *nameroutine, void *startroutine, void *arg, pthread_t *pthread, int8_t detach, int8_t modify_stacksize);
+typedef void* (*thread_func)(void *arg);
+int32_t start_thread(const char *nameroutine, thread_func startroutine, void *arg, pthread_t *pthread, int8_t detach, int8_t modify_stacksize);
 
 size_t b64encode(const char *in, size_t inlen, char **out);
 void base64_encode(const char *in, size_t inlen, char *out, size_t outlen);
