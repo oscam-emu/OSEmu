@@ -35,7 +35,7 @@ uint32_t GetOSemuVersion(void)
 // Key DB
 static char *emu_keyfile_path = NULL;
 
-void set_emu_keyfile_path(char *path)
+void set_emu_keyfile_path(const char *path)
 {
 	if(emu_keyfile_path != NULL) {
 		free(emu_keyfile_path);
@@ -48,7 +48,7 @@ void set_emu_keyfile_path(char *path)
 	emu_keyfile_path[strlen(path)] = 0;
 }
 
-int32_t CharToBin(uint8_t *out, char *in, uint32_t inLen)
+int32_t CharToBin(uint8_t *out, const char *in, uint32_t inLen)
 {
 	uint32_t i, tmp;
 	for(i=0; i<inLen/2; i++) {
@@ -94,7 +94,7 @@ static KeyDataContainer *GetKeyContainer(char identifier)
 	}
 }
 
-static void WriteKeyToFile(char identifier, uint32_t provider, char *keyName, uint8_t *key, uint32_t keyLength)
+static void WriteKeyToFile(char identifier, uint32_t provider, const char *keyName, uint8_t *key, uint32_t keyLength)
 {
 	char line[1200], dateText[100];
 	uint32_t pathLength;
@@ -178,7 +178,7 @@ static void WriteKeyToFile(char identifier, uint32_t provider, char *keyName, ui
 	fclose(file);
 }
 
-static int32_t SetKey(char identifier, uint32_t provider, char *keyName, uint8_t *key,
+static int32_t SetKey(char identifier, uint32_t provider, const char *keyName, uint8_t *key,
 					  uint32_t keyLength, uint8_t writeKey)
 {
 	uint32_t i;
@@ -339,7 +339,7 @@ static int32_t SetKey(char identifier, uint32_t provider, char *keyName, uint8_t
 	return 1;
 }
 
-static int32_t FindKey(char identifier, uint32_t provider, char *keyName, uint8_t *key, uint32_t maxKeyLength,
+static int32_t FindKey(char identifier, uint32_t provider, const char *keyName, uint8_t *key, uint32_t maxKeyLength,
 					   uint8_t isCriticalKey, uint8_t keyRef, uint8_t matchLength, uint32_t *getProvider)
 {
 	uint32_t i;
@@ -417,7 +417,7 @@ static int32_t UpdateKey(char identifier, uint32_t provider, char *keyName, uint
 }
 
 
-uint8_t read_emu_keyfile(char *opath)
+uint8_t read_emu_keyfile(const char *opath)
 {
 	char line[1200], keyName[EMU_MAX_CHAR_KEYNAME], keyString[1026];
 	uint32_t pathLength, provider, keyLength;
@@ -3146,7 +3146,7 @@ static int8_t Drecrypt2ECM(uint16_t caid, uint32_t provId, uint8_t *ecm, uint8_t
 	return 1;
 }
 
-char* GetProcessECMErrorReason(int8_t result)
+const char* GetProcessECMErrorReason(int8_t result)
 {
 	switch(result) {
 	case 0:
@@ -3989,7 +3989,7 @@ int32_t GetDrecryptHexserials(uint16_t caid, uint8_t *hexserials, int32_t length
 	return 1;
 }
 
-char* GetProcessEMMErrorReason(int8_t result)
+const char* GetProcessEMMErrorReason(int8_t result)
 {
 	switch(result) {
 	case 0:

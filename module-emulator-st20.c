@@ -353,7 +353,7 @@ static void st20_LogOpOper(int op, int oper)
 	cs_log("[Emu] %s %X", cmds[op], oper);
 }
 
-static void st20_LogOp(char *op)
+static void st20_LogOp(const char *op)
 {
 	cs_log("[Emu] %s", op);
 }

@@ -10,8 +10,8 @@ extern uint32_t osemu_stacksize;
    on failure. */
 bool cs_malloc(void *result, size_t size)
 {
-	void **tmp = result;
-	*tmp = malloc(size);
+	void **tmp = (void**)result;
+	*tmp = (void*)malloc(size);
 	if(*tmp == NULL)
 	{
 		fprintf(stderr, "%s: ERROR: Can't allocate %zu bytes!", __func__, size);
@@ -82,7 +82,8 @@ char *cs_hexdump(int32_t m, const uchar *buf, int32_t n, char *target, int32_t l
 void cs_log_hex(const uint8_t *buf, int32_t n, const char *fmt, ...)
 {
 	FILE *fp = NULL;
-	char log_txt[512], *newline;
+	char log_txt[512];
+	const char *newline;
 	int32_t i;
 
 	newline = "\n";
@@ -446,7 +447,7 @@ void cs_resolve(const char *hostname, IN_ADDR_T *ip, struct SOCKADDR *sock, sock
 }
 
 /* Starts a thread named nameroutine with the start function startroutine. */
-int32_t start_thread(char *nameroutine, void *startroutine, void *arg, pthread_t *pthread, int8_t detach, int8_t modify_stacksize)
+int32_t start_thread(const char *nameroutine, thread_func startroutine, void *arg, pthread_t *pthread, int8_t detach, int8_t modify_stacksize)
 {
 	pthread_t temp;
 	pthread_attr_t attr;
@@ -484,7 +485,7 @@ static inline unsigned char to_uchar(char ch)
 
 void base64_encode(const char *in, size_t inlen, char *out, size_t outlen)
 {
-	static const char b64str[64] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+	static const char b64str[65] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
 	while(inlen && outlen)
 	{
 		*out++ = b64str[(to_uchar(in[0]) >> 2) & 0x3f];

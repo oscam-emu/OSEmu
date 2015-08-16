@@ -412,7 +412,7 @@ int main(int argc, char**argv)
 	socklen_t len;
 	unsigned char mbuf[20+1024];
 	unsigned char md5tmp[MD5_DIGEST_LENGTH];
-	char *path = "./";
+	const char *path = "./";
 
 	signal(SIGPIPE, sigpipe_handler);
 	
