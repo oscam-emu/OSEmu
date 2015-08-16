@@ -56,7 +56,22 @@
 
 //////// our choice //////////////// our choice //////////////// our choice //////////////// our choice ////////
 #ifndef PARALLEL_MODE
+
+#if defined(__i386) || defined(_M_IX86) || defined(__x86_64__) || defined(_M_X64)
+#define PARALLEL_MODE PARALLEL_128_SSE2
+
+#elif defined(__mips__) || defined(__mips) || defined(__MIPS__)
+#define PARALLEL_MODE PARALLEL_64_LONG
+
+#elif defined(__sh__) || defined(__SH4__)
 #define PARALLEL_MODE PARALLEL_32_INT
+#define COPY_UNALIGNED_PKT
+#define MEMALIGN_VAL 4
+
+#else
+#define PARALLEL_MODE PARALLEL_32_INT
+#endif
+
 #endif
 //////// our choice //////////////// our choice //////////////// our choice //////////////// our choice ////////
 
