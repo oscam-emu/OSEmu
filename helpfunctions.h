@@ -91,7 +91,7 @@ void cs_resolve(const char *hostname, IN_ADDR_T *ip, struct SOCKADDR *sock, sock
 	int32_t pter = pthread_attr_setstacksize(a, b); \
 	if(pter != 0) \
 	{ \
-		cs_log_dbg(0, "WARNING: %s() failed in %s with error %d %s\n", #a, __func__, pter, strerror(pter)); \
+		cs_log_dbg(0, "WARNING: pthread_attr_setstacksize() failed in %s with error %d %s\n", __func__, pter, strerror(pter)); \
 	} }
 
 
