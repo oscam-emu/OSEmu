@@ -2698,9 +2698,9 @@ int8_t PowervuECM(uint8_t *ecm, uint8_t *dw, emu_stream_client_key_data *cdata)
 	int8_t ret = 1;
 	uint16_t ecmLen = GetEcmLen(ecm);
 	uint32_t ecmCrc32;
-	uint8_t nanoCmd, nanoChecksum, keyType, fixedKey, oddKey, bid, keyIndex, csaUsed;
+	uint8_t nanoCmd, nanoChecksum, keyType, fixedKey, oddKey, bid, csaUsed;
 	uint16_t nanoLen;
-	uint32_t channelId, ecmSrvid, channelIdSearch, ecmSrvidSearch, keyCounter;
+	uint32_t channelId, ecmSrvid, channelIdSearch, ecmSrvidSearch, keyCounter, keyIndex;
 	uint32_t i, j, k;
 	uint8_t convolvedCw[8][8];
 	uint8_t ecmKey[7], tmpEcmKey[7], seedBase[4], baseCw[7], seed[8][8], cw[8][8];
@@ -2814,7 +2814,7 @@ int8_t PowervuECM(uint8_t *ecm, uint8_t *dw, emu_stream_client_key_data *cdata)
 				{
 					if(!GetPowervuKey(ecmKey, channelIdSearch, '0', keyIndex, 7, 0))
 					{
-						GetPowervuKey(ecmKey, ecmSrvidSearch, '0', keyIndex, 7, 1);
+						cs_log("[Emu] Key not found: P %04X 0%X", ecmSrvidSearch, keyIndex);
 						return 2;
 					}
 				}
