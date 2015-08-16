@@ -2810,10 +2810,11 @@ int8_t PowervuECM(uint8_t *ecm, uint8_t *dw, emu_stream_client_key_data *cdata)
 				channelIdSearch = channelId | (keyCounter << 16);
 				ecmSrvidSearch = ecmSrvid | (keyCounter << 16);
 				
-				if(!GetPowervuKey(ecmKey, ecmSrvidSearch, '0', keyIndex, 7, 1))
+				if(!GetPowervuKey(ecmKey, ecmSrvidSearch, '0', keyIndex, 7, 0))
 				{
-					if(!GetPowervuKey(ecmKey, channelIdSearch, '0', keyIndex, 7, 1))
+					if(!GetPowervuKey(ecmKey, channelIdSearch, '0', keyIndex, 7, 0))
 					{
+						GetPowervuKey(ecmKey, ecmSrvidSearch, '0', keyIndex, 7, 1);
 						return 2;
 					}
 				}
