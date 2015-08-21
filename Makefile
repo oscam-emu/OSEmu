@@ -4,11 +4,11 @@ STRIP ?= strip
 TARGETHELP := $(shell $(CC) --target-help 2>&1)
 
 ifneq (,$(findstring sse2,$(TARGETHELP)))
-CFLAGS=-I. -O3 -funroll-loops -fomit-frame-pointer -mmmx -msse -msse2 -msse3 -DPARALLEL_MODE=PARALLEL_128_SSE2
+CFLAGS=-I. -O3 -funroll-loops -fomit-frame-pointer -mmmx -msse -msse2 -msse3
 else ifneq (,$(findstring mplt,$(TARGETHELP)))
-CFLAGS=-I. -O3 -funroll-loops -fomit-frame-pointer -mplt -DPARALLEL_MODE=PARALLEL_64_LONG
+CFLAGS=-I. -O3 -funroll-loops -fomit-frame-pointer -mplt
 else ifneq (,$(findstring m4,$(TARGETHELP)))
-CFLAGS=-I. -O2 -funroll-loops -fomit-frame-pointer -m4-300 -DPARALLEL_MODE=PARALLEL_32_INT -DMEMALIGN_VAL=4 -DCOPY_UNALIGNED_PKT=1
+CFLAGS=-I. -O2 -fPIC -funroll-loops -fomit-frame-pointer -m4-300
 else
 CFLAGS=-I. -O2 -funroll-loops
 endif
