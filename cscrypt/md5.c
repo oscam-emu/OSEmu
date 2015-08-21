@@ -19,7 +19,7 @@
  * by Erik Andersen <andersen@uclibc.org>
  */
 
-#include "globals.h"
+#include "../globals.h"
 
 #ifdef __i386__
 #define byteReverse(a, b)
