@@ -1,12 +1,16 @@
 UNAME := $(shell uname -s)
-CC = gcc
-TARGETHELP := $(shell $(CC) --target-help)
-STRIP = strip
+CC ?= gcc
+STRIP ?= strip
+TARGETHELP := $(shell $(CC) --target-help 2>&1)
 
 ifneq (,$(findstring sse2,$(TARGETHELP)))
-CFLAGS=-I. -fexpensive-optimizations -funroll-loops -mmmx -msse -msse2 -msse3
+CFLAGS=-I. -O3 -funroll-loops -fomit-frame-pointer -mmmx -msse -msse2 -msse3 -DPARALLEL_MODE=PARALLEL_128_SSE2
+else ifneq (,$(findstring mplt,$(TARGETHELP)))
+CFLAGS=-I. -O3 -funroll-loops -fomit-frame-pointer -mplt -DPARALLEL_MODE=PARALLEL_64_LONG
+else ifneq (,$(findstring m4,$(TARGETHELP)))
+CFLAGS=-I. -O2 -funroll-loops -fomit-frame-pointer -m4-300 -DPARALLEL_MODE=PARALLEL_32_INT -DMEMALIGN_VAL=4 -DCOPY_UNALIGNED_PKT=1
 else
-CFLAGS=-I. -fexpensive-optimizations -funroll-loops
+CFLAGS=-I. -O2 -funroll-loops
 endif
 
 LFLAGS=-lpthread
@@ -28,20 +32,20 @@ all: OSEmu
 -include $(OBJS:.o=.d)
 
 %.o: %.c
-	$(Q)$(CC) $(CC_WARN) -O2 -c -o $@ $< $(CFLAGS)
+	$(Q)$(CC) $(CC_WARN) -c -o $@ $< $(CFLAGS)
 	$(SAY) "CC	$<"
-	$(Q)$(CC) $(CC_WARN) -O2 -MM $(CFLAGS) $*.c > $*.d
+	$(Q)$(CC) $(CC_WARN) -MM $(CFLAGS) $*.c > $*.d
 
 OSEmu: $(OBJS)
 ifeq ($(UNAME),Darwin)
-	$(Q)$(CC) $(CC_WARN) -O2 -o $(BIN) $(OBJS) $(CFLAGS) $(LFLAGS)
+	$(Q)$(CC) $(CC_WARN) -o $(BIN) $(OBJS) $(CFLAGS) $(LFLAGS)
 else ifdef ANDROID_NDK
-	$(Q)$(CC) $(CC_WARN) -O2 -o $(BIN) $(OBJS) $(CFLAGS) $(LFLAGS)
+	$(Q)$(CC) $(CC_WARN) -o $(BIN) $(OBJS) $(CFLAGS) $(LFLAGS)
 else ifdef ANDROID_STANDALONE_TOOLCHAIN
-	$(Q)$(CC) $(CC_WARN) -O2 -o $(BIN) $(OBJS) $(CFLAGS) $(LFLAGS)
+	$(Q)$(CC) $(CC_WARN) -o $(BIN) $(OBJS) $(CFLAGS) $(LFLAGS)
 else
 	touch SoftCam.Key
-	$(Q)$(CC) $(CC_WARN) -O2 -o $(BIN) $(OBJS) $(CFLAGS) $(LFLAGS) -Wl,--format=binary -Wl,SoftCam.Key -Wl,--format=default	
+	$(Q)$(CC) $(CC_WARN) -o $(BIN) $(OBJS) $(CFLAGS) $(LFLAGS) -Wl,--format=binary -Wl,SoftCam.Key -Wl,--format=default	
 endif
 	$(STRIP) $(BIN)
 	
