@@ -1,7 +1,9 @@
 #ifndef OSEMU_GLOBALS_H_
 #define OSEMU_GLOBALS_H_
 
+#ifndef _GNU_SOURCE
 #define _GNU_SOURCE //needed for PTHREAD_MUTEX_RECURSIVE on some plattforms and maybe other things; do not remove
+#endif
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdarg.h>
@@ -14,6 +16,7 @@
 #include <ctype.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
+#include <netinet/tcp.h>
 #include <sys/types.h>
 #include <arpa/inet.h>
 #include <dirent.h>
