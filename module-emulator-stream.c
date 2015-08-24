@@ -25,7 +25,7 @@ char emu_stream_source_host[256] = {"127.0.0.1"};
 int32_t emu_stream_source_port = 8001;
 char *emu_stream_source_auth = NULL;
 int32_t emu_stream_relay_port = 17999;
-
+uint32_t cluster_size = 50;
 
 static uint8_t emu_stream_server_mutex_init = 0;
 static pthread_mutex_t emu_stream_server_mutex;
@@ -50,7 +50,7 @@ static void SearchTsPackets(uint8_t *buf, uint32_t bufLength, uint16_t *packetSi
 
 	for(i=0; i<bufLength; i++) {	
 		if(buf[i] == 0x47) {
-			if((buf[i+188] == 0x47) & (buf[i+376] == 0x47)) {
+			if((buf[i+188] == 0x47) & (buf[i+376] == 0x47)) {  //if three packets align, probably safe to assume correct size.
 				(*packetSize) = 188;
 				(*startOffset) = i;
 				return;
@@ -66,7 +66,6 @@ static void SearchTsPackets(uint8_t *buf, uint32_t bufLength, uint16_t *packetSi
 				return;
 			}					
 		}	
-		
 	}
 }
 
@@ -288,17 +287,17 @@ static void ParseTSPackets(emu_stream_client_data *data, uint8_t *stream_buf, ui
 	int8_t oddKeyUsed;
 	uint32_t *deskey;
 	uint8_t *pdata;
-	uint8_t *packetClusterA[4][128];
-	uint8_t *packetClusterV[512];
-	void *csakeyA[4];
-	void *csakeyV;
+	uint8_t *packetClusterA[4][64];  //separate cluster arrays for video and each audio track
+	uint8_t *packetClusterV[256];
+	void *csakeyA[4] = {0,0,0,0};
+	void *csakeyV = 0;
 	emu_stream_client_key_data *keydata;
-	uint32_t scrambled_packets;
+	uint32_t scrambled_packets = 0;
+	uint32_t scrambled_packetsA[4]  = {0,0,0,0};
 	packetClusterV[0] = NULL;
-	scrambled_packets = 0;
 	uint32_t cs =0;  //video cluster start
 	uint32_t ce =1;  //video cluster end
-	uint32_t csa[4];  //cluster index for audio tracks
+	uint32_t csa[4] = {0,0,0,0};  //cluster index for audio tracks
 	
 	for(i=0; i<bufLength; i+=packetSize)
 	{		
@@ -383,30 +382,19 @@ static void ParseTSPackets(emu_stream_client_data *data, uint8_t *stream_buf, ui
 		if(keydata->pvu_csa_used)
 		{
 			oddeven = scramblingControl;  // for detecting odd/even switch
-			csakeyV = NULL;
-			csakeyA[0] = NULL;
-			csakeyA[1] = NULL;
-			csakeyA[2] = NULL;
-			csakeyA[3] = NULL;
 			
-			if(pid == data->video_pid)
+			if(pid == data->video_pid)   // start with video pid, since it is most dominant
 			{
 				csakeyV = keydata->pvu_csa_ks[PVU_CW_VID];
 						
 				if(csakeyV !=NULL) 
 				{
-					for(k=0; k<data->audio_pid_count; k++)
-					{
-						csakeyA[k] = keydata->pvu_csa_ks[PVU_CW_A1+k];
-						csa[k]=0;
-					}
-					
-					scrambled_packets=0;
 					cs=0;
 					ce=1;
 					packetClusterV[cs] = stream_buf+i;  // set first cluster start
-					scrambled_packets++;
-					
+					packetClusterV[ce] = stream_buf+i+packetSize -1;
+					scrambled_packets=1;
+
 					for(j=i+packetSize; j<bufLength; j+=packetSize)   // Now iterate through the rest of the packets and create clusters for batch decryption
 					{
 						tsHeader = b2i(4, stream_buf+j);
@@ -433,6 +421,16 @@ static void ParseTSPackets(emu_stream_client_data *data, uint8_t *stream_buf, ui
 								cs = ce +1;
 							}
 							
+							if((tsHeader & 0xc0) ==0) {
+								continue;
+							}
+
+							if(oddeven != (tsHeader & 0xc0)) // changed key so stop adding clusters
+							{
+								j=bufLength; // to break out of outer loop also
+								break;
+							}
+
 							for(k=0; k<data->audio_pid_count; k++)  // Check for audio tracks and create single packet clusters
 							{
 								if(pid == data->audio_pids[k])
@@ -441,39 +439,38 @@ static void ParseTSPackets(emu_stream_client_data *data, uint8_t *stream_buf, ui
 									csa[k]++;
 									packetClusterA[k][csa[k]] = stream_buf+j+packetSize -1;
 									csa[k]++;
+									scrambled_packetsA[k]++;
 								}			
 							}
 						}
 					}
 
-					if( cs > ce )  // last packet was not a video packet, so set null for end of all clusteers
+					if( cs > ce )  // last packet was not a video packet, so set null for end of all clusters
 						{ packetClusterV[cs] = NULL; }
 					else 
 					{
-						if(scrambled_packets==1) // Just in case only one video packet was found
-						{
-							packetClusterV[ce] = stream_buf+i+packetSize -1;
-						}
-						else  // last packet was a video packet, so set end of cluster to end of last packet
+						if(scrambled_packets>1)  // last packet was a video packet, so set end of cluster to end of last packet
 						{
 							packetClusterV[ce] = stream_buf+j -1;
 						}
 						packetClusterV[ce+1] = NULL;  // add null to end of cluster list
 					}
-					if(scrambled_packets>1)
+
+					while( j >= cluster_size )
 						{ j = decrypt_packets(csakeyV, packetClusterV); }
-					
-					scrambled_packets = scrambled_packets - j;  // for debugging
 
 					for(k=0; k<data->audio_pid_count; k++)
 					{
-						if(csakeyA[k] != NULL)  // if audio track has key, set null to mark end and decrypt
+						if(scrambled_packetsA[k])  // if audio track has scrambled packets, set null to mark end and decrypt
 						{
+							csakeyA[k] = keydata->pvu_csa_ks[PVU_CW_A1+k];
 							packetClusterA[k][csa[k]] = NULL;
 							decrypt_packets(csakeyA[k], packetClusterA[k]);
+							csa[k]=0;
+							scrambled_packetsA[k] = 0;
 						}
 					}
-				}			
+				}
 			}
 			else
 			{
@@ -606,7 +603,7 @@ static void stream_client_disconnect(emu_stream_client_conn_data *conndata)
 
 static void *stream_client_handler(void *arg)
 {
-#define EMU_DVB_MAX_TS_PACKETS 256
+#define EMU_DVB_MAX_TS_PACKETS 278
 #define EMU_DVB_BUFFER_SIZE_CSA 188*EMU_DVB_MAX_TS_PACKETS
 #define EMU_DVB_BUFFER_WAIT_CSA 188*(EMU_DVB_MAX_TS_PACKETS-128) 
 #define EMU_DVB_BUFFER_SIZE_DES 188*32
@@ -745,7 +742,10 @@ static void *stream_client_handler(void *arg)
 			
 			streamStatus = recv(streamfd, stream_buf+bytesRead, cur_dvb_buffer_size-bytesRead, MSG_WAITALL);
 			if(streamStatus == -1)
-				{ break; }
+			{
+				streamDataErrorCount++;
+				break;
+			}
 		
 			if(streamStatus == 0)
 			{
@@ -772,13 +772,14 @@ static void *stream_client_handler(void *arg)
 				}
 			}
 
-			streamConnectErrorCount = 0;	
+			streamConnectErrorCount = 0;
+			streamDataErrorCount = 0;
 			bytesRead += streamStatus;
 			
 			if(bytesRead >= cur_dvb_buffer_wait)
 			{	
 				startOffset = 0;
-				if(stream_buf[0] != 0x47 || packetSize == 0)
+				if(stream_buf[0] != 0x47 || packetSize == 0)  // only search if not starting on ts packet or unknown packet size 
 				{
 					SearchTsPackets(stream_buf, bytesRead, &packetSize, &startOffset);
 				}
@@ -833,7 +834,10 @@ void *stream_server(void *UNUSED(a))
 	int32_t connfd, reuse = 1, i;
 	int8_t connaccepted;
 	emu_stream_client_conn_data *conndata;
-	
+
+	cluster_size = get_internal_parallelism();
+	cs_log("[Emu] info: FFDecsa parallel mode = %d", cluster_size);
+
 	if(!emu_stream_server_mutex_init)
 	{
 		SAFE_MUTEX_INIT(&emu_stream_server_mutex, NULL);
@@ -920,6 +924,12 @@ void *stream_server(void *UNUSED(a))
 	
 		if(connaccepted)
 		{
+			int on = 1;
+			if (setsockopt(connfd, IPPROTO_TCP, TCP_NODELAY, &on, sizeof(on))<0) 
+			{ 
+				cs_log("setsockopt() failed for TCP_NODELAY"); 
+			}
+
 			start_thread("emu stream client", stream_client_handler, (void*)conndata, NULL, 1, 0);		
 		}
 		else
