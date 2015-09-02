@@ -2,6 +2,7 @@
 #define EMU_STREAM_SERVER_H_
 
 #define EMU_STREAM_SERVER_MAX_CONNECTIONS 8
+#define EMU_STREAM_MAX_AUDIO_SUB_TRACKS 16
 
 	typedef struct 
 	{
@@ -21,7 +22,7 @@
 		uint16_t pmt_pid;
 		uint16_t ecm_pid;
 		uint16_t video_pid;
-		uint16_t audio_pids[4];
+		uint16_t audio_pids[EMU_STREAM_MAX_AUDIO_SUB_TRACKS];
 		uint8_t audio_pid_count;
 		int16_t ecm_nb;
 		emu_stream_client_key_data key;
