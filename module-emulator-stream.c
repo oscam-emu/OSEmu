@@ -289,15 +289,15 @@ static void ParseTSPackets(emu_stream_client_data *data, uint8_t *stream_buf, ui
 	uint8_t *pdata;
 	uint8_t *packetClusterA[4][64];  //separate cluster arrays for video and each audio track
 	uint8_t *packetClusterV[256];
-	void *csakeyA[4] = {0,0,0,0};
+	void *csakeyA[EMU_STREAM_MAX_AUDIO_SUB_TRACKS] = {0};
 	void *csakeyV = 0;
 	emu_stream_client_key_data *keydata;
 	uint32_t scrambled_packets = 0;
-	uint32_t scrambled_packetsA[4]  = {0,0,0,0};
+	uint32_t scrambled_packetsA[EMU_STREAM_MAX_AUDIO_SUB_TRACKS]  = {0};
 	packetClusterV[0] = NULL;
 	uint32_t cs =0;  //video cluster start
 	uint32_t ce =1;  //video cluster end
-	uint32_t csa[4] = {0,0,0,0};  //cluster index for audio tracks
+	uint32_t csa[EMU_STREAM_MAX_AUDIO_SUB_TRACKS] = {0};  //cluster index for audio tracks
 	
 	for(i=0; i<bufLength; i+=packetSize)
 	{		
