@@ -287,7 +287,7 @@ static void ParseTSPackets(emu_stream_client_data *data, uint8_t *stream_buf, ui
 	int8_t oddKeyUsed;
 	uint32_t *deskey;
 	uint8_t *pdata;
-	uint8_t *packetClusterA[4][64];  //separate cluster arrays for video and each audio track
+	uint8_t *packetClusterA[EMU_STREAM_MAX_AUDIO_SUB_TRACKS][64];  //separate cluster arrays for video and each audio track
 	uint8_t *packetClusterV[256];
 	void *csakeyA[EMU_STREAM_MAX_AUDIO_SUB_TRACKS] = {0};
 	void *csakeyV = 0;
