@@ -1275,7 +1275,11 @@ static void Drecrypt2OverUnpack(data_block *dec_buff, uint8_t *input, uint32_t l
 	crc = (input[0] << 24) | (input[1] << 16) | (input[2] << 8) | input[3];
 	expand_size = (input[4] << 24) | (input[5] << 16) | (input[6] << 8) | input[7];
 
-	if (allocate_data_block(dec_buff, expand_size)) { return; }
+	if (allocate_data_block(dec_buff, expand_size)) 
+	{
+		free(lookup_buff);
+		return;
+	}
 
 	dec_buff->used = 0;
 
