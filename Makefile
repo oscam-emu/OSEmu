@@ -7,7 +7,7 @@ ifneq (,$(findstring sse2,$(TARGETHELP)))
 CFLAGS=-I. -O3 -funroll-loops -fomit-frame-pointer -mmmx -msse -msse2 -msse3
 else ifneq (,$(findstring mplt,$(TARGETHELP)))
 CFLAGS=-I. -O3 -funroll-loops -fomit-frame-pointer -mplt
-else ifneq (,$(findstring m4,$(TARGETHELP)))
+else ifneq (,$(findstring m4-300,$(TARGETHELP)))
 CFLAGS=-I. -O2 -fPIC -funroll-loops -fomit-frame-pointer -m4-300
 else
 CFLAGS=-I. -O2 -funroll-loops
