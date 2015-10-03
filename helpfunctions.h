@@ -85,8 +85,15 @@ void cs_resolve(const char *hostname, IN_ADDR_T *ip, struct SOCKADDR *sock, sock
 		exit_oscam = 1;\
 	} }
 
-#define SAFE_ATTR_SETSTACKSIZE(a,b) SAFE_PTHREAD_2ARG(pthread_attr_setstacksize, a, b, cs_log)
 #define SAFE_MUTEX_INIT(a,b)		SAFE_PTHREAD_2ARG(pthread_mutex_init, a, b, cs_log)
+
+#define SAFE_ATTR_SETSTACKSIZE(a, b) { \
+	int32_t pter = pthread_attr_setstacksize(a, b); \
+	if(pter != 0) \
+	{ \
+		cs_log_dbg(0, "WARNING: pthread_attr_setstacksize() failed in %s with error %d %s\n", __func__, pter, strerror(pter)); \
+	} }
+
 
 typedef void* (*thread_func)(void *arg);
 int32_t start_thread(const char *nameroutine, thread_func startroutine, void *arg, pthread_t *pthread, int8_t detach, int8_t modify_stacksize);
