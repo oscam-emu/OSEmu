@@ -57,7 +57,7 @@
 //////// our choice //////////////// our choice //////////////// our choice //////////////// our choice ////////
 #ifndef PARALLEL_MODE
 
-#if defined(__i386) || defined(_M_IX86) || defined(__x86_64__) || defined(_M_X64)
+#if defined(__x86_64__) || defined(_M_X64)
 #define PARALLEL_MODE PARALLEL_128_SSE2
 
 #elif defined(__mips__) || defined(__mips) || defined(__MIPS__)

@@ -167,6 +167,7 @@ static void WriteKeyToFile(char identifier, uint32_t provider, const char *keyNa
 
 	keyValue = (char*)malloc((keyLength*2)+1);
 	if(keyValue == NULL) {
+		fclose(file);
 		return;
 	}
 	cs_hexdump(0, key, keyLength, keyValue, (keyLength*2)+1);
@@ -2839,7 +2840,6 @@ int8_t PowervuECM(uint8_t *ecm, uint8_t *dw, emu_stream_client_key_data *cdata)
 				}
 				
 				decrypt_ok = 1;
-				break;
 			}
 			while(!decrypt_ok);
 

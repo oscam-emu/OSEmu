@@ -389,9 +389,9 @@ static int st20_Decode(int count)
 		switch(op1>>4) {
 		case 0x0: // j / jump
 #ifdef ST20_SAVE_DEBUG
-			POP();
-			POP();
-			POP();
+			(void)POP();
+			(void)POP();
+			(void)POP();
 #endif
 			JUMP(operand);
 			CLEAR_OP();
