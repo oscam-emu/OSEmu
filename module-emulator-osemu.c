@@ -29,7 +29,7 @@ void hdSurEncPhase2_D2_13_15(uint8_t *cws);
 // Version info
 uint32_t GetOSemuVersion(void)
 {
-	return atoi("$Version: 720 $"+10);
+	return atoi("$Version: 722 $"+10);
 }
 
 // Key DB
@@ -3780,8 +3780,9 @@ static int8_t PowervuEMM(uint8_t *emm, uint32_t *keysAdded)
 {
 	uint8_t emmInfo, emmType, *newEcmKey;
 	uint16_t emmLen = GetEcmLen(emm);
-	uint32_t i, emmCrc32, uniqueAddress, channelId;
-	uint8_t emmKey[7], tmpEmmKey[7];
+	uint32_t i, uniqueAddress, channelId;
+	//uint32_t emmCrc32;
+	uint8_t emmKey[7], tmpEmmKey[7], tmp[26];
 	char keyName[EMU_MAX_CHAR_KEYNAME], keyValue[16];
 
 	if(emmLen < 50)
@@ -3789,12 +3790,13 @@ static int8_t PowervuEMM(uint8_t *emm, uint32_t *keysAdded)
 		return 1;
 	}
 
-	emmCrc32 = b2i(4, emm+emmLen-4);
-
-	if(fletcher_crc32(emm, emmLen-4) != emmCrc32)
-	{
-		return 8;
-	}
+	// looks like checksum does not work for all EMMs
+	//emmCrc32 = b2i(4, emm+emmLen-4);
+	//
+	//if(fletcher_crc32(emm, emmLen-4) != emmCrc32)
+	//{
+	//	return 8;
+	//}
 	emmLen -= 4;
 
 	uniqueAddress = b2i(4, emm+12);
@@ -3815,12 +3817,20 @@ static int8_t PowervuEMM(uint8_t *emm, uint32_t *keysAdded)
 
 		//keyNb = emm[i] & 0x0F;
 
+		memcpy(tmp, emm+i+1, 26);
 		memcpy(tmpEmmKey, emmKey, 7);
 		PowervuDecrypt(emm+i+1, 26, tmpEmmKey, 0);
 
 		if((emm[13] != emm[i+24]) || (emm[14] != emm[i+25]) || (emm[15] != emm[i+26]))
 		{
-			continue;
+			memcpy(emm+i+1, tmp, 26);
+			memcpy(tmpEmmKey, emmKey, 7);
+			PowervuDecrypt(emm+i+1, 26, tmpEmmKey, 1);
+
+			if((emm[13] != emm[i+24]) || (emm[14] != emm[i+25]) || (emm[15] != emm[i+26]))
+			{
+				continue;
+			}
 		}
 
 		emmType = emm[i+2] & 0x7F;
