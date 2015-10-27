@@ -29,7 +29,7 @@ void hdSurEncPhase2_D2_13_15(uint8_t *cws);
 // Version info
 uint32_t GetOSemuVersion(void)
 {
-	return atoi("$Version: 722 $"+10);
+	return atoi("$Version: 723 $"+10);
 }
 
 // Key DB
@@ -3802,8 +3802,9 @@ static int8_t PowervuEMM(uint8_t *emm, uint32_t *keysAdded)
 	uniqueAddress = b2i(4, emm+12);
 
 	snprintf(keyName, EMU_MAX_CHAR_KEYNAME, "%.8X", uniqueAddress);
-	if(!GetPowervuEmmKey(emmKey, 0, keyName, 7, 1, &channelId))
+	if(!GetPowervuEmmKey(emmKey, 0, keyName, 7, 0, &channelId))
 	{
+		cs_log("[Emu] EMM eror: AU key for UA %s is missing", keyName);
 		return 2;
 	}
 
