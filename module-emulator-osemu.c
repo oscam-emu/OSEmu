@@ -3802,8 +3802,9 @@ static int8_t PowervuEMM(uint8_t *emm, uint32_t *keysAdded)
 	uniqueAddress = b2i(4, emm+12);
 
 	snprintf(keyName, EMU_MAX_CHAR_KEYNAME, "%.8X", uniqueAddress);
-	if(!GetPowervuEmmKey(emmKey, 0, keyName, 7, 1, &channelId))
+	if(!GetPowervuEmmKey(emmKey, 0, keyName, 7, 0, &channelId))
 	{
+		cs_log("[Emu] EMM eror: AU key for UA %s is missing", keyName);
 		return 2;
 	}
 
