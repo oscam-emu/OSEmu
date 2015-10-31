@@ -29,7 +29,7 @@ void hdSurEncPhase2_D2_13_15(uint8_t *cws);
 // Version info
 uint32_t GetOSemuVersion(void)
 {
-	return atoi("$Version: 724 $"+10);
+	return atoi("$Version: 725 $"+10);
 }
 
 // Key DB
@@ -248,7 +248,7 @@ static int32_t SetKey(char identifier, uint32_t provider, const char *keyName, u
 					}
 					return 0;
 				}
-				tmpKeyData = (KeyData*)tmpKeyData->nextKey;
+				tmpKeyData = tmpKeyData->nextKey;
 			}
 			while(tmpKeyData != NULL);
 
@@ -280,8 +280,12 @@ static int32_t SetKey(char identifier, uint32_t provider, const char *keyName, u
 				{
 					break;
 				}
-				tmpKeyData = (KeyData*)tmpKeyData->nextKey;
+				tmpKeyData = tmpKeyData->nextKey;
 				j++;
+			}
+			if(tmpKeyData)
+			{
+				NULLFREE(tmpKeyData->nextKey->key);
 			}
 			NULLFREE(tmpKeyData->nextKey);
 			tmpKeyData->nextKey = newKeyData;
@@ -388,7 +392,7 @@ static int32_t FindKey(char identifier, uint32_t provider, const char *keyName, 
 		j = 0;
 		while(j<keyRef && tmpKeyData->nextKey != NULL) {
 			j++;
-			tmpKeyData = (KeyData*)tmpKeyData->nextKey;
+			tmpKeyData = tmpKeyData->nextKey;
 		}
 
 		if(j == keyRef) {
