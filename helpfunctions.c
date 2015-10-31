@@ -64,7 +64,7 @@ void cs_log_txt(const char* format, ... ) {
 	if(fp)  { fprintf(fp, "\n"); fclose(fp); }
 }
 
-char *cs_hexdump(int32_t m, const uchar *buf, int32_t n, char *target, int32_t len)
+char *cs_hexdump(int32_t m, const uint8_t *buf, int32_t n, char *target, int32_t len)
 {
 	int32_t i = 0;
 	target[0] = '\0';
@@ -132,7 +132,7 @@ int32_t boundary(int32_t exp, int32_t n)
 	return (((n-1) >> exp) + 1) << exp;
 }
 
-uint32_t b2i(int32_t n, const uchar *b)
+uint32_t b2i(int32_t n, const uint8_t *b)
 {
 	switch(n) {
 	case 2:
@@ -147,7 +147,7 @@ uint32_t b2i(int32_t n, const uchar *b)
 	return 0;
 }
 
-uchar *i2b_buf(int32_t n, uint32_t i, uchar *b)
+uint8_t *i2b_buf(int32_t n, uint32_t i, uint8_t *b)
 {
 	switch(n) {
 	case 2:
@@ -364,7 +364,7 @@ void aes_set_key(struct aes_keys *aes, char *key)
 	AES_set_encrypt_key((const unsigned char *)key, 128, &aes->aeskey_encrypt);
 }
 
-void aes_decrypt(struct aes_keys *aes, uchar *buf, int32_t n)
+void aes_decrypt(struct aes_keys *aes, uint8_t *buf, int32_t n)
 {
 	int32_t i;
 	for (i=0; i+15<n; i+=16) {
@@ -372,7 +372,7 @@ void aes_decrypt(struct aes_keys *aes, uchar *buf, int32_t n)
 	}
 }
 
-void aes_encrypt_idx(struct aes_keys *aes, uchar *buf, int32_t n)
+void aes_encrypt_idx(struct aes_keys *aes, uint8_t *buf, int32_t n)
 {
 	int32_t i;
 	for (i=0; i+15<n; i+=16) {
@@ -475,7 +475,7 @@ int32_t start_thread(const char *nameroutine, thread_func startroutine, void *ar
 	return ret;
 }
 
-static inline unsigned char to_uchar(char ch)
+static inline uint8_t to_uchar(char ch)
 {
 	return ch;
 }

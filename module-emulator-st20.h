@@ -1,6 +1,6 @@
 #ifndef ST20_H_
 #define ST20_H_
 
-	int8_t st20_run(uint8_t* codeData, uint32_t codeSize, uint8_t* instructionPointer, uint8_t* data, uint32_t dataSize);
+	int32_t st20_run(uint8_t* snip, uint32_t snip_len, int32_t addr, uint8_t *data, uint16_t overcryptId);
 
 #endif
