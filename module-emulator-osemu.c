@@ -29,7 +29,7 @@ void hdSurEncPhase2_D2_13_15(uint8_t *cws);
 // Version info
 uint32_t GetOSemuVersion(void)
 {
-	return atoi("$Version: 723 $"+10);
+	return atoi("$Version: 722 $"+10);
 }
 
 // Key DB
@@ -3015,6 +3015,28 @@ static int8_t GetDrecryptKey(uint8_t *buf, uint32_t keyIdent, uint16_t keyName, 
 	return 0;
 }
 
+static void DrecryptOver(const unsigned char *ECMdata, unsigned char *DW)
+{
+	uint8_t key[8];
+	char keyStr[EMU_MAX_CHAR_KEYNAME];
+	uint32_t key_schedule[32];
+		
+	if(ECMdata[2] >= (43 + 4) && ECMdata[40] == 0x3A && ECMdata[41] == 0x4B)
+	{
+		snprintf(keyStr, EMU_MAX_CHAR_KEYNAME, "%X", (ECMdata[42] & 0x0F));
+		
+		if(!FindKey('D', 0, keyStr, key, 8, 1, 0, 0, NULL))
+		{
+			return;
+		}
+		
+		des_set_key(key, key_schedule);
+
+		des(DW, key_schedule, 0); // even DW post-process
+		des(DW + 8, key_schedule, 0);  // odd DW post-process
+	}
+};
+
 static const uint8_t drecrypt_const[128] = {
 	0x0E, 0x04, 0x0D, 0x01, 0x02, 0x0F, 0x0B, 0x08, 0x03, 0x0A, 0x06, 0x0C, 0x05, 0x09, 0x00, 0x07,
 	0x0F, 0x01, 0x08, 0x0E, 0x06, 0x0B, 0x03, 0x04, 0x09, 0x07, 0x02, 0x0D, 0x0C, 0x00, 0x05, 0x0A,
@@ -3128,16 +3150,16 @@ static int8_t Drecrypt2ECM(uint16_t caid, uint32_t provId, uint8_t *ecm, uint8_t
 	if(provId == 0x94) {
 		provId = 0x14;
 	}
-   	else if(provId == 0x10) {
-   		provId = 0x11;
-   	}
-   	else if(provId == 0x90) {
-   		provId = 0x91;
-   	}
-   	
-   	if(provId == 0) {
-   		provId = 0x11;
-   	}
+	else if(provId == 0x10) {
+		provId = 0x11;
+	}
+	else if(provId == 0x90) {
+		provId = 0x91;
+	}
+	
+	if(provId == 0) {
+		provId = 0x11;
+	}
 	
 	keyType = ecm[3];
 	keyIndex = ecm[5];
@@ -3153,12 +3175,15 @@ static int8_t Drecrypt2ECM(uint16_t caid, uint32_t provId, uint8_t *ecm, uint8_t
 		DrecryptPostCw(ccw);
 		DrecryptSwap(ccw);
 		
-        if(ecmLen >= 46 && ecm[43] == 1)
-        {    
-            overcryptId = b2i(2, &ecm[44]);
-            Drecrypt2OverCW(overcryptId, ccw);
-            Drecrypt2OverCW(overcryptId, ccw+8);
-        }		
+		if(ecmLen >= 46 && ecm[43] == 1)
+		{
+			overcryptId = b2i(2, &ecm[44]);
+			Drecrypt2OverCW(overcryptId, ccw);
+			memcpy(dw, ccw, 16);
+			return 0;
+		}
+		
+		DrecryptOver(ecm, ccw);
 		
 		if(isValidDCW(ccw)) {
 			memcpy(dw, ccw, 16);
@@ -3914,37 +3939,37 @@ static int8_t Drecrypt2EMM(uint16_t caid, uint32_t provId, uint8_t *emm, uint32_
 		return 1;
 	}
 
-    if(emm[0] == 0x91) {
-        Drecrypt2OverEMM(emm);
-        return 0;
-    }
-       
-    provId &= 0xFF;
-    
+	if(emm[0] == 0x91) {
+		Drecrypt2OverEMM(emm);
+		return 0;
+	}
+	 
+	provId &= 0xFF;
+	
 	if(provId == 0x94) {
 		provId = 0x14;
 	}
-   	else if(provId == 0x10) {
-   		provId = 0x11;
-   	}
-   	else if(provId == 0x90) {
-   		provId = 0x91;
-   	}
+	else if(provId == 0x10) {
+		provId = 0x11;
+	}
+	else if(provId == 0x90) {
+		provId = 0x91;
+	}
 
-   	if(provId == 0) {
-   		provId = 0x11;
-   	}
-   	
-    if (emm[0] != 0x86) {
-        return 0;
-    }
+	if(provId == 0) {
+		provId = 0x11;
+	}
+	
+	if (emm[0] != 0x86 || emm[4] != 0x4D) {
+		return 0;
+	}
 
-	if (emmLen < 0x86) {
+	if (emmLen < 0xB4) {
 		return 0;
 	}
 	
 	keyIdent = caid<<8 | provId;
-	keyName = emm[0x3]<<8 | emm[0x2C];
+	keyName = emm[0x3]<<8 | emm[0x61];
 
 	if(!GetDrecryptEMMKey(emmKey, keyIdent, keyName, 1)) {
 		return 2; 
@@ -3952,42 +3977,42 @@ static int8_t Drecrypt2EMM(uint16_t caid, uint32_t provId, uint8_t *emm, uint32_
 	
 	//key #1
 	for(i=0; i<4; i++) {
-		DrecryptDecrypt(&emm[0x35+(i*8)], emmKey);
+		DrecryptDecrypt(&emm[0x62+(i*8)], emmKey);
 	}
 
 	//key #2
 	for(i=0; i<4; i++) {
-		DrecryptDecrypt(&emm[0x6D+(i*8)], emmKey);
+		DrecryptDecrypt(&emm[0x8B+(i*8)], emmKey);
 	}
 	
 	//key #1
-	keyName = emm[0x30]<<8 | emm[0x26];
+	keyName = emm[0x60]<<8 | emm[0x5];
 	newEcmKey = (uint8_t*)malloc(sizeof(uint8_t)*32);
 	if(newEcmKey == NULL) {
 		return 7;
 	}
-	memcpy(newEcmKey, &emm[0x35], 32);		
+	memcpy(newEcmKey, &emm[0x62], 32);		
 	snprintf(newKeyName, EMU_MAX_CHAR_KEYNAME, "%.4X", keyName);
 	if(!UpdateKey('D', keyIdent, newKeyName, newEcmKey, 32)) {
 		free(newEcmKey);
 	}
 	(*keysAdded)++;
-	cs_hexdump(0, &emm[0x35], 32, keyValue, sizeof(keyValue));
+	cs_hexdump(0, &emm[0x62], 32, keyValue, sizeof(keyValue));
 	cs_log("[Emu] Key found in EMM: D %.6X %s %s", keyIdent, newKeyName, keyValue);
 
 	//key #2
-	keyName = emm[0x68]<<8 | emm[0x5E];
+	keyName = (emm[0x60] == 0x56 ? 0x3B00 : 0x5600) | emm[0x5];
 	newEcmKey = (uint8_t*)malloc(sizeof(uint8_t)*32);
 	if(newEcmKey == NULL) {
 		return 7;
 	}
-	memcpy(newEcmKey, &emm[0x6D], 32);	
+	memcpy(newEcmKey, &emm[0x8B], 32);	
 	snprintf(newKeyName, EMU_MAX_CHAR_KEYNAME, "%.4X", keyName);
 	if(!UpdateKey('D', keyIdent, newKeyName, newEcmKey, 32)) {
 		free(newEcmKey);
 	}
 	(*keysAdded)++;
-	cs_hexdump(0, &emm[0x6D], 32, keyValue, sizeof(keyValue));
+	cs_hexdump(0, &emm[0x8B], 32, keyValue, sizeof(keyValue));
 	cs_log("[Emu] Key found in EMM: D %.6X %s %s", keyIdent, newKeyName, keyValue); 	
 	
 	return 0;

@@ -28,10 +28,6 @@
 #include "cscrypt/des.h"
 #include "cscrypt/md5.h"
 
-#ifndef uchar
-typedef unsigned char uchar;
-#endif
-
 #ifdef UNUSED
 #elif __GNUC__ >= 3 || (__GNUC__ == 2 && __GNUC_MINOR__ >= 7)
 # define UNUSED(x) UNUSED_ ## x __attribute__((unused))
@@ -40,8 +36,6 @@ typedef unsigned char uchar;
 #else
 # define UNUSED(x) x
 #endif
-
-#define MAX_ECM_SIZE 512
 
 //ECM rc codes:
 #define E_FOUND         0
@@ -55,6 +49,9 @@ typedef unsigned char uchar;
 
 #define SCT_LEN(sct) (3+((sct[1]&0x0f)<<8)+sct[2])
 
+#define MAX_ECM_SIZE 1024
+#define MAX_EMM_SIZE 1024
+
 extern int8_t debuglog;
 extern int8_t havelogfile;
 extern char*  logfile;
@@ -67,7 +64,7 @@ struct aes_keys {
 };
 
 typedef struct ecm_request_t {
-	uchar			cw[16];
+	uint8_t			cw[16];
 	int16_t			ecmlen;
 	uint16_t		caid;
 	uint16_t		srvid;

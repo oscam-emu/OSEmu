@@ -8,7 +8,7 @@ bool cs_malloc(void *result, size_t size);
 void cs_sleepms(uint32_t msec);
 
 void cs_log_txt(const char *fmt, ...) __attribute__((format(printf, 1, 2)));
-char *cs_hexdump(int32_t m, const uchar *buf, int32_t n, char *target, int32_t len);
+char *cs_hexdump(int32_t m, const uint8_t *buf, int32_t n, char *target, int32_t len);
 void cs_log_hex(const uint8_t *buf, int32_t n, const char *fmt, ...) __attribute__((format(printf, 3, 4)));
 
 #define cs_log(fmt, params...)							cs_log_txt(fmt, ##params)
@@ -18,8 +18,8 @@ void cs_log_hex(const uint8_t *buf, int32_t n, const char *fmt, ...) __attribute
 
 int32_t boundary(int32_t exp, int32_t n);
 
-uint32_t b2i(int32_t n, const uchar *b);
-uchar *i2b_buf(int32_t n, uint32_t i, uchar *b);
+uint32_t b2i(int32_t n, const uint8_t *b);
+uint8_t *i2b_buf(int32_t n, uint32_t i, uint8_t *b);
 
 void cs_strncpy(char *destination, const char *source, size_t num);
 
@@ -30,8 +30,8 @@ uint32_t crc32(uint32_t crc, const unsigned char *buf, uint32_t len);
 uint32_t fletcher_crc32(uint8_t *data, uint32_t len);
 
 void aes_set_key(struct aes_keys *aes, char *key);
-void aes_decrypt(struct aes_keys *aes, uchar *buf, int32_t n);
-void aes_encrypt_idx(struct aes_keys *aes, uchar *buf, int32_t n);
+void aes_decrypt(struct aes_keys *aes, uint8_t *buf, int32_t n);
+void aes_encrypt_idx(struct aes_keys *aes, uint8_t *buf, int32_t n);
 
 #ifdef IPV6SUPPORT
 #define IN_ADDR_T struct in6_addr

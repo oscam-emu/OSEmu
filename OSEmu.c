@@ -3,7 +3,7 @@
 #include "module-emulator-osemu.h"
 
 static struct aes_keys cl_aes_keys;
-static uchar cl_ucrc[4];
+static uint8_t cl_ucrc[4];
 static unsigned char cl_user[128];
 static unsigned char cl_passwd[128];
 
@@ -54,7 +54,7 @@ static int32_t do_daemon(int32_t nochdir, int32_t noclose)
 	return (0);
 }
 
-static int32_t camd35_send(uchar *buf, int32_t buflen)
+static int32_t camd35_send(uint8_t *buf, int32_t buflen)
 {
 	int32_t l, status;
 	unsigned char rbuf[REQ_SIZE + 15 + 4], *sbuf = rbuf + 4;
@@ -75,7 +75,7 @@ static int32_t camd35_send(uchar *buf, int32_t buflen)
 	return status;
 }
 
-static int32_t camd35_auth_client(uchar *ucrc)
+static int32_t camd35_auth_client(uint8_t *ucrc)
 {
 	int32_t rc = 1;
 	uint32_t crc;
@@ -90,7 +90,7 @@ static int32_t camd35_auth_client(uchar *ucrc)
 	return (rc);
 }
 
-static int32_t camd35_recv(uchar *buf, int32_t rs)
+static int32_t camd35_recv(uint8_t *buf, int32_t rs)
 {
 	int32_t rc, s, n = 0, buflen = 0;
 	for(rc = s = 0; !rc; s++)
@@ -179,7 +179,7 @@ out:
 static void camd35_request_emm(uint16_t caid, uint32_t provider, uint8_t* hexserial,
 							   uint8_t emm_global, uint8_t emm_shared, uint8_t emm_unique)
 {
-	uchar mbuf[1024];
+	uint8_t mbuf[1024];
 	uint8_t prid[4];
 
 	memset(mbuf, 0, sizeof(mbuf));
@@ -229,7 +229,7 @@ static void camd35_request_emm(uint16_t caid, uint32_t provider, uint8_t* hexser
 	camd35_send(mbuf, 0);       // send with data-len 112 for camd3 < 3.890
 }
 
-static void camd35_process_ecm(uchar *buf, int buflen)
+static void camd35_process_ecm(uint8_t *buf, int buflen)
 {
 	ECM_REQUEST er;
 	uint16_t ecmlen = 0;
@@ -328,7 +328,7 @@ static void camd35_process_ecm(uchar *buf, int buflen)
 	}
 }
 
-static void camd35_process_emm(uchar *buf, int buflen)
+static void camd35_process_emm(uint8_t *buf, int buflen)
 {
 	uint32_t keysAdded = 0;
 	uint16_t emmlen = 0;
