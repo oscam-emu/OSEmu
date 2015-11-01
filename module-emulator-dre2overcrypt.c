@@ -491,6 +491,12 @@ static int32_t load_sections(uint8_t *body)
 		sect_no = section[6];
 		last_sect_no = section[7];
 
+		if(curr_sect_no == 0)
+		{
+			gId = (section[13] << 8) | section[14];
+			gVersion = (section[5] & 0x3e) >> 1;
+		}
+
 		if(curr_sect_no == sect_no)
 		{
 			body_len = sect_len - 5 - 4;
@@ -544,11 +550,9 @@ void Drecrypt2OverCW(uint16_t overcryptId, uint8_t *cw)
 
 void Drecrypt2OverEMM(uint8_t *emm)
 {
-	int32_t dataLen;
-	int32_t patch_len, rcu_len, len, snip_len;
-	uint8_t buf[0x1000], snip[0x10000], rcu[0x10000], patch[0x10000];
+	uint32_t dataLen;
 	
-	if(gVersion == ((emm[5] & 0x3e) >> 1) || emm[5] != 0x3)
+	if(gVersion == (emm[5] & 0x3e) >> 1)
 	{
 		return;
 	}
@@ -569,7 +573,7 @@ void Drecrypt2OverEMM(uint8_t *emm)
 
 	dataLen = ((emm[1] & 0xF) << 8) | emm[2];
 	dataLen += 3;
-	if(dataLen < 0)
+	if(dataLen < 4)
 	{
 		return;
 	}
@@ -595,6 +599,11 @@ void Drecrypt2OverEMM(uint8_t *emm)
 
 	gRawSec = 0;
 
+	int32_t patch_len, rcu_len, len, snip_len;
+	uint8_t *buf = malloc(0x1000), *snip = malloc(0x10000), *rcu = malloc(0x10000), *patch = malloc(0x10000);
+	
+	if(buf == NULL || snip == NULL || rcu == NULL || patch == NULL) {printf("can't allocate memory\n"); return;}
+	
     snip_len = (initial_snippet[4] << 24) | (initial_snippet[5] << 16) | (initial_snippet[6] << 8) | initial_snippet[7];
     
     if(dre_unpack(snip, initial_snippet + 8, sizeof(initial_snippet) - 8) >= snip_len)
@@ -615,9 +624,14 @@ void Drecrypt2OverEMM(uint8_t *emm)
       }
     }
     
-	gId = (raw_buffer.data[13] << 8) | raw_buffer.data[14];
-
-	gVersion = (emm[5] & 0x3e) >> 1;
+	//gId = (raw_buffer.data[13] << 8) | raw_buffer.data[14];
+	//gVersion = (emm[5] & 0x3e) >> 1;
+	
+	free(buf);
+	free(snip);
+	free(rcu);
+	free(patch);
+	
 	cs_log("[icg] snippet patch created. ICG algo %04X", gId);
 }
 

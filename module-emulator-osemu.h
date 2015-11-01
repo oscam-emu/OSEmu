@@ -10,14 +10,16 @@
 #define EMU_MAX_ECM_LEN MAX_ECM_SIZE
 #define EMU_MAX_EMM_LEN MAX_EMM_SIZE
 
-	typedef struct {
+	typedef struct KeyData KeyData;
+	
+	struct KeyData {
 		char identifier;
 		uint32_t provider;
 		char keyName[EMU_MAX_CHAR_KEYNAME];
 		uint8_t *key;
 		uint32_t keyLength;
-		void *nextKey;
-	} KeyData;
+		KeyData *nextKey;
+	};
 
 	typedef struct {
 		KeyData *EmuKeys;
