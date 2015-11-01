@@ -76,7 +76,7 @@ void st20_wbyte(st20_context_t *ctx, uint32_t off, uint8_t val);
 #define GET_OP()        operand|=op1&0x0F
 #define CLEAR_OP()      operand=0
 #define JUMP(x)         ctx->Iptr+=(x)
-#define POP64()         ({ uint32_t __b=POP(); ((unsigned long long)POP()<<32)|__b; })
+#define POP64()         ({ uint32_t __b=POP(); ((uint64_t)POP()<<32)|__b; })
 #define PUSHPOP(op,val) do { int32_t __a=val; AAA op##= (__a); } while(0)
 
 #define RB(off) UINT8_LE(st20_addr(ctx, off))
@@ -157,7 +157,7 @@ void st20_wbyte(st20_context_t *ctx, uint32_t off, uint8_t val)
 }
 
 #define OP_COL 20
-#define LOG_OP(op) 
+#define LOG_OP(op) //printf("%s\n",op);
 
 int32_t st20_decode(st20_context_t *ctx, int32_t count)
 {
@@ -259,18 +259,21 @@ int32_t st20_decode(st20_context_t *ctx, int32_t count)
 			case  0x09: LOG_OP("gt");    a=POP(); AAA = (AAA > a); break;
 			case  0x0A: LOG_OP("wsub");  a=POP(); AAA = a + (AAA * 4); break;
 			case  0x0C: LOG_OP("sub");   PUSHPOP(-, POP()); break;
-			case  0x1A: LOG_OP("ldiv");  { a = POP(); unsigned long long ll = POP64(); PUSH(ll % (uint32_t)a); PUSH(ll / (uint32_t)a); } break;
+			case  0x1A: LOG_OP("ldiv");  { a = POP(); uint64_t ll = POP64(); PUSH(ll % (uint32_t)a); PUSH(ll / (uint32_t)a); } break;
 			case  0x1B: LOG_OP("ldpi");  PUSHPOP(+, ctx->Iptr); break;
 			case  0x1D: LOG_OP("xdble"); CCC = BBB; BBB = (AAA >= 0 ? 0 : -1); break;
 			case  0x1F: LOG_OP("rem");   PUSHPOP(%, POP()); break;
 			case  0x20: LOG_OP("ret");   ctx->Iptr = RW(ctx->Wptr); ctx->Wptr = ctx->Wptr + 16; break;
-			case  0x2C: LOG_OP("div");   PUSHPOP(/, POP()); break;
+			case  0x2C: 
+					LOG_OP("div");   
+					PUSHPOP( /, POP());
+					break;
 			case  0x30: LOG_OP("nop");   break;
 			case  0x32: LOG_OP("not");   AAA =~ AAA; break;
 			case  0x33: LOG_OP("xor");   PUSHPOP(^, POP()); break;
 			case  0x34: LOG_OP("bcnt");  PUSHPOP(*, 4); break;
-			case  0x35: LOG_OP("lshr");  { a = POP(); unsigned long long ll = POP64() >> a; PUSH((ll >> 32) & 0xFFFFFFFF); PUSH(ll & 0xFFFFFFFF); } break;
-			case  0x36: LOG_OP("lshl");  { a = POP(); unsigned long long ll = POP64() << a; PUSH((ll >> 32) & 0xFFFFFFFF); PUSH(ll & 0xFFFFFFFF); } break;
+			case  0x35: LOG_OP("lshr");  { a = POP(); uint64_t ll = POP64() >> a; PUSH((ll >> 32) & 0xFFFFFFFF); PUSH(ll & 0xFFFFFFFF); } break;
+			case  0x36: LOG_OP("lshl");  { a = POP(); uint64_t ll = POP64() << a; PUSH((ll >> 32) & 0xFFFFFFFF); PUSH(ll & 0xFFFFFFFF); } break;
 			case  0x3B: LOG_OP("sb");    a = POP(); st20_wbyte(ctx, a, POP()); break;
 			case  0x3F: LOG_OP("wcnt");  a = POP(); PUSH(a & 3); PUSH((uint32_t)a >> 2); break;
 			case  0x40: LOG_OP("shr");   a = POP(); AAA = (uint32_t)AAA >> a; break;
@@ -351,13 +354,9 @@ int32_t st20_run(uint8_t* snip, uint32_t snip_len, int32_t addr, uint8_t *data, 
 {
 	int32_t error, i, n;
 	st20_context_t ctx;
-	memset(&ctx, 0, sizeof(st20_context_t));
 
 	//printf("exec_snip addr = 0x%X\n", addr);
 	cs_log("[icg] decrypt address = 0x%X, id = %04X", addr, overcryptId);
-
-	st20_set_ram(&ctx, NULL, 0x1000);
-	st20_set_flash(&ctx, snip + 0x48, snip_len - 0x48);
 	
 	//printf("CW: "); for(i = 0; i < 16; i++) printf("%02X ", data[i]); printf("\n");
 	cs_log("[icg] CW: %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X "
@@ -365,13 +364,17 @@ int32_t st20_run(uint8_t* snip, uint32_t snip_len, int32_t addr, uint8_t *data, 
 											,data[8], data[9], data[10], data[11], data[12], data[13], data[14], data[15]);
 	for(n=0;n<2;n++)
 	{
+		memset(&ctx, 0, sizeof(st20_context_t));
+		st20_set_ram(&ctx, NULL, 0x1000);
+		st20_set_flash(&ctx, snip + 0x48, (int) (snip_len - 0x48));
 		st20_init(&ctx, FLASHS + addr, RAMS + 0x100, 1);
 		st20_set_call_frame(&ctx, 0, RAMS, RAMS, RAMS);
 		for(i = 0; i < 8; i++) st20_wbyte(&ctx, RAMS + i, data[i+n*8]);
-		error = st20_decode(&ctx, 4000);
+		error = st20_decode(&ctx, 800000);
 		//printf("ret = %d, AREG = %X\n", error, st20_get_reg(&ctx, AREG));
 		cs_log("[icg] ret = %d, AREG = %X", error, st20_get_reg(&ctx, AREG));
 		for(i = 0; i < 8; i++) data[i+n*8] = st20_rbyte(&ctx, RAMS + i);
+		st20_free(&ctx);
 	}
 	
 	//printf("DW: "); for(i = 0; i < 16; i++) printf("%02X ", data[i]); printf("\n");
@@ -379,7 +382,6 @@ int32_t st20_run(uint8_t* snip, uint32_t snip_len, int32_t addr, uint8_t *data, 
 											,data[0], data[1], data[2] , data[3] , data[4] , data[5] , data[6] , data[7]
 											,data[8], data[9], data[10], data[11], data[12], data[13], data[14], data[15]);
 	
-	st20_free(&ctx);
 
 	if(error < 0)
 	{
