@@ -283,11 +283,11 @@ static int32_t SetKey(char identifier, uint32_t provider, const char *keyName, u
 				tmpKeyData = tmpKeyData->nextKey;
 				j++;
 			}
-			if(tmpKeyData)
+			if(tmpKeyData->nextKey)
 			{
 				NULLFREE(tmpKeyData->nextKey->key);
+				NULLFREE(tmpKeyData->nextKey);
 			}
-			NULLFREE(tmpKeyData->nextKey);
 			tmpKeyData->nextKey = newKeyData;
 
 			if(writeKey) {
@@ -2731,7 +2731,7 @@ static void PowervuCalculateCw(uint8_t seedType, uint8_t *seed, uint8_t csaUsed,
 }
 
 #ifdef WITH_EMU
-int8_t PowervuECM(uint8_t *ecm, uint8_t *dw, uint16_t srvid, emu_stream_client_key_data *cdata)
+int8_t PowervuECM(uint8_t *ecm, uint8_t *dw, uint16_t srvid, emu_stream_client_key_data *cdata, EXTENDED_CW* cw_ex)
 #else
 int8_t PowervuECM(uint8_t *ecm, uint8_t *dw, emu_stream_client_key_data *cdata)
 #endif
@@ -2750,6 +2750,7 @@ int8_t PowervuECM(uint8_t *ecm, uint8_t *dw, emu_stream_client_key_data *cdata)
 	uint8_t sbox;
 	uint16_t keyRef1, keyRef2;
 #ifdef WITH_EMU
+	uint8_t *dwp;
 	emu_stream_cw_item *cw_item;
 	int8_t update_global_key = 0;
 	int8_t update_global_keys[EMU_STREAM_SERVER_MAX_CONNECTIONS];
@@ -2900,7 +2901,7 @@ int8_t PowervuECM(uint8_t *ecm, uint8_t *dw, emu_stream_client_key_data *cdata)
 				SAFE_MUTEX_UNLOCK(&emu_fixed_key_srvid_mutex);
 			}
 			
-			if(cdata != NULL || update_global_key)
+			if(cdata != NULL || update_global_key || cw_ex != NULL)
 #else	
 			if(cdata != NULL)
 #endif
@@ -2914,17 +2915,15 @@ int8_t PowervuECM(uint8_t *ecm, uint8_t *dw, emu_stream_client_key_data *cdata)
 			}
 			else
 			{
-				// Calculate only video and audio1 seed
+				// Calculate only video seed
 				memcpy(ecmKey, tmpEcmKey, 7);
 				PowervuCalculateSeed(PVU_CW_VID, ecm+i, seedBase, ecmKey, seed[PVU_CW_VID], sbox);
-				//memcpy(ecmKey, tmpEcmKey, 7);
-				//PowervuCalculateSeed(PVU_CW_A1, ecm+i, seedBase, ecmKey, seed[PVU_CW_A1], sbox);	
 			}
 			
 			memcpy(baseCw, ecm+i+6+8, 7);
 
 #ifdef WITH_EMU
-			if(cdata != NULL || update_global_key)
+			if(cdata != NULL || update_global_key || cw_ex != NULL)
 #else
 			if(cdata != NULL)
 #endif
@@ -2962,7 +2961,7 @@ int8_t PowervuECM(uint8_t *ecm, uint8_t *dw, emu_stream_client_key_data *cdata)
 						}
 					}
 				}
-				else 
+				else if(cdata != NULL) 
 				{
 #endif
 					for(j=0; j<8; j++)
@@ -2991,20 +2990,95 @@ int8_t PowervuECM(uint8_t *ecm, uint8_t *dw, emu_stream_client_key_data *cdata)
 					}
 #ifdef WITH_EMU
 				}
+				else // cw_ex != NULL
+				{	
+					cw_ex->mode = CW_MODE_MULTIPLE_CW;
+					
+					if(csaUsed)
+					{
+						cw_ex->algo = CW_ALGO_CSA;
+						cw_ex->algo_mode = CW_ALGO_MODE_ECB;
+					}
+					else
+					{
+						cw_ex->algo = CW_ALGO_DES;
+						cw_ex->algo_mode = CW_ALGO_MODE_ECB;
+					}
+					
+					for(j=0; j<4; j++)
+					{	
+						dwp = cw_ex->audio[j];
+						
+						memset(dwp, 0, 16);
+						
+						if(ecm[0] == 0x80)
+						{
+							memcpy(dwp, cw[PVU_CW_A1+j], 8);
+						
+							if(csaUsed)
+							{
+								for(k = 0; k < 8; k += 4)
+								{
+									dwp[k + 3] = ((dwp[k] + dwp[k + 1] + dwp[k + 2]) & 0xff);
+								}
+							}
+						}
+						else
+						{
+							memcpy(&dwp[8], cw[PVU_CW_A1+j], 8);
+							
+							if(csaUsed)
+							{
+								for(k = 8; k < 16; k += 4)
+								{
+									dwp[k + 3] = ((dwp[k] + dwp[k + 1] + dwp[k + 2]) & 0xff);
+								}
+							}
+						}
+					}
+					
+					dwp = cw_ex->data;
+					
+					memset(dwp, 0, 16);
+					
+					if(ecm[0] == 0x80)
+					{
+						memcpy(dwp, cw[PVU_CW_HSD], 8);
+					
+						if(csaUsed)
+						{
+							for(k = 0; k < 8; k += 4)
+							{
+								dwp[k + 3] = ((dwp[k] + dwp[k + 1] + dwp[k + 2]) & 0xff);
+							}
+						}
+					}
+					else
+					{
+						memcpy(&dwp[8], cw[PVU_CW_HSD], 8);
+						
+						if(csaUsed)
+						{
+							for(k = 8; k < 16; k += 4)
+							{
+								dwp[k + 3] = ((dwp[k] + dwp[k + 1] + dwp[k + 2]) & 0xff);
+							}
+						}
+					}
+				}
 #endif		
 			}
 			else
 			{
-				// Calculate only video and audio1 cw
+				// Calculate only video cw
 				PowervuCalculateCw(PVU_CW_VID, seed[PVU_CW_VID], csaUsed, convolvedCw[PVU_CW_VID], cw[PVU_CW_VID], baseCw);
-				//PowervuCalculateCw(PVU_CW_A1, seed[PVU_CW_A1], csaUsed, convolvedCw[PVU_CW_A1], cw[PVU_CW_A1], baseCw);
 			}
 			
 			memset(dw, 0, 16);
 			
 			if(ecm[0] == 0x80)
 			{
-				memcpy(dw, cw[PVU_CW_VID], 8);		
+				memcpy(dw, cw[PVU_CW_VID], 8);
 			
 				if(csaUsed)
 				{
@@ -3271,8 +3345,13 @@ const char* GetProcessECMErrorReason(int8_t result)
 6  CW checksum error
 7  Out of memory
 */
+#ifdef WITH_EMU
+int8_t ProcessECM(int16_t ecmDataLen, uint16_t caid, uint32_t provider, const uint8_t *ecm,
+				  uint8_t *dw, uint16_t srvid, uint16_t ecmpid, EXTENDED_CW* cw_ex)
+#else
 int8_t ProcessECM(int16_t ecmDataLen, uint16_t caid, uint32_t provider, const uint8_t *ecm,
 				  uint8_t *dw, uint16_t srvid, uint16_t ecmpid)
+#endif
 {
 	int8_t result = 1, i;
 	uint8_t ecmCopy[EMU_MAX_ECM_LEN];
@@ -3317,7 +3396,7 @@ int8_t ProcessECM(int16_t ecmDataLen, uint16_t caid, uint32_t provider, const ui
 	}
 	else if((caid>>8)==0x0E) {
 #ifdef WITH_EMU
-		result = PowervuECM(ecmCopy,dw,srvid,NULL);
+		result = PowervuECM(ecmCopy,dw,srvid,NULL,cw_ex);
 #else
 		result = PowervuECM(ecmCopy,dw,NULL);
 #endif

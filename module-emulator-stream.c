@@ -267,7 +267,7 @@ static void ParseECMData(emu_stream_client_data *cdata)
 	{
 		cdata->ecm_nb = data[0xb];
 #ifdef WITH_EMU
-		PowervuECM(data, dcw, cdata->srvid, &cdata->key);
+		PowervuECM(data, dcw, cdata->srvid, &cdata->key, NULL);
 #else
 		PowervuECM(data, dcw, &cdata->key);
 #endif
