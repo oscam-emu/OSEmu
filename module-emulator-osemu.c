@@ -29,7 +29,7 @@ void hdSurEncPhase2_D2_13_15(uint8_t *cws);
 // Version info
 uint32_t GetOSemuVersion(void)
 {
-	return atoi("$Version: 726 $"+10);
+	return atoi("$Version: 727 $"+10);
 }
 
 // Key DB
@@ -4045,9 +4045,10 @@ static int8_t Drecrypt2EMM(uint16_t caid, uint32_t provId, uint8_t *emm, uint32_
 	uint8_t emmKey[32];
 	int32_t i;
 	uint8_t *newEcmKey;
+	uint8_t keynum, keyidx, keyclass, key1offset, key2offset;
 	char newKeyName[EMU_MAX_CHAR_KEYNAME], keyValue[100];
-
-	if(emmLen < 1 || caid != 0x4AE1) {
+	
+	if(emmLen < 5 || caid != 0x4AE1) {
 		return 1;
 	}
 
@@ -4055,26 +4056,25 @@ static int8_t Drecrypt2EMM(uint16_t caid, uint32_t provId, uint8_t *emm, uint32_
 		Drecrypt2OverEMM(emm);
 		return 0;
 	}
-		
+	
 	switch(provId & 0xFF)
 	{
 		case 0x11:
+			if (emmLen < (0x8B + 32)) return 1;
+			if (emm[0] != 0x86 && emm[4] != 0x4D) return 1;
+			keynum = 0x61; keyidx = 0x60; keyclass = 0x05; key1offset = 0x62; key2offset = 0x8B;
+			break;
 		case 0x14:
+			if (emmLen < (0x6D + 32)) return 1;
+			if (emm[0] != 0x86 && emm[4] != 0x02) return 1;
+			keynum = 0x2C; keyidx = 0x30; keyclass = 0x26; key1offset = 0x35; key2offset = 0x6D;
 			break;
 		default:
 			return 1;
 	}
-	
-	if (emm[0] != 0x86 && emm[4] != 0x4D) {
-		return 0;
-	}
-
-	if (emmLen < 0xB4) {
-		return 0;
-	}
-	
+		
 	keyIdent = caid<<8 | provId;
-	keyName = emm[0x3]<<8 | emm[0x61];
+	keyName = emm[0x3]<<8 | emm[keynum];
 
 	if(!GetDrecryptEMMKey(emmKey, keyIdent, keyName, 1)) {
 		return 2; 
@@ -4082,42 +4082,42 @@ static int8_t Drecrypt2EMM(uint16_t caid, uint32_t provId, uint8_t *emm, uint32_
 	
 	//key #1
 	for(i=0; i<4; i++) {
-		DrecryptDecrypt(&emm[0x62+(i*8)], emmKey);
+		DrecryptDecrypt(&emm[key1offset+(i*8)], emmKey);
 	}
 
 	//key #2
 	for(i=0; i<4; i++) {
-		DrecryptDecrypt(&emm[0x8B+(i*8)], emmKey);
+		DrecryptDecrypt(&emm[key2offset+(i*8)], emmKey);
 	}
 	
 	//key #1
-	keyName = emm[0x60]<<8 | emm[0x5];
+	keyName = emm[keyidx]<<8 | emm[keyclass];
 	newEcmKey = (uint8_t*)malloc(sizeof(uint8_t)*32);
 	if(newEcmKey == NULL) {
 		return 7;
 	}
-	memcpy(newEcmKey, &emm[0x62], 32);		
+	memcpy(newEcmKey, &emm[key1offset], 32);		
 	snprintf(newKeyName, EMU_MAX_CHAR_KEYNAME, "%.4X", keyName);
 	if(!UpdateKey('D', keyIdent, newKeyName, newEcmKey, 32, NULL)) {
 		free(newEcmKey);
 	}
 	(*keysAdded)++;
-	cs_hexdump(0, &emm[0x62], 32, keyValue, sizeof(keyValue));
+	cs_hexdump(0, &emm[key1offset], 32, keyValue, sizeof(keyValue));
 	cs_log("[Emu] Key found in EMM: D %.6X %s %s", keyIdent, newKeyName, keyValue);
 
 	//key #2
-	keyName = (emm[0x60] == 0x56 ? 0x3B00 : 0x5600) | emm[0x5];
+	keyName = (emm[keyidx] == 0x56 ? 0x3B00 : 0x5600) | emm[keyclass];
 	newEcmKey = (uint8_t*)malloc(sizeof(uint8_t)*32);
 	if(newEcmKey == NULL) {
 		return 7;
 	}
-	memcpy(newEcmKey, &emm[0x8B], 32);	
+	memcpy(newEcmKey, &emm[key2offset], 32);	
 	snprintf(newKeyName, EMU_MAX_CHAR_KEYNAME, "%.4X", keyName);
 	if(!UpdateKey('D', keyIdent, newKeyName, newEcmKey, 32, NULL)) {
 		free(newEcmKey);
 	}
 	(*keysAdded)++;
-	cs_hexdump(0, &emm[0x8B], 32, keyValue, sizeof(keyValue));
+	cs_hexdump(0, &emm[key2offset], 32, keyValue, sizeof(keyValue));
 	cs_log("[Emu] Key found in EMM: D %.6X %s %s", keyIdent, newKeyName, keyValue); 	
 	
 	return 0;
