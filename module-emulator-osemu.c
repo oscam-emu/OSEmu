@@ -29,7 +29,7 @@ void hdSurEncPhase2_D2_13_15(uint8_t *cws);
 // Version info
 uint32_t GetOSemuVersion(void)
 {
-	return atoi("$Version: 727 $"+10);
+	return atoi("$Version: 728 $"+10);
 }
 
 // Key DB
