@@ -4060,17 +4060,17 @@ static int8_t Drecrypt2EMM(uint16_t caid, uint32_t provId, uint8_t *emm, uint32_
 	switch(provId & 0xFF)
 	{
 		case 0x11:
-			if (emmLen < (0x8B + 32)) return 1;
-			if (emm[0] != 0x86 && emm[4] != 0x4D) return 1;
+			if (emmLen < (0x8B + 32)) return 0;
+			if (emm[0] != 0x86 && emm[4] != 0x4D) return 0;
 			keynum = 0x61; keyidx = 0x60; keyclass = 0x05; key1offset = 0x62; key2offset = 0x8B;
 			break;
 		case 0x14:
-			if (emmLen < (0x6D + 32)) return 1;
-			if (emm[0] != 0x86 && emm[4] != 0x02) return 1;
+			if (emmLen < (0x6D + 32)) return 0;
+			if (emm[0] != 0x86 && emm[4] != 0x02) return 0;
 			keynum = 0x2C; keyidx = 0x30; keyclass = 0x26; key1offset = 0x35; key2offset = 0x6D;
 			break;
 		default:
-			return 1;
+			return 0;
 	}
 		
 	keyIdent = caid<<8 | provId;
