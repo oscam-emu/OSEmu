@@ -234,14 +234,15 @@ static void ParsePMTData(emu_stream_client_data *cdata)
 		es_info_length = b2i(2, data+i+3) &0xFFF;
 		
 		if(stream_type == 0x01 || stream_type == 0x02 || stream_type == 0x10 || stream_type == 0x1B 
-			|| stream_type == 0x24 || stream_type == 0x42 || stream_type == 0xD1 || stream_type == 0xEA) 
+			|| stream_type == 0x24 || stream_type == 0x42 || stream_type == 0x80 || stream_type == 0xD1 
+			|| stream_type == 0xEA)
 		{ 
 			cdata->video_pid = stream_pid;
 			cs_log_dbg(D_READER, "[Emu] stream found video pid: %X", stream_pid);
 		}
 		
-		if(stream_type == 0x03 || stream_type == 0x04 || stream_type == 0x06 || stream_type == 0x0F 
-			|| stream_type == 0x11 || (stream_type >= 0x80 && stream_type <= 0x87))
+		else if(stream_type == 0x03 || stream_type == 0x04 || stream_type == 0x0F || stream_type == 0x11 
+			|| stream_type == 0x81 || stream_type == 0x87)
 		{
 			if(cdata->audio_pid_count >= EMU_STREAM_MAX_AUDIO_SUB_TRACKS)
 				{ continue; }
