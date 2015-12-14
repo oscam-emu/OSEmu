@@ -2800,6 +2800,7 @@ int8_t PowervuECM(uint8_t *ecm, uint8_t *dw, emu_stream_client_key_data *cdata)
 	uint8_t ecmPart1[14], ecmPart2[27];
 	uint8_t sbox;
 	uint16_t keyRef1, keyRef2;
+	uint8_t test;
 #ifdef WITH_EMU
 	uint8_t *dwp;
 	emu_stream_cw_item *cw_item;
@@ -2974,10 +2975,11 @@ int8_t PowervuECM(uint8_t *ecm, uint8_t *dw, emu_stream_client_key_data *cdata)
 			memcpy(baseCw, ecm+i+6+8, 7);
 
 #ifdef WITH_EMU
-			if(cdata != NULL || update_global_key || cw_ex != NULL)
+			test = cdata != NULL || update_global_key || cw_ex != NULL;
 #else
-			if(cdata != NULL)
+			test = cdata != NULL;
 #endif
+			if (test)
 			{
 				// Calculate all cws
 				for(j=0; j<8; j++)
