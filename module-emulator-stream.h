@@ -13,6 +13,7 @@
 
 	typedef struct 
 	{
+		int32_t connid;
 		int8_t have_pat_data;
 		int8_t have_pmt_data;
 		int8_t have_ecm_data;

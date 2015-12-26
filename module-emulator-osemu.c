@@ -3933,7 +3933,7 @@ static int8_t PowervuEMM(uint8_t *emm, uint32_t *keysAdded)
 	snprintf(keyName, EMU_MAX_CHAR_KEYNAME, "%.8X", uniqueAddress);
 	if(!GetPowervuEmmKey(emmKey, 0, keyName, 7, 0, &channelId))
 	{
-		cs_log("[Emu] EMM eror: AU key for UA %s is missing", keyName);
+		cs_log_dbg(D_EMM,"[Emu] EMM eror: AU key for UA %s is missing", keyName);
 		return 2;
 	}
 
@@ -4218,7 +4218,7 @@ int8_t ProcessEMM(uint16_t caid, uint32_t provider, const uint8_t *emm, uint32_t
 	}
 
 	if(result != 0) {
-		cs_log("[Emu] EMM failed: %s", GetProcessEMMErrorReason(result));
+		cs_log_dbg(D_EMM,"[Emu] EMM failed: %s", GetProcessEMMErrorReason(result));
 	}
 
 	return result;

@@ -58,8 +58,13 @@
 	6  CW checksum error
 	7  Out of memory
 	*/
+#ifdef WITH_EMU
 	int8_t ProcessECM(int16_t ecmDataLen, uint16_t caid, uint32_t provider, const uint8_t *ecm,
-					  uint8_t *dw, uint16_t srvid, uint16_t ecmpid);
+				  uint8_t *dw, uint16_t srvid, uint16_t ecmpid, EXTENDED_CW* cw_ex);
+#else
+	int8_t ProcessECM(int16_t ecmDataLen, uint16_t caid, uint32_t provider, const uint8_t *ecm,
+				  uint8_t *dw, uint16_t srvid, uint16_t ecmpid);
+#endif
 
 	const char* GetProcessECMErrorReason(int8_t result);
 
@@ -101,7 +106,7 @@
 #define PVU_CW_VBI 7	// Vertical Blanking Interval
 
 #ifdef WITH_EMU
-	int8_t PowervuECM(uint8_t *ecm, uint8_t *dw, uint16_t srvid, emu_stream_client_key_data *cdata);
+	int8_t PowervuECM(uint8_t *ecm, uint8_t *dw, uint16_t srvid, emu_stream_client_key_data *cdata, EXTENDED_CW* cw_ex);
 #else
 	int8_t PowervuECM(uint8_t *ecm, uint8_t *dw, emu_stream_client_key_data *cdata);
 #endif
