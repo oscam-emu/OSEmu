@@ -22,6 +22,7 @@
 		uint16_t srvid;
 		uint16_t pmt_pid;
 		uint16_t ecm_pid;
+		uint16_t emm_pid;
 		uint16_t video_pid;
 		uint16_t audio_pids[EMU_STREAM_MAX_AUDIO_SUB_TRACKS];
 		uint8_t audio_pid_count;

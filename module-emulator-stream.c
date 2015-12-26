@@ -299,6 +299,8 @@ static void ParseTSPackets(emu_stream_client_data *data, uint8_t *stream_buf, ui
 	uint32_t cs =0;  //video cluster start
 	uint32_t ce =1;  //video cluster end
 	uint32_t csa[EMU_STREAM_MAX_AUDIO_SUB_TRACKS] = {0};  //cluster index for audio tracks
+	uint32_t keysAdded = 0;
+	uint8_t *cptr;
 	
 	for(i=0; i<bufLength; i+=packetSize)
 	{		
@@ -353,7 +355,36 @@ static void ParseTSPackets(emu_stream_client_data *data, uint8_t *stream_buf, ui
 							stream_buf+i+offset, packetSize-offset, ParseECMData, data);
 			continue;
 		}
-		
+	
+		if( pid == 0x01 && !data->emm_pid ) // CAT 
+		{
+			cptr = stream_buf+i+offset;
+			j = 0;
+			while (cptr != NULL)
+			{
+				cptr = memchr (stream_buf+i+offset+j, 0x0E,100);
+				if (cptr != NULL)
+			 	{
+					if (*(cptr+1) == 00) 
+					{
+						data->emm_pid = b2i(2,cptr+2);
+						break;
+					}
+				j = cptr - stream_buf +i + 1;
+				}
+			}
+		}
+	
+		if(data->emm_pid && pid == data->emm_pid)
+		{
+			ProcessEMM(0x0E00,0x0,stream_buf+i+offset+1, &keysAdded);	
+			if(keysAdded) 
+			{
+				cs_log("[Emu] stream %i found %i keys.",data->connid, keysAdded);
+			}
+
+		}
+
 		if(scramblingControl == 0)
 			{ continue; }
 		
