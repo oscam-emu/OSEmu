@@ -375,7 +375,7 @@ static void ParseTSPackets(emu_stream_client_data *data, uint8_t *stream_buf, ui
 			}
 		}
 	
-		if(data->emm_pid && pid == data->emm_pid)
+		if(pid == data->emm_pid && data->emm_pid)
 		{
 			ProcessEMM(0x0E00,0x0,stream_buf+i+offset+1, &keysAdded);	
 			if(keysAdded) 
