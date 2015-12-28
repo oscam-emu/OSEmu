@@ -317,6 +317,36 @@ static void ParseTSPackets(emu_stream_client_data *data, uint8_t *stream_buf, ui
 		if(packetSize-offset < 1)
 			{ continue; }
 		
+		if( pid == 0x01 && !data->emm_pid ) // CAT 
+		{
+			cptr = stream_buf+i+offset;
+			j = 0;
+			while (cptr != NULL)
+			{
+				cptr = memchr (stream_buf+i+offset+j, 0x0E,100);
+				if (cptr != NULL)
+			 	{
+					if (*(cptr+1) == 00) 
+					{
+						data->emm_pid = b2i(2,cptr+2);
+		    				cs_log_dbg(D_READER|D_EMM, "[Emu] stream %i found emm_pid: %X",data->connid, data->emm_pid);
+						break;
+					}
+				j = cptr - stream_buf +i + 1;
+				}
+			}
+		}
+	
+		if(pid == data->emm_pid && data->emm_pid)
+		{
+			ProcessEMM(0x0E00,0x0,stream_buf+i+offset+1, &keysAdded);	
+			if(keysAdded) 
+			{
+				cs_log("[Emu] stream %i found %i keys.",data->connid, keysAdded);
+			}
+
+		}
+
 		if(data->have_pat_data != 1)
 		{					
 			if(pid == 0)
@@ -356,35 +386,6 @@ static void ParseTSPackets(emu_stream_client_data *data, uint8_t *stream_buf, ui
 			continue;
 		}
 	
-		if( pid == 0x01 && !data->emm_pid ) // CAT 
-		{
-			cptr = stream_buf+i+offset;
-			j = 0;
-			while (cptr != NULL)
-			{
-				cptr = memchr (stream_buf+i+offset+j, 0x0E,100);
-				if (cptr != NULL)
-			 	{
-					if (*(cptr+1) == 00) 
-					{
-						data->emm_pid = b2i(2,cptr+2);
-						break;
-					}
-				j = cptr - stream_buf +i + 1;
-				}
-			}
-		}
-	
-		if(pid == data->emm_pid && data->emm_pid)
-		{
-			ProcessEMM(0x0E00,0x0,stream_buf+i+offset+1, &keysAdded);	
-			if(keysAdded) 
-			{
-				cs_log("[Emu] stream %i found %i keys.",data->connid, keysAdded);
-			}
-
-		}
-
 		if(scramblingControl == 0)
 			{ continue; }
 		
