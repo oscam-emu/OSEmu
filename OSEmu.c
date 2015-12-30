@@ -450,6 +450,7 @@ int main(int argc, char**argv)
 			break;
 		case 'e':
 			requestau = 1;
+			emu_stream_emm_enabled = 1;
 			break;
 		case 'i':
 			exit(0);

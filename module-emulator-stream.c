@@ -25,6 +25,7 @@ char emu_stream_source_host[256] = {"127.0.0.1"};
 int32_t emu_stream_source_port = 8001;
 char *emu_stream_source_auth = NULL;
 int32_t emu_stream_relay_port = 17999;
+int8_t emu_stream_emm_enabled = 0;
 uint32_t cluster_size = 50;
 
 static uint8_t emu_stream_server_mutex_init = 0;
@@ -317,7 +318,7 @@ static void ParseTSPackets(emu_stream_client_data *data, uint8_t *stream_buf, ui
 		if(packetSize-offset < 1)
 			{ continue; }
 		
-		if( pid == 0x01 && !data->emm_pid ) // CAT 
+		if( pid == 0x01 && emu_stream_emm_enabled && !data->emm_pid ) // CAT 
 		{
 			cptr = stream_buf+i+offset;
 			j = 0;

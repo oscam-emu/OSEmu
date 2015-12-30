@@ -34,6 +34,7 @@
 	extern int32_t emu_stream_source_port;
 	extern char *emu_stream_source_auth;
 	extern int32_t emu_stream_relay_port;
+	extern int8_t emu_stream_emm_enabled;
 	
 	extern int8_t stream_server_thread_init;
 	
