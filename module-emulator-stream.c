@@ -329,7 +329,7 @@ static void ParseTSPackets(emu_stream_client_data *data, uint8_t *stream_buf, ui
 			 	{
 					if (*(cptr+1) == 00) 
 					{
-						data->emm_pid = b2i(2,cptr+2);
+						data->emm_pid = (b2i(2,cptr+2) & 0x1FFF);
 		    				cs_log_dbg(D_READER|D_EMM, "[Emu] stream %i found emm_pid: %X",data->connid, data->emm_pid);
 						break;
 					}
