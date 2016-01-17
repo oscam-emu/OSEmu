@@ -182,7 +182,7 @@ static void ParsePATData(emu_stream_client_data *cdata)
 		if(cdata->srvid == srvid)
 		{
 			cdata->pmt_pid = b2i(2, data+i+2) & 0x1FFF;
-			cs_log_dbg(D_READER, "[Emu] stream %i found pmt pid: %X",cdata->connid, cdata->pmt_pid);
+			cs_log_dbg(D_READER, "[Emu] stream %i found pmt  pid : 0x%04X (%i)",cdata->connid, cdata->pmt_pid, cdata->pmt_pid);
 			break;
 		}
 	}
@@ -222,7 +222,7 @@ static void ParsePMTData(emu_stream_client_data *cdata)
 			if(caid>>8 == 0x0E)
 			{
 		    	cdata->ecm_pid = b2i(2, data+i+4) &0x1FFF;
-		    	cs_log_dbg(D_READER, "[Emu] stream %i found ecm_pid: %X",cdata->connid, cdata->ecm_pid);
+		    	cs_log_dbg(D_READER, "[Emu] stream %i found ecm  pid : 0x%04X (%i)",cdata->connid, cdata->ecm_pid, cdata->ecm_pid);
 		    	break;
 		    }
 		}
@@ -239,7 +239,7 @@ static void ParsePMTData(emu_stream_client_data *cdata)
 			|| stream_type == 0xEA)
 		{ 
 			cdata->video_pid = stream_pid;
-			cs_log_dbg(D_READER, "[Emu] stream %i found video pid: %X",cdata->connid, stream_pid);
+			cs_log_dbg(D_READER, "[Emu] stream %i found video pid: 0x%04X (%i)",cdata->connid, stream_pid, stream_pid);
 		}
 		
 		else if(stream_type == 0x03 || stream_type == 0x04 || stream_type == 0x05 || stream_type == 0x06 ||
@@ -250,7 +250,7 @@ static void ParsePMTData(emu_stream_client_data *cdata)
 			
 			cdata->audio_pids[cdata->audio_pid_count] = stream_pid;
 			cdata->audio_pid_count++;
-			cs_log_dbg(D_READER, "[Emu] stream %i found audio pid: %X", cdata->connid, stream_pid);
+			cs_log_dbg(D_READER, "[Emu] stream %i found audio pid: 0x%04X (%i)", cdata->connid, stream_pid, stream_pid);
 		}
 	}
 }
@@ -330,7 +330,7 @@ static void ParseTSPackets(emu_stream_client_data *data, uint8_t *stream_buf, ui
 					if (*(cptr+1) == 00) 
 					{
 						data->emm_pid = (b2i(2,cptr+2) & 0x1FFF);
-		    				cs_log_dbg(D_READER|D_EMM, "[Emu] stream %i found emm_pid: %X",data->connid, data->emm_pid);
+		    				cs_log_dbg(D_READER|D_EMM, "[Emu] stream %i found emm  pid : 0x%04X (%i)",data->connid, data->emm_pid, data->emm_pid);
 						break;
 					}
 				j = cptr - stream_buf +i + 1;
