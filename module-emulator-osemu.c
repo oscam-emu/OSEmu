@@ -180,6 +180,7 @@ static void WriteKeyToFile(char identifier, uint32_t provider, const char *keyNa
 	{
 		snprintf(line, sizeof(line), "\n%c %04X %s %s ; added by OSEmu %s\n", identifier, provider, keyName, keyValue, dateText);
 	}
+	cs_log("[Emu] Key written: %c %08X %s %s", identifier, provider, keyName, keyValue);
 	free(keyValue);
 
 	fwrite(line, strlen(line), 1, file);
@@ -195,6 +196,7 @@ static int32_t SetKey(char identifier, uint32_t provider, const char *keyName, u
 	KeyDataContainer *KeyDB;
 	KeyData *tmpKeyData, *newKeyData;
 	identifier = (char)toupper((int)identifier);
+	uint8_t key_exists = 0;
 
 	KeyDB = GetKeyContainer(identifier);
 	if(KeyDB == NULL) {
@@ -229,15 +231,36 @@ static int32_t SetKey(char identifier, uint32_t provider, const char *keyName, u
 	}
 
 	for(i=0; i<KeyDB->keyCount; i++) {
-		if(KeyDB->EmuKeys[i].provider != provider) {
-			continue;
-		}
 		if(strcmp(KeyDB->EmuKeys[i].keyName, keyName)) {
 			continue;
 		}
 
+		if( identifier == 'P' ) {
+			if(writeKey) {
+				if( (KeyDB->EmuKeys[i].provider & 0xFFFF0000)  != (provider & 0xFFFF0000) ) { // mask out srvid, only compare group
+					continue;
+				}
+				tmpKeyData = &KeyDB->EmuKeys[i];
+				if(memcmp(tmpKeyData->key, key, tmpKeyData->keyLength < keyLength ? tmpKeyData->keyLength : keyLength) == 0) {
+					key_exists = 1;
+					continue;
+				}
+				provider = KeyDB->EmuKeys[i].provider; // set to matched full provider ( group + srvid )
+			}
+			else {
+				if( KeyDB->EmuKeys[i].provider != provider ) { 
+                                        continue;
+                                }
+			}
+		}
+		else {
+			if(KeyDB->EmuKeys[i].provider != provider) {
+				continue;
+			}
+		}
+
 		// allow multiple keys for Irdeto and Powervu
-		if(identifier == 'I' || identifier == 'P')
+		if(identifier == 'I')
 		{
 			// reject duplicates
 			tmpKeyData = &KeyDB->EmuKeys[i];
@@ -294,7 +317,7 @@ static int32_t SetKey(char identifier, uint32_t provider, const char *keyName, u
 				WriteKeyToFile(identifier, provider, keyName, key, keyLength, comment);
 			}
 		}
-		else // identifier != ('I' || 'P')
+		else // identifier != 'I' 
 		{
 			free(KeyDB->EmuKeys[i].key);
 			KeyDB->EmuKeys[i].key = key;
@@ -308,6 +331,12 @@ static int32_t SetKey(char identifier, uint32_t provider, const char *keyName, u
 		if(tmpKey != NULL) {
 			free(orgKey);
 		}
+		if((identifier != 'P') | !writeKey){ // on pvu update continue loop to find others in group
+			return 1;
+		}
+	}
+
+	if(key_exists) {
 		return 1;
 	}
 
@@ -364,6 +393,7 @@ static int32_t FindKey(char identifier, uint32_t provider, const char *keyName, 
 {
 	uint32_t i;
 	uint16_t j;
+	uint8_t k;
 	KeyDataContainer *KeyDB;
 	KeyData *tmpKeyData;
 
@@ -372,10 +402,20 @@ static int32_t FindKey(char identifier, uint32_t provider, const char *keyName, 
 		return 0;
 	}
 
+	k = 0;
 	for(i=0; i<KeyDB->keyCount; i++) {
-		if(getProvider == NULL && KeyDB->EmuKeys[i].provider != provider) {
-			continue;
+		if(identifier == 'P') {
+			if( getProvider == NULL && (KeyDB->EmuKeys[i].provider & 0x0000FFFF)  != provider ) { // mask out group, only compare srvid
+				continue;
+			}
+			//provider = KeyDB->EmuKeys[i].provider; // set to matched full provider ( group + srvid )
 		}
+		else {
+			if(getProvider == NULL && KeyDB->EmuKeys[i].provider != provider) {
+				continue;
+			}
+		}
+
 		if(strcmp(KeyDB->EmuKeys[i].keyName, keyName)) {
 			continue;
 		}
@@ -385,6 +425,16 @@ static int32_t FindKey(char identifier, uint32_t provider, const char *keyName, 
 		//Currently this is only the case for Irdeto keys.
 		if(matchLength && KeyDB->EmuKeys[i].keyLength != maxKeyLength) {
 			continue;
+		}
+
+		if(identifier == 'P') {
+			if(k < keyRef) {
+				k++;
+				continue;
+			}
+			else {
+				keyRef = 0;
+			}
 		}
 
 		tmpKeyData = &KeyDB->EmuKeys[i];
@@ -3933,7 +3983,7 @@ static int8_t PowervuEMM(uint8_t *emm, uint32_t *keysAdded)
 	snprintf(keyName, EMU_MAX_CHAR_KEYNAME, "%.8X", uniqueAddress);
 	if(!GetPowervuEmmKey(emmKey, 0, keyName, 7, 0, &channelId))
 	{
-		cs_log_dbg(D_EMM,"[Emu] EMM eror: AU key for UA %s is missing", keyName);
+		cs_log_dbg(D_EMM,"[Emu] EMM error: AU key for UA %s is missing", keyName);
 		return 2;
 	}
 
@@ -3983,7 +4033,7 @@ static int8_t PowervuEMM(uint8_t *emm, uint32_t *keysAdded)
 		memcpy(newEcmKey, &emm[i+3], 7);
 		snprintf(keyName, EMU_MAX_CHAR_KEYNAME, "%.2X", emmType);
 		snprintf(uaInfo, sizeof(uaInfo), "UA: %08X", uniqueAddress);
-		if(!UpdateKey('P', channelId, keyName, newEcmKey, 7, uaInfo)) {
+		if(!SetKey('P', channelId<<16, keyName, newEcmKey, 7, 1, uaInfo)) {
 			free(newEcmKey);
 		}
 		(*keysAdded)++;
@@ -4212,6 +4262,9 @@ int8_t ProcessEMM(uint16_t caid, uint32_t provider, const uint8_t *emm, uint32_t
 	}
 	else if((caid>>8)==0x0E) {
 		result = PowervuEMM(emmCopy, keysAdded);
+		if(result == 2) { // missing key already logged
+			return 2;
+		}
 	}
 	else if(caid==0x4AE1) {
 		result = Drecrypt2EMM(caid, provider, emmCopy, keysAdded);

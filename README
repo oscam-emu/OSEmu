@@ -1,3 +1,5 @@
+!!! W A R N I N G !!!! SoftCam.Key file format changed for PowerVu keys! See Below.
+
 OSEmu
 ======
 
@@ -106,19 +108,39 @@ PowerVU config
 ==============
 
 Keys in SoftCam.Key:
-	P <srvid> <nb> <key>
-	example:
-	P 1234 01 11223344556677
 
-	For channels with same srvid the correct key will be detected automatically:
-	P 1234 01 11223344556677
-	P 1234 01 11223344556677
-	P 1234 01 11223344556677
+	P <groupid><srvid> <nb> <key>
+	Where:	groupid = any 4 hex digits signifying unique group for all channels using the same keys.
+			(Leading zeros not necessarry, but makes viewing the file easier...)
+		srvid = SID (Service ID) of channel in hex with leading zeros to make 4 hex digits.
+		nb = key number (00/01)
+		key = ecm key
+
+	example groupid=0x1, sid=0x1234, keys 00 and 01:
+	P 00011234 00 11223344556677
+	P 011234 01 22334455667788
+
+	example groupid=0x2, sid=0x34, keys 00 and 01:
+	P 00020034 00 00112233445566
+	P 0020034 01 00223344556677
+
+	For channels with the same srvid the correct key will be detected automatically, but each key needs a unique groupid.
+
+	P 009E0234 01 11223344556677
+	P 00040234 01 22334455667788
+	P 013E0234 01 33445566778899
 	
+	WARNING - duplicate <groupid><srvid> are not allowed anymore - only the last instance will be used!
+
 	AU keys:
-	P <srvid> <UA> <key>
+	P <groupid> <UA> <key>
 	example:
-	P 1234 11223344 11223344556677
+	P 009E 11223344 11223344556677
+	P 009E 44332211 22334455667788
+	P 0004 22334455 33445566778899
+	P 013E 00112233 00112233445566
+
+	Multiple UA keys are allowed for each group and each UA will update ALL ecm keys in the group.
 
 For PowerVU the Stream Relay must be used:
 
