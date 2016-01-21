@@ -142,6 +142,17 @@ Keys in SoftCam.Key:
 
 	Multiple UA keys are allowed for each group and each UA will update ALL ecm keys in the group.
 
+	NOTE: in order to work, the ecm keys must be "seeded" in the file for each SID you want to update since the UA has no information about sids. 
+	So to add a key that is unknown, enter a dummy key to get updated, for example:
+
+	P 00010004 00 00000000000000000
+	P 00010004 01 00000000000000000
+
+	Also note: Duplicate powervu keys are no longer allowed (unnecessary since duplicate SIDs should now have a unique group ID.) 
+	So, if there are any duplicates, only the last key in the file will be used. 
+	This also means that as new keys are found and appended to the file, they will automatically replace earlier keys.
+
+
 For PowerVU the Stream Relay must be used:
 
 IMPORTANT:
