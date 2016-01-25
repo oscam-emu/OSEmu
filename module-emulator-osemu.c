@@ -174,7 +174,7 @@ static void WriteKeyToFile(char identifier, uint32_t provider, const char *keyNa
 
 	if(comment)
 	{
-		snprintf(line, sizeof(line), "\n%c %04X %s %s ; added by OSEmu %s %s\n", identifier, provider, keyName, keyValue, dateText, comment);
+		snprintf(line, sizeof(line), "\n%c %08X %s %s ; added by OSEmu %s %s\n", identifier, provider, keyName, keyValue, dateText, comment);
 	}
 	else
 	{
@@ -258,6 +258,7 @@ static int32_t SetKey(char identifier, uint32_t provider, const char *keyName, u
 				continue;
 			}
 		}
+		key_exists = 1;
 
 		// allow multiple keys for Irdeto and Powervu
 		if(identifier == 'I')
@@ -4046,7 +4047,8 @@ static int8_t PowervuEMM(uint8_t *emm, uint32_t *keysAdded)
 
 int32_t GetPowervuHexserials(uint16_t srvid, uint8_t hexserials[][4], int32_t length, int32_t* count)
 {
-	uint32_t i;
+	uint32_t i,j;
+	uint32_t groupid;
 	int32_t len;
 	KeyDataContainer *KeyDB;
 
@@ -4058,21 +4060,32 @@ int32_t GetPowervuHexserials(uint16_t srvid, uint8_t hexserials[][4], int32_t le
 
 	for(i=0; i<KeyDB->keyCount && (*count)<length ; i++) {
 
-		if(srvid != 0xFFFF && KeyDB->EmuKeys[i].provider != srvid)
+		if(srvid != 0xFFFF && (KeyDB->EmuKeys[i].provider & 0x0000FFFF) != srvid)
 			{ continue; }
 		
-		len = strlen(KeyDB->EmuKeys[i].keyName);
-		
-		if(len < 3)
-			{ continue;}
-		
-		if(len > 8)
-			{ len = 8; }
+		groupid = KeyDB->EmuKeys[i].provider>>16;
 
-		memset(hexserials[*count], 0, 4);
-		CharToBin(hexserials[(*count)]+(4-(len/2)), KeyDB->EmuKeys[i].keyName, len);
-	
-		(*count)++;
+		for(j=0; j<KeyDB->keyCount && (*count)<length ; j++) {
+
+			if(srvid != 0xFFFF && KeyDB->EmuKeys[j].provider != groupid)
+				{ continue; }
+			
+			len = strlen(KeyDB->EmuKeys[j].keyName);
+			
+			if(len < 3)
+				{ continue;}
+			
+			if(len > 8)
+				{ len = 8; }
+
+			memset(hexserials[*count], 0, 4);
+			CharToBin(hexserials[(*count)]+(4-(len/2)), KeyDB->EmuKeys[j].keyName, len);
+		
+			(*count)++;
+		}
+		if(srvid == 0xFFFF) {
+			return ((*count)>0);
+		}
 	}
 
 	return 1;
