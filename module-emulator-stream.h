@@ -14,16 +14,27 @@
 	typedef struct 
 	{
 		int32_t connid;
+		int8_t have_cat_data;
 		int8_t have_pat_data;
 		int8_t have_pmt_data;
 		int8_t have_ecm_data;
-		uint8_t data[1024+208];
-		uint16_t data_pos;
+		int8_t have_emm_data;
+		uint8_t cat_data[1024+208];
+		uint8_t pat_data[1024+208];
+		uint8_t pmt_data[1024+208];
+		uint8_t ecm_data[1024+208];
+		uint8_t emm_data[1024+208];
+		uint16_t cat_data_pos;
+		uint16_t pat_data_pos;
+		uint16_t pmt_data_pos;
+		uint16_t ecm_data_pos;
+		uint16_t emm_data_pos;
 		uint16_t srvid;
 		uint16_t pmt_pid;
 		uint16_t ecm_pid;
 		uint16_t emm_pid;
 		uint16_t video_pid;
+		uint16_t pcr_pid;
 		uint16_t audio_pids[EMU_STREAM_MAX_AUDIO_SUB_TRACKS];
 		uint8_t audio_pid_count;
 		int16_t ecm_nb;
