@@ -19,7 +19,7 @@ SRCS = cscrypt/bn_ctx.c cscrypt/bn_lib.c cscrypt/bn_exp.c cscrypt/bn_sqr.c cscry
 cscrypt/bn_asm.c cscrypt/bn_shift.c cscrypt/bn_word.c cscrypt/bn_add.c cscrypt/bn_mul.c \
 cscrypt/aes.c cscrypt/i_cbc.c cscrypt/i_ecb.c cscrypt/i_skey.c cscrypt/mem.c cscrypt/des.c \
 cscrypt/md5.c cscrypt/viades.c ffdecsa/ffdecsa.c \
-module-emulator-st20.c module-emulator-dre2overcrypt.c via3surenc.c \
+st20.c dre2overcrypt.c via3surenc.c \
 helpfunctions.c module-emulator-stream.c module-emulator-osemu.c OSEmu.c
 Q = @
 SAY = @echo

@@ -249,7 +249,7 @@ static void ParsePMTData(emu_stream_client_data *cdata)
 		}
 		
 		else if(stream_type == 0x03 || stream_type == 0x04 || stream_type == 0x05 || stream_type == 0x06 ||
-				stream_type == 0x0F || stream_type == 0x11 || stream_type == 0x81 || stream_type == 0x87)
+				stream_type == 0x0F || stream_type == 0x11 || (stream_type >= 0x81 && stream_type <= 0x87) || stream_type == 0x8A)
 		{
 			if(cdata->audio_pid_count >= EMU_STREAM_MAX_AUDIO_SUB_TRACKS)
 				{ continue; }
@@ -287,7 +287,7 @@ static void ParseEMMData(emu_stream_client_data *cdata)
 	uint8_t* data = cdata->emm_data;
 	uint32_t keysAdded = 0;
 		
-	ProcessEMM(0x0E00, 0, data, &keysAdded);
+	ProcessEMM(0x0E00, 0, data, NULL, &keysAdded);
 	
 	if(keysAdded) 
 	{
@@ -352,22 +352,33 @@ static void ParseTSPackets(emu_stream_client_data *data, uint8_t *stream_buf, ui
 		if(packetSize-offset < 1)
 			{ continue; }
 	
-		if(emu_stream_emm_enabled && pid == 1 && !data->emm_pid)
+		if(pid == 1)
 		{
-			ParseTSData(0x01, 0xFF, 8, &data->have_cat_data, data->cat_data, sizeof(data->cat_data), &data->cat_data_pos, payloadStart, 
-										stream_buf+i+offset, packetSize-offset, ParseCATData, data);		
-			continue;
+			// set to null pid
+			stream_buf[i+1] |= 0x1f; 
+			stream_buf[i+2]  = 0xff;
+				
+			if(emu_stream_emm_enabled && !data->emm_pid)
+			{
+				ParseTSData(0x01, 0xFF, 8, &data->have_cat_data, data->cat_data, sizeof(data->cat_data), &data->cat_data_pos, payloadStart, 
+											stream_buf+i+offset, packetSize-offset, ParseCATData, data);
+				continue;
+			}
 		}
 		
 		if(emu_stream_emm_enabled && data->emm_pid && pid == data->emm_pid)
-		{			
+		{	
+			// set to null pid
+			stream_buf[i+1] |= 0x1f; 
+			stream_buf[i+2]  = 0xff;
+					
 			ParseTSData(0x80, 0xF0, 3, &data->have_emm_data, data->emm_data, sizeof(data->emm_data), &data->emm_data_pos, payloadStart, 
 										stream_buf+i+offset, packetSize-offset, ParseEMMData, data);
 			continue;
 		}
 
 		if(pid == 0 && !data->pmt_pid)
-		{					
+		{
 			ParseTSData(0x00, 0xFF, 16, &data->have_pat_data, data->pat_data, sizeof(data->pat_data), &data->pat_data_pos, payloadStart, 
 										stream_buf+i+offset, packetSize-offset, ParsePATData, data);		
 			continue;
@@ -385,6 +396,10 @@ static void ParseTSPackets(emu_stream_client_data *data, uint8_t *stream_buf, ui
 #ifdef WITH_EMU
 			stream_server_has_ecm[data->connid] = 1;
 #endif
+			
+			// set to null pid
+			stream_buf[i+1] |= 0x1f; 
+			stream_buf[i+2]  = 0xff;
 			
 			ParseTSData(0x80, 0xFE, 3, &data->have_ecm_data, data->ecm_data, sizeof(data->ecm_data), &data->ecm_data_pos, payloadStart, 
 										stream_buf+i+offset, packetSize-offset, ParseECMData, data);
@@ -783,18 +798,27 @@ static void *stream_client_handler(void *arg)
 			}
 			
 			streamStatus = recv(streamfd, stream_buf+bytesRead, cur_dvb_buffer_size-bytesRead, MSG_WAITALL);
-			if(streamStatus == -1)
+			if(streamStatus == 0) // socket closed
 			{
-				streamDataErrorCount++;
+				cs_log("[Emu] warning: stream client %i - stream source closed connection", conndata->connid);
+				streamConnectErrorCount++;
+				cs_sleepms(100);
 				break;
 			}
-		
-			if(streamStatus == 0)
+			
+			if(streamStatus < 0) // error
 			{
-				cs_log("[Emu] warning: stream client %i no data from stream source", conndata->connid);
-				streamDataErrorCount++; // 2 sec timeout * 15 = 30 seconds no data -> close
+				if ((errno == EWOULDBLOCK) | (errno == EAGAIN)) {
+					cs_log("[Emu] warning: stream client %i no data from stream source", conndata->connid);
+					streamDataErrorCount++; // 2 sec timeout * 15 = 30 seconds no data -> close
+					cs_sleepms(100);
+					continue;
+				}
+				
+				cs_log("[Emu] warning: stream client %i error receiving data from stream source", conndata->connid);
+				streamConnectErrorCount++;
 				cs_sleepms(100);
-				continue;	
+				break;
 			}
 			
 			if(streamStatus < cur_dvb_buffer_size-bytesRead) // probably just received header but no stream
@@ -811,11 +835,16 @@ static void *stream_client_handler(void *arg)
 				else
 				{
 					cs_log_dbg(0, "[Emu] warning: stream client %i non-full buffer from stream source", conndata->connid);
+					streamDataErrorCount++;
+					cs_sleepms(100);
 				}
 			}
-
+			else
+			{
+				streamDataErrorCount = 0;
+			}
+			
 			streamConnectErrorCount = 0;
-			streamDataErrorCount = 0;
 			bytesRead += streamStatus;
 			
 			if(bytesRead >= cur_dvb_buffer_wait)
