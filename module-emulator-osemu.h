@@ -129,5 +129,9 @@
 #else
 	int8_t PowervuECM(uint8_t *ecm, uint8_t *dw, emu_stream_client_key_data *cdata);
 #endif
-		
+
+#ifdef WITH_EMU
+	int32_t SetKey(char identifier, uint32_t provider, char *keyName, uint8_t *orgKey, uint32_t keyLength, uint8_t writeKey, char *comment);
+#endif
+  
 #endif

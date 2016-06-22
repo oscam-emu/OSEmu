@@ -70,6 +70,7 @@ KeyDataContainer NDSKeys = { NULL, 0, 0 };
 KeyDataContainer BissKeys = { NULL, 0, 0 };
 KeyDataContainer PowervuKeys = { NULL, 0, 0 };
 KeyDataContainer DreKeys = { NULL, 0, 0 };
+KeyDataContainer TandbergKeys = { NULL, 0, 0 };
 
 static KeyDataContainer *GetKeyContainer(char identifier)
 {
@@ -90,6 +91,8 @@ static KeyDataContainer *GetKeyContainer(char identifier)
 		return &PowervuKeys;
 	case 'D':
 		return &DreKeys;
+	case 'T':
+		return &TandbergKeys;
 	default:
 		return NULL;
 	}
@@ -190,7 +193,7 @@ static void WriteKeyToFile(char identifier, uint32_t provider, const char *keyNa
 	fclose(file);
 }
 
-static int32_t SetKey(char identifier, uint32_t provider, const char *keyName, uint8_t *orgKey,
+int32_t SetKey(char identifier, uint32_t provider, char *keyName, uint8_t *orgKey,
 					  uint32_t keyLength, uint8_t writeKey, char *comment)
 {
 	uint32_t i, j;
@@ -203,6 +206,8 @@ static int32_t SetKey(char identifier, uint32_t provider, const char *keyName, u
 	if(KeyDB == NULL) {
 		return 0;
 	}
+
+	keyName = strtoupper(keyName);
 
 	// fix checksum for biss keys with a length of 6
 	if(identifier == 'F' && keyLength == 6) {
@@ -427,30 +432,29 @@ static int32_t FindKey(char identifier, uint32_t provider, uint32_t providerIgno
 	return 0;
 }
 
-//static int32_t UpdateKey(char identifier, uint32_t provider, char *keyName, uint8_t *key, uint32_t keyLength, char *comment)
-//{
-//	uint32_t keyRef = 0;
-//	uint8_t *tmpKey = (uint8_t*)malloc(sizeof(uint8_t)*keyLength);
-//	if(tmpKey == NULL)
-//	{
-//		return 0;
-//	}
-//		
-//	while(FindKey(identifier, provider, 0, keyName, tmpKey, keyLength, 0, keyRef, 0, NULL))
-//	{
-//		if(memcmp(tmpKey, key, keyLength) == 0)
-//		{		
-//			free(tmpKey);
-//			return 0;
-//		}
-//		
-//		keyRef++;
-//	}
-//
-//	free(tmpKey);
-//
-//	return SetKey(identifier, provider, keyName, key, keyLength, 1, comment);
-//}
+static int32_t UpdateKey(char identifier, uint32_t provider, char *keyName, uint8_t *key, uint32_t keyLength, uint8_t writeKey, char *comment)
+{
+	uint32_t keyRef = 0;
+	uint8_t *tmpKey = (uint8_t*)malloc(sizeof(uint8_t)*keyLength);
+	if(tmpKey == NULL)
+	{
+		return 0;
+	}
+		
+	while(FindKey(identifier, provider, 0, keyName, tmpKey, keyLength, 0, keyRef, 0, NULL))
+	{
+		if(memcmp(tmpKey, key, keyLength) == 0)
+		{		
+			free(tmpKey);
+			return 0;
+		}
+		
+		keyRef++;
+	}
+
+	free(tmpKey);
+	return SetKey(identifier, provider, keyName, key, keyLength, writeKey, comment);
+}
 
 static int32_t UpdateKeysByProviderMask(char identifier, uint32_t provider, uint32_t providerIgnoreMask, char *keyName, uint8_t *key, 
 													uint32_t keyLength, char *comment)
@@ -3405,6 +3409,88 @@ static int8_t Drecrypt2ECM(ReaderInstanceData* idata, uint16_t caid, uint32_t pr
 	return 1;
 }
 
+//Tandberg EMU
+static int8_t GetTandbergKey(uint8_t *buf, uint32_t entitlementId)
+{
+	if(FindKey('T', entitlementId, 0, "00", buf, 8, 0, 0, 0, NULL))
+	{
+		return 1;
+	}
+	
+	if(FindKey('T', entitlementId, 0, "01", buf, 8, 1, 0, 0, NULL))
+	{
+		return 1;
+	}
+	
+	return 0;
+}
+
+static int8_t TandbergECM(uint8_t *ecm, uint8_t *dw)
+{
+	uint8_t nanoType, nanoLength;
+	uint8_t* nanoData;
+	uint32_t pos = 3;
+	uint32_t entitlementId;
+	uint32_t ks[32];
+	uint8_t ecmKey[8];
+	uint16_t ecmLen = GetEcmLen(ecm);
+	
+	if(ecmLen < 5)
+	{
+		return 1;
+	}
+	
+	do 
+	{
+		nanoType = ecm[pos];
+		nanoLength = ecm[pos+1];
+		
+		if(pos + 2 + nanoLength > ecmLen)
+		{
+			break;
+		}
+		
+		nanoData = ecm + pos + 2;
+		
+		switch(nanoType)
+		{
+			case 0xEE: // ECM_TAG_CW_DESCRIPTOR
+			{
+				if(nanoLength != 0x16)
+				{
+					cs_log("[Emu] warning: ECM_TAG_CW_DESCRIPTOR length (%d) != %d", nanoLength, 0x16);
+					break;
+				}
+				
+				entitlementId = b2i(4, nanoData);
+				
+				if(!GetTandbergKey(ecmKey, entitlementId))
+				{
+					return 2;
+				}
+				
+				memcpy(dw, nanoData + 4 + 8, 8); // even
+				memcpy(dw + 8, nanoData + 4, 8); // odd
+				
+				des_set_key(ecmKey, ks);
+				
+				des(dw, ks, 0);
+				des(dw + 8, ks, 0);
+					
+				return 0;
+			}
+			
+			default:
+				break;
+		}
+		
+		pos += 2 + nanoLength;
+
+	} while (pos < ecmLen);
+	
+	return 1;
+}
+
 const char* GetProcessECMErrorReason(int8_t result)
 {
 	switch(result) {
@@ -3475,33 +3561,36 @@ int8_t ProcessECM(int16_t ecmDataLen, uint16_t caid, uint32_t provider, const ui
 	memcpy(ecmCopy, ecm, ecmLen);
 
 	if((caid>>8)==0x0D) {
-		result = CryptoworksECM(caid,ecmCopy,dw);
+		result = CryptoworksECM(caid, ecmCopy, dw);
 	}
 	else if((caid>>8)==0x09) {
-		result = SoftNDSECM(caid,ecmCopy,dw);
+		result = SoftNDSECM(caid, ecmCopy, dw);
 	}
 	else if(caid==0x0500) {
-		result = ViaccessECM(ecmCopy,dw);
+		result = ViaccessECM(ecmCopy, dw);
 	}
 	else if((caid>>8)==0x18) {
-		result = Nagra2ECM(ecmCopy,dw);
+		result = Nagra2ECM(ecmCopy, dw);
 	}
 	else if((caid>>8)==0x06) {
-		result = Irdeto2ECM(caid,ecmCopy,dw);
+		result = Irdeto2ECM(caid, ecmCopy, dw);
 	}
 	else if((caid>>8)==0x26 || caid == 0xFFFF) {
-		result = BissECM(caid,ecm,ecmDataLen,dw,srvid,ecmpid);
+		result = BissECM(caid, ecm, ecmDataLen, dw, srvid, ecmpid);
 	}
 	else if((caid>>8)==0x0E) {
 #ifdef WITH_EMU
-		result = PowervuECM(ecmCopy,dw,srvid,NULL,cw_ex);
+		result = PowervuECM(ecmCopy, dw, srvid, NULL, cw_ex);
 #else
-		result = PowervuECM(ecmCopy,dw,NULL);
+		result = PowervuECM(ecmCopy, dw, NULL);
 #endif
 	}
 	else if(caid==0x4AE1 && idata) {
-		result = Drecrypt2ECM(idata,caid,provider,ecmCopy,dw);
-	}	
+		result = Drecrypt2ECM(idata, caid, provider, ecmCopy, dw);
+	}
+	else if((caid>>8)==0x10) {
+		result = TandbergECM(ecmCopy, dw);
+	}
 
 	// fix dcw checksum
 	if(result == 0 && !((caid>>8)==0x0E)) {
@@ -4152,7 +4241,6 @@ int32_t GetPowervuHexserials(uint16_t srvid, uint8_t hexserials[][4], int32_t le
 	return 1;
 }
 
-
 // Drecrypt EMM EMU
 static int8_t GetDrecryptEMMKey(uint8_t *buf, uint32_t keyIdent, uint16_t keyName, uint8_t isCriticalKey)
 {
@@ -4373,6 +4461,190 @@ int32_t GetDrecryptHexserials(uint16_t caid, uint32_t provid, uint8_t *hexserial
 	return 1;
 }
 
+// Tandberg EMM EMU
+static int8_t GetTandbergEMMKey(uint8_t *buf, uint16_t keyIndex, uint8_t isCriticalKey)
+{
+	return FindKey('T', keyIndex, 0, "MK", buf, 8, isCriticalKey, 0, 0, NULL);
+}
+
+static int8_t TandbergParseEMMNanoTags(uint8_t* data, uint32_t length, uint8_t keyIndex, uint32_t *keysAdded)
+{
+	uint8_t tagType, tagLength, blockIndex;
+	uint32_t pos = 0, entitlementId;
+	int32_t i;
+	uint32_t ks[32];
+	uint8_t* tagData;
+	uint8_t emmKey[8];
+	char keyValue[17];
+	
+	if(length < 2)
+	{
+		return 1;
+	}
+	
+	while (pos < length)
+	{
+		tagType = data[pos];
+		tagLength = data[pos+1]; 
+	 	
+		if(pos + 2 + tagLength > length)
+		{
+			return 1;
+		}
+			
+		tagData = data + pos + 2;
+	
+		switch(tagType)
+		{
+		case 0xE4: // EMM_TAG_SECURITY_TABLE_DESCRIPTOR
+		{	
+			if(tagLength != 0x82)
+			{
+				cs_log("warning: EMM_TAG_SECURITY_TABLE_DESCRIPTOR length (%d) != %d", tagLength, 0x82);
+				break;
+			}
+			
+			blockIndex = tagData[1] & 0x03;
+
+  		if(!GetTandbergEMMKey(emmKey, keyIndex, 1))
+  		{
+  			break;
+  		}
+
+			des_set_key(emmKey, ks);
+			
+			for(i = 0; i < 0x10; i++)
+			{
+				des(tagData + 2 + (i*8), ks, 0);
+			}
+			
+			for(i = 0; i < 0x10; i++)
+			{
+				SetKey('T', (blockIndex << 4) + i, "MK", tagData + 2 + (i*8), 8, 0, NULL);
+			}
+			
+			cs_log("got nano E4 keys (blockIndex %X)", blockIndex);
+			break;
+		}
+		
+		case 0xE1: // EMM_TAG_EVENT_ENTITLEMENT_DESCRIPTOR
+		{
+			if(tagLength != 0x12)
+			{
+				cs_log("warning: EMM_TAG_EVENT_ENTITLEMENT_DESCRIPTOR length (%d) != %d", tagLength, 0x12);
+				break;
+			}
+			
+			entitlementId = b2i(4, tagData);
+			
+  		if(!GetTandbergEMMKey(emmKey, keyIndex, 1))
+  		{
+  			break;
+  		}
+			
+			des_set_key(emmKey, ks);
+			des(tagData + 4 + 5, ks, 0);
+			
+			if(UpdateKey('T', entitlementId, "01", tagData + 4 + 5, 8, 1, NULL))
+			{
+				(*keysAdded)++;
+				cs_hexdump(0, tagData + 4 + 5, 8, keyValue, sizeof(keyValue));
+				cs_log("[Emu] Key found in EMM: T %08X 01 %s", entitlementId, keyValue);
+			}
+			
+			break;
+		}
+		
+		default:
+			break;
+		}
+		
+		pos += 2 + tagLength;   
+	}
+	
+	return 0;
+}
+
+static int8_t TandbergParseEMMNanoData(uint8_t* data, uint32_t* nanoLength, uint32_t maxLength, uint8_t keyIndex, uint32_t *keysAdded)
+{
+	uint32_t pos = 0;
+	uint16_t sectionLength;
+	int8_t ret = 0;
+	
+	if(maxLength < 2)
+	{
+		(*nanoLength) = 0;
+		return 1;
+	}
+	
+	while (pos < maxLength && !ret)
+	{
+		sectionLength = ((data[pos]<<8) | data[pos+1]) & 0x0FFF;
+	
+		if(pos + 2 + sectionLength > maxLength)
+		{
+			(*nanoLength) = pos;
+			return 1;
+		}
+		
+		ret = TandbergParseEMMNanoTags(data + pos + 2, sectionLength, keyIndex, keysAdded);
+		
+		pos += 2 + sectionLength;	
+	}
+	
+	(*nanoLength) = pos;
+	return ret;
+}
+
+static int8_t TandbergEMM(uint8_t *emm, uint32_t *keysAdded)
+{
+	uint8_t keyIndex, ret = 0;
+	uint16_t emmLen = GetEcmLen(emm);
+	uint32_t pos = 3;
+	uint32_t permissionDataType;
+	uint32_t nanoLength = 0;
+	
+	while (pos < emmLen && !ret)
+	{
+		permissionDataType = emm[pos];
+	
+		switch(permissionDataType)
+		{
+			case 0x00:
+			{
+				break;
+			}
+			
+			case 0x01:
+			{
+				pos += 0x0A;
+				break;
+			}
+			
+			case 0x02:
+			{
+				pos += 0x26;
+				break;
+			}
+			
+			default:
+				cs_log("[Emu] error: unknown permissionDataType %X (pos: %d)", permissionDataType, pos);
+				return 1;
+		}
+		
+		if(pos+6 >= emmLen)
+		{
+			break;
+		}
+		
+		keyIndex = emm[pos+1];
+		pos += 0x04;
+		ret = TandbergParseEMMNanoData(emm + pos, &nanoLength, emmLen - pos, keyIndex, keysAdded);
+		pos += nanoLength;
+	}
+	
+	return ret;
+}
 
 const char* GetProcessEMMErrorReason(int8_t result)
 {
@@ -4422,14 +4694,14 @@ int8_t ProcessEMM(uint16_t caid, uint32_t provider, const uint8_t *emm, ReaderIn
 	}
 	else if((caid>>8)==0x0E) {
 		result = PowervuEMM(emmCopy, keysAdded);
-		if(result == 2) { // missing key already logged
-			return 2;
-		}
 	}
 	else if(caid==0x4AE1 && idata) {
 		result = Drecrypt2EMM(caid, provider, emmCopy, idata, keysAdded);
 	}
-
+	else if((caid>>8)==0x10) {
+		result = TandbergEMM(emmCopy, keysAdded);
+	}
+	
 	if(result != 0) {
 		cs_log_dbg(D_EMM,"[Emu] EMM failed: %s", GetProcessEMMErrorReason(result));
 	}
