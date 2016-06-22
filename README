@@ -57,8 +57,8 @@ protocol                      = cs357x
 device                        = 127.0.0.1,11000
 user                          = user
 password                      = password
-caid                          = 0D00,0D02,090F,0500,1801,0604,2600,FFFF
-ident                         = 0D00:000000,000004,000010,000014,000020,0000C0,0000C4,0000C8,0000CC;0D02:000000,00008C,0000A0,0000A4,0000A8;090F:000000;0500:000000,030B00,023800,021110,007400,007800;1801:000000,007301,001101,002111;0604:000000;2600:000000;FFFF:000000;
+caid                          = 090F,0500,1801,0604,2600,FFFF
+ident                         = 090F:000000;0500:000000,023800,021110,007400,007800;1801:000000,007301,001101,002111;0604:000000;1010:000000;2600:000000;FFFF:000000;
 group                         = 1
 emmcache                      = 1,1,2,1
 
@@ -106,19 +106,49 @@ PowerVU config
 ==============
 
 Keys in SoftCam.Key:
-	P <srvid> <nb> <key>
-	example:
-	P 1234 01 11223344556677
 
-	For channels with same srvid the correct key will be detected automatically:
-	P 1234 01 11223344556677
-	P 1234 01 11223344556677
-	P 1234 01 11223344556677
+	P <groupid><srvid> <nb> <key>
+	Where:	
+		groupid = any 4 hex digits of your choice for this group (leading zeros are optional)
+		srvid = SID (Service ID) of channel in hex with leading zeros to make 4 hex digits.
+		nb = key number (00/01)
+		key = ecm key
+
+	Example groupid=0x1, sid=0x1234, keys 00 and 01:
+	P 00011234 00 11223344556677
+	P 011234 01 22334455667788
+
+	Example groupid=0x2, sid=0x34, keys 00 and 01:
+	P 00020034 00 00112233445566
+	P 0020034 01 00223344556677
+
+	For channels with the same srvid the correct key will be detected automatically, but each key needs a unique groupid.
+	P 009E0234 01 11223344556677
+	P 00040234 01 22334455667788
+	P 013E0234 01 33445566778899
 	
+	WARNING - duplicate <groupid><srvid> are not allowed anymore - only the last instance will be used!
+
 	AU keys:
-	P <srvid> <UA> <key>
+	P <groupid> <UA> <key>
 	example:
-	P 1234 11223344 11223344556677
+	P 009E 11223344 11223344556677
+	P 009E 44332211 22334455667788
+	P 0004 22334455 33445566778899
+	P 013E 00112233 00112233445566
+
+	Multiple UA keys are allowed for each group and each UA will update ALL ecm keys in the group.
+
+	NOTE: in order to work, the ecm keys must be "seeded" in the file for each SID you want to update since the UA has no information about sids. 
+	So to add a key that is unknown, enter a dummy key to get updated, for example:
+
+	P 00010004 00 00000000000000000
+	P 00010004 01 00000000000000000
+
+	Also note: Duplicate powervu keys are no longer allowed (unnecessary since duplicate SIDs should now have a unique group ID.) 
+	So, if there are any duplicates, only the last key in the file will be used. 
+	This also means that as new keys are found and appended to the file, they will automatically replace earlier keys.
+
 
 For PowerVU the Stream Relay must be used:
 
@@ -165,3 +195,19 @@ Drecrypt2 info:
 
 OSemu cannot support Drecrypt2 because no client will send the overcrypt EMMs to it.
 Support for Drecryp2 is available in oscam-emu.
+
+Tandberg config:
+===============
+
+Keys in SoftCam.Key:
+
+T <entitlement> 01 <key>
+
+for example (entitlement = 1234):
+T 00001234 01 1122334455667788
+
+leading zeros maybe be skipped. same key as above:
+T 1234 01 1122334455667788
+
+AU support not possible, only with oscam-emu.
+

@@ -101,4 +101,7 @@ int32_t start_thread(const char *nameroutine, thread_func startroutine, void *ar
 size_t b64encode(const char *in, size_t inlen, char **out);
 void base64_encode(const char *in, size_t inlen, char *out, size_t outlen);
 
+char *strtolower(char *txt);
+char *strtoupper(char *txt);
+
 #endif

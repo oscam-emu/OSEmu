@@ -515,3 +515,27 @@ size_t b64encode(const char *in, size_t inlen, char **out)
 	base64_encode(in, inlen, *out, outlen);
 	return outlen - 1;
 }
+
+/* Converts the string txt to it's lower case representation. */
+char *strtolower(char *txt)
+{
+	char *p;
+	for(p = txt; *p; p++)
+	{
+		if(isupper((uint8_t)*p))
+			{ *p = tolower((uint8_t) * p); }
+	}
+	return txt;
+}
+
+/* Converts the string txt to it's upper case representation. */
+char *strtoupper(char *txt)
+{
+	char *p;
+	for(p = txt; *p; p++)
+	{
+		if(islower((uint8_t)*p))
+			{ *p = toupper((uint8_t) * p); }
+	}
+	return txt;
+}

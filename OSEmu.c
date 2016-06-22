@@ -254,7 +254,7 @@ static void camd35_process_ecm(uint8_t *buf, int buflen)
 	cs_log_dbg(0, "ProcessECM CAID: %X", er.caid);
 	cs_log_dump_dbg(buf+20, ecmlen, "ProcessECM: ");
 
-	if(ProcessECM(er.ecmlen,er.caid,er.prid,buf+20,er.cw,er.srvid,er.pid)) {
+	if(ProcessECM(er.ecmlen,er.caid,er.prid,buf+20,er.cw,er.srvid,er.pid,NULL)) {
 		er.rc = E_NOTFOUND;
 		cs_log_dbg(0, "CW not found");
 	}
@@ -321,8 +321,8 @@ static void camd35_process_ecm(uint8_t *buf, int buflen)
 			}
 		}
 		else if(er.caid>>8 == 0x4A) {
-			if(GetDrecryptHexserials(er.caid, hexserial, 1, &count) && count) { 
-				camd35_request_emm(er.caid, 0, hexserial, 1, 1, 0);	
+			if(GetDrecryptHexserials(er.caid, er.prid, hexserial, 1, &count) && count) { 
+				camd35_request_emm(er.caid, er.prid, hexserial, 1, 1, 0);	
 			}
 		}
 	}
@@ -344,7 +344,7 @@ static void camd35_process_emm(uint8_t *buf, int buflen)
 	cs_log_dump_dbg(buf+20, emmlen, "ProcessEMM: ");
 
 	if(ProcessEMM((buf[10] << 8) | buf[11],
-				  (buf[12] << 24) | (buf[13] << 16) | (buf[14] << 8) | buf[15],buf+20,&keysAdded)) {
+				  (buf[12] << 24) | (buf[13] << 16) | (buf[14] << 8) | buf[15], buf+20, NULL, &keysAdded)) {
 		cs_log_dbg(0, "EMM nok");
 	}
 	else {
@@ -450,6 +450,7 @@ int main(int argc, char**argv)
 			break;
 		case 'e':
 			requestau = 1;
+			emu_stream_emm_enabled = 1;
 			break;
 		case 'i':
 			exit(0);
