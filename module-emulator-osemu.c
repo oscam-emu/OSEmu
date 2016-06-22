@@ -131,7 +131,7 @@ static void WriteKeyToFile(char identifier, uint32_t provider, const char *keyNa
 
 	pDir = opendir(path);
 	if (pDir == NULL) {
-		cs_log("cannot open key file path: %s", path);
+		cs_log("[Emu] cannot open key file path: %s", path);
 		free(path);
 		return;
 	}
@@ -157,7 +157,7 @@ static void WriteKeyToFile(char identifier, uint32_t provider, const char *keyNa
 	snprintf(filepath, pathLength, "%s/%s", path, filename);
 	free(path);
 
-	cs_log("writing key file: %s", filepath);
+	cs_log("[Emu] writing key file: %s", filepath);
 
 	file = fopen(filepath, "a");
 	free(filepath);
@@ -520,7 +520,7 @@ uint8_t read_emu_keyfile(const char *opath)
 
 	pDir = opendir(path);
 	if (pDir == NULL) {
-		cs_log("cannot open key file path: %s", path);
+		cs_log("[Emu] cannot open key file path: %s", path);
 		free(path);
 		return 0;
 	}
@@ -534,7 +534,7 @@ uint8_t read_emu_keyfile(const char *opath)
 	closedir(pDir);
 
 	if(pDirent == NULL) {
-		cs_log("key file not found in: %s", path);
+		cs_log("[Emu] key file not found in: %s", path);
 		free(path);
 		return 0;
 	}
@@ -548,7 +548,7 @@ uint8_t read_emu_keyfile(const char *opath)
 	snprintf(filepath, pathLength, "%s/%s", path, filename);
 	free(path);
 
-	cs_log("reading key file: %s", filepath);
+	cs_log("[Emu] reading key file: %s", filepath);
 
 	file = fopen(filepath, "r");
 	free(filepath);
@@ -3214,7 +3214,7 @@ void DrecryptSetEmuExtee(ReaderInstanceData* idata)
 		}
 		fclose(file);
 	}
-	else cs_log("cannot open key file path: %s", idata->extee36);
+	//else cs_log("[Emu] cannot open key file: %s", idata->extee36);
 	
 	if((file = fopen(idata->extee56,"rb")) != NULL)
 	{
@@ -3224,7 +3224,7 @@ void DrecryptSetEmuExtee(ReaderInstanceData* idata)
 		}
 		fclose(file);
 	}
-	else cs_log("cannot open key file path: %s", idata->extee56);
+	//else cs_log("[Emu] cannot open key file: %s", idata->extee56);
 }
 
 static void DREover(const uint8_t *ECMdata, uint8_t *DW)
@@ -4500,7 +4500,7 @@ static int8_t TandbergParseEMMNanoTags(uint8_t* data, uint32_t length, uint8_t k
 		{	
 			if(tagLength != 0x82)
 			{
-				cs_log("warning: EMM_TAG_SECURITY_TABLE_DESCRIPTOR length (%d) != %d", tagLength, 0x82);
+				cs_log("[Emu] warning: EMM_TAG_SECURITY_TABLE_DESCRIPTOR length (%d) != %d", tagLength, 0x82);
 				break;
 			}
 			
@@ -4523,7 +4523,6 @@ static int8_t TandbergParseEMMNanoTags(uint8_t* data, uint32_t length, uint8_t k
 				SetKey('T', (blockIndex << 4) + i, "MK", tagData + 2 + (i*8), 8, 0, NULL);
 			}
 			
-			cs_log("got nano E4 keys (blockIndex %X)", blockIndex);
 			break;
 		}
 		
@@ -4531,7 +4530,7 @@ static int8_t TandbergParseEMMNanoTags(uint8_t* data, uint32_t length, uint8_t k
 		{
 			if(tagLength != 0x12)
 			{
-				cs_log("warning: EMM_TAG_EVENT_ENTITLEMENT_DESCRIPTOR length (%d) != %d", tagLength, 0x12);
+				cs_log("[Emu] warning: EMM_TAG_EVENT_ENTITLEMENT_DESCRIPTOR length (%d) != %d", tagLength, 0x12);
 				break;
 			}
 			
@@ -4549,7 +4548,7 @@ static int8_t TandbergParseEMMNanoTags(uint8_t* data, uint32_t length, uint8_t k
 			{
 				(*keysAdded)++;
 				cs_hexdump(0, tagData + 4 + 5, 8, keyValue, sizeof(keyValue));
-				cs_log("[Emu] Key found in EMM: T %08X 01 %s", entitlementId, keyValue);
+				cs_log("[Emu] Key found in EMM: T %.8X 01 %s", entitlementId, keyValue);
 			}
 			
 			break;
@@ -4577,20 +4576,17 @@ static int8_t TandbergParseEMMNanoData(uint8_t* data, uint32_t* nanoLength, uint
 		return 1;
 	}
 	
-	while (pos < maxLength && !ret)
-	{
-		sectionLength = ((data[pos]<<8) | data[pos+1]) & 0x0FFF;
+	sectionLength = ((data[pos]<<8) | data[pos+1]) & 0x0FFF;
 	
-		if(pos + 2 + sectionLength > maxLength)
-		{
-			(*nanoLength) = pos;
-			return 1;
-		}
-		
-		ret = TandbergParseEMMNanoTags(data + pos + 2, sectionLength, keyIndex, keysAdded);
-		
-		pos += 2 + sectionLength;	
+	if(pos + 2 + sectionLength > maxLength)
+	{
+		(*nanoLength) = pos;
+		return 1;
 	}
+		
+	ret = TandbergParseEMMNanoTags(data + pos + 2, sectionLength, keyIndex, keysAdded);
+		
+	pos += 2 + sectionLength;	
 	
 	(*nanoLength) = pos;
 	return ret;

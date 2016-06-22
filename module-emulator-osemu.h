@@ -35,6 +35,7 @@
 	extern KeyDataContainer BissKeys;
 	extern KeyDataContainer PowervuKeys;
 	extern KeyDataContainer DreKeys;
+	extern KeyDataContainer TandbergKeys;
 	extern uint8_t viasat_const[];
 
 	uint32_t GetOSemuVersion(void);
