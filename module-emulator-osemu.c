@@ -3373,6 +3373,7 @@ static int8_t Drecrypt2ECM(ReaderInstanceData* idata, uint16_t caid, uint32_t pr
 	if(memcmp(dummy[0], key, 32) == 0 || memcmp(dummy[1], key, 32) == 0) 
 	{
 		DrecryptSetEmuExtee(idata);
+		cs_log("[Emu] error: ee%s.bin keys missing", ((provId & 0xFF) == 0x11) ? "36" : "56");
 		return 2;
 	}
 	
