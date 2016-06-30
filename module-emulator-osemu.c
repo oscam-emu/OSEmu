@@ -30,7 +30,7 @@ void hdSurEncPhase2_D2_13_15(uint8_t *cws);
 // Version info
 uint32_t GetOSemuVersion(void)
 {
-	return atoi("$Version: 730 $"+10);
+	return atoi("$Version: 732 $"+10);
 }
 
 // Key DB
@@ -362,7 +362,7 @@ int32_t SetKey(char identifier, uint32_t provider, char *keyName, uint8_t *orgKe
 	return 1;
 }
 
-static int32_t FindKey(char identifier, uint32_t provider, uint32_t providerIgnoreMask, const char *keyName, uint8_t *key, 
+int32_t FindKey(char identifier, uint32_t provider, uint32_t providerIgnoreMask, const char *keyName, uint8_t *key, 
 										uint32_t maxKeyLength, uint8_t isCriticalKey, uint32_t keyRef, uint8_t matchLength, uint32_t *getProvider)
 {
 	uint32_t i;
