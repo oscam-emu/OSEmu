@@ -3455,6 +3455,43 @@ static int8_t TandbergECM(uint8_t *ecm, uint8_t *dw)
 		
 		switch(nanoType)
 		{
+			case 0xED: // ECM_TAG_CW_DESCRIPTOR
+			{
+				if(nanoLength != 0x26)
+				{
+					cs_log("[Emu] warning: ECM_TAG_DESCRIPTOR length (%d) != %d", nanoLength, 0x26);
+					break;
+				}
+				
+				entitlementId = b2i(4, nanoData);
+				
+				if(!GetTandbergKey(ecmKey, entitlementId))
+				{
+					return 2;
+				}
+				
+				uint8_t encryptedData[32] = { 0 };
+				memcpy(encryptedData, nanoData + 4, 32);
+				
+				uint8_t iv[8] = { 0 };
+				des_cbc_decrypt(encryptedData, iv, ecmKey, 32);
+				
+				dw[0] = encryptedData[0x05];
+				dw[1] = encryptedData[0x19];
+				dw[2] = encryptedData[0x1D];
+				dw[4] = encryptedData[0x0B];
+				dw[5] = encryptedData[0x12];
+				dw[6] = encryptedData[0x1A];
+				dw[8] = encryptedData[0x16];
+				dw[9] = encryptedData[0x03];
+				dw[10] = encryptedData[0x11];
+				dw[12] = encryptedData[0x18];
+				dw[13] = encryptedData[0x10];
+				dw[14] = encryptedData[0x0E];
+				
+				return 0;
+			}
+	
 			case 0xEE: // ECM_TAG_CW_DESCRIPTOR
 			{
 				if(nanoLength != 0x16)
@@ -4463,27 +4500,80 @@ int32_t GetDrecryptHexserials(uint16_t caid, uint32_t provid, uint8_t *hexserial
 }
 
 // Tandberg EMM EMU
-static int8_t GetTandbergEMMKey(uint8_t *buf, uint16_t keyIndex, uint8_t isCriticalKey)
+static uint8_t MixTable[] =
 {
-	return FindKey('T', keyIndex, 0, "MK", buf, 8, isCriticalKey, 0, 0, NULL);
+	0x12,0x78,0x4B,0x19,0x13,0x80,0x2F,0x84,
+	0x86,0x4C,0x09,0x53,0x15,0x79,0x6B,0x49,
+	0x10,0x4D,0x33,0x43,0x18,0x37,0x83,0x38,
+	0x82,0x1B,0x6E,0x24,0x2A,0x85,0x3C,0x3D,
+	0x5A,0x58,0x55,0x5D,0x20,0x41,0x65,0x51,
+	0x0C,0x45,0x63,0x7F,0x0F,0x46,0x21,0x7C,
+	0x2C,0x61,0x7E,0x0A,0x42,0x57,0x35,0x16,
+	0x87,0x3B,0x4F,0x40,0x34,0x22,0x26,0x74,
+	0x32,0x69,0x44,0x7A,0x6A,0x6D,0x0D,0x56,
+	0x23,0x2B,0x5C,0x72,0x76,0x36,0x28,0x25,
+	0x2E,0x52,0x5B,0x6C,0x7D,0x30,0x0B,0x5E,
+	0x47,0x1F,0x7B,0x31,0x3E,0x11,0x77,0x1E,
+	0x60,0x75,0x54,0x27,0x50,0x17,0x70,0x59,
+	0x1A,0x2D,0x4A,0x67,0x3A,0x5F,0x68,0x08,
+	0x4E,0x3F,0x29,0x6F,0x81,0x71,0x39,0x64,
+	0x48,0x66,0x73,0x14,0x0E,0x1D,0x62,0x1C
+};
+
+void TandbergRotateBytes(unsigned char *in, int n)
+{
+	if(n > 1)
+	{
+		unsigned char *e = in + n - 1;
+		do
+		{
+			unsigned char temp = *in;
+			*in++ = *e;
+			*e-- = temp;
+		}
+		while (in < e);
+	}
+}
+
+static void TandbergECMKeyDecrypt(uint8_t* emmKey, uint8_t* tagData, uint8_t* ecmKey)
+{
+	TandbergRotateBytes(emmKey, 8);
+	uint8_t iv[8] = { 0 };
+	uint8_t* payLoad = tagData + 4 + 5;
+	des_cbc_decrypt(payLoad, iv, emmKey, 16);
+
+	ecmKey[0] = payLoad[0x0F];
+	ecmKey[1] = payLoad[0x01];
+	ecmKey[2] = payLoad[0x0B];
+	ecmKey[3] = payLoad[0x03];
+	ecmKey[4] = payLoad[0x0E];
+	ecmKey[5] = payLoad[0x04];
+	ecmKey[6] = payLoad[0x0A];
+	ecmKey[7] = payLoad[0x08];
+}
+
+static int8_t GetTandbergEMMKey(uint8_t *buf, uint16_t keyIndex, uint8_t isCriticalKey, const char *keySet)
+{
+	return FindKey('T', keyIndex, 0, keySet, buf, 8, isCriticalKey, 0, 0, NULL);
 }
 
 static int8_t TandbergParseEMMNanoTags(uint8_t* data, uint32_t length, uint8_t keyIndex, uint32_t *keysAdded)
 {
 	uint8_t tagType, tagLength, blockIndex;
 	uint32_t pos = 0, entitlementId;
-	int32_t i;
+	int32_t i, k;
 	uint32_t ks[32];
 	uint8_t* tagData;
 	uint8_t emmKey[8];
 	char keyValue[17];
+	uint8_t tagDataDecrypted[0x10][8];
 	
 	if(length < 2)
 	{
 		return 1;
 	}
 	
-	while (pos < length)
+	while(pos < length)
 	{
 		tagType = data[pos];
 		tagLength = data[pos+1]; 
@@ -4497,65 +4587,151 @@ static int8_t TandbergParseEMMNanoTags(uint8_t* data, uint32_t length, uint8_t k
 	
 		switch(tagType)
 		{
-		case 0xE4: // EMM_TAG_SECURITY_TABLE_DESCRIPTOR
-		{	
-			if(tagLength != 0x82)
+			case 0xE4: // EMM_TAG_SECURITY_TABLE_DESCRIPTOR (ram emm keys)
 			{
-				cs_log("[Emu] warning: EMM_TAG_SECURITY_TABLE_DESCRIPTOR length (%d) != %d", tagLength, 0x82);
+				uint8_t mode = data[pos + 2];
+						
+				switch(mode)
+				{
+					case 0x01: // keySet 01 (MK01)
+					{
+						if(tagLength != 0x8A)
+						{
+							cs_log("[Emu] warning: EMM_TAG_SECURITY_TABLE_DESCRIPTOR length (%d) != %d", tagLength, 0x8A);
+							break;
+						}
+						
+						if(!GetTandbergEMMKey(emmKey, keyIndex, 1, "MK01"))
+						{
+							break;
+						}
+						
+						uint8_t iv[8] = { 0 };
+						uint8_t* tagPayload = tagData + 2;
+						des_cbc_decrypt(tagPayload, iv, emmKey, 136);
+					
+						for (k = 0; k < 0x10; k++)  // loop 0x10 keys
+						{
+							for (i = 0; i < 8; i++)  // loop 8 bytes of key
+							{
+								tagDataDecrypted[k][i] = tagPayload[MixTable[8*k + i]];
+							}
+						}
+						
+						blockIndex = tagData[1] & 0x03;
+						
+						for(i = 0; i < 0x10; i++)
+						{
+							SetKey('T', (blockIndex << 4) + i, "MK01", tagDataDecrypted[i], 8, 0, NULL);
+						}
+					}
+					break;
+					
+					case 0xFF: // keySet FF (MK)
+					{
+						if(tagLength != 0x82)
+						{
+							cs_log("[Emu] warning: EMM_TAG_SECURITY_TABLE_DESCRIPTOR length (%d) != %d", tagLength, 0x82);
+							break;
+						}
+					
+						blockIndex = tagData[1] & 0x03;
+						
+  						if(!GetTandbergEMMKey(emmKey, keyIndex, 1, "MK"))
+  						{
+  							break;
+  						}
+						
+						des_set_key(emmKey, ks);
+						
+						for(i = 0; i < 0x10; i++)
+						{
+							des(tagData + 2 + (i*8), ks, 0);
+						}
+						
+						for(i = 0; i < 0x10; i++)
+						{
+							SetKey('T', (blockIndex << 4) + i, "MK", tagData + 2 + (i*8), 8, 0, NULL);
+						}
+					}
+					break;
+					
+					default:
+						cs_log("[Emu] warning: E4 mode %.2X not supported", mode);
+					break;
+				}
 				break;
 			}
-			
-			blockIndex = tagData[1] & 0x03;
-
-  		if(!GetTandbergEMMKey(emmKey, keyIndex, 1))
-  		{
-  			break;
-  		}
-
-			des_set_key(emmKey, ks);
-			
-			for(i = 0; i < 0x10; i++)
-			{
-				des(tagData + 2 + (i*8), ks, 0);
-			}
-			
-			for(i = 0; i < 0x10; i++)
-			{
-				SetKey('T', (blockIndex << 4) + i, "MK", tagData + 2 + (i*8), 8, 0, NULL);
-			}
-			
-			break;
-		}
 		
-		case 0xE1: // EMM_TAG_EVENT_ENTITLEMENT_DESCRIPTOR
-		{
-			if(tagLength != 0x12)
+			case 0xE1: // EMM_TAG_EVENT_ENTITLEMENT_DESCRIPTOR (ecm keys)
 			{
-				cs_log("[Emu] warning: EMM_TAG_EVENT_ENTITLEMENT_DESCRIPTOR length (%d) != %d", tagLength, 0x12);
+				uint8_t mode = data[pos + 2 + 4];
+				
+				switch(mode)
+				{
+					case 0x00: // ecm keys from mode FF
+					{
+						if(tagLength != 0x12)
+						{
+							cs_log("[Emu] warning: EMM_TAG_EVENT_ENTITLEMENT_DESCRIPTOR length (%d) != %d", tagLength, 0x12);
+							break;
+						}
+						
+						entitlementId = b2i(4, tagData);
+			
+  						if(!GetTandbergEMMKey(emmKey, keyIndex, 1, "MK"))
+  						{
+  							break;
+  						}
+						
+						des_set_key(emmKey, ks);
+						des(tagData + 4 + 5, ks, 0);
+						
+						if(UpdateKey('T', entitlementId, "01", tagData + 4 + 5, 8, 1, NULL))
+						{
+							(*keysAdded)++;
+							cs_hexdump(0, tagData + 4 + 5, 8, keyValue, sizeof(keyValue));
+							cs_log("[Emu] Key found in EMM: T %.8X 01 %s", entitlementId, keyValue);
+						}
+					}
+					break;
+
+					case 0x01: // ecm keys from mode 01
+					{
+						if(tagLength != 0x1A)
+						{
+							cs_log("[Emu] warning: EMM_TAG_EVENT_ENTITLEMENT_DESCRIPTOR length (%d) != %d", tagLength, 0x1A);
+							break;
+						}
+						
+						entitlementId = b2i(4, tagData);
+						
+  						if(!GetTandbergEMMKey(emmKey, keyIndex, 1, "MK01"))
+  						{
+  							break;
+  						}
+  						
+  						uint8_t ecmKey[8] = { 0 };
+  						TandbergECMKeyDecrypt(emmKey, tagData, ecmKey);
+  						
+						if(UpdateKey('T', entitlementId, "01", ecmKey, 8, 1, NULL))
+						{
+							(*keysAdded)++;
+							cs_hexdump(0, ecmKey, 8, keyValue, sizeof(keyValue));
+							cs_log("[Emu] Key found in EMM: T %.8X 01 %s", entitlementId, keyValue);
+						}
+					}
+					break;
+					
+					default:
+						cs_log("[Emu] warning: E1 mode %.2X not supported", mode);
+					break;
+				}
 				break;
 			}
-			
-			entitlementId = b2i(4, tagData);
-			
-  		if(!GetTandbergEMMKey(emmKey, keyIndex, 1))
-  		{
-  			break;
-  		}
-			
-			des_set_key(emmKey, ks);
-			des(tagData + 4 + 5, ks, 0);
-			
-			if(UpdateKey('T', entitlementId, "01", tagData + 4 + 5, 8, 1, NULL))
-			{
-				(*keysAdded)++;
-				cs_hexdump(0, tagData + 4 + 5, 8, keyValue, sizeof(keyValue));
-				cs_log("[Emu] Key found in EMM: T %.8X 01 %s", entitlementId, keyValue);
-			}
-			
-			break;
-		}
-		
-		default:
+
+			default:
+				cs_log("[Emu] warning: Tag %.2X not supported", tagType);
 			break;
 		}
 		
